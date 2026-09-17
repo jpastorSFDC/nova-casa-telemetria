@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entregable 2 — Prototipo de baja fidelidad · Sprint 2 Nova Casa</title>
+<style>
+  :root {
+    --tinta: #12141a;
+    --tinta-media: #5c6470;
+    --tinta-suave: #8b93a0;
+    --linea: #d8dee8;
+    --linea-suave: #e8edf4;
+    --lienzo: #eef1f6;
+    --papel: #ffffff;
+    --hueco: #e4e8ef;
+    --radio: 12px;
+    --sombra: 0 1px 2px rgba(18, 20, 26, 0.05), 0 8px 24px rgba(18, 20, 26, 0.06);
+
+    --critico: #e11d48;
+    --critico-fondo: #fff1f3;
+    --critico-borde: #fb7185;
+    --advertencia: #ea580c;
+    --advertencia-fondo: #fff7ed;
+    --advertencia-borde: #fb923c;
+    --normal: #16a34a;
+    --normal-fondo: #f0fdf4;
+    --normal-borde: #4ade80;
+    --info: #2563eb;
+    --info-fondo: #eff6ff;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--lienzo);
+    color: var(--tinta);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  .contenedor { max-width: 72rem; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+
+  :focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
+
+  .cabecera { margin-bottom: 1.5rem; }
+  .etiqueta-doc {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--tinta-media);
+    margin: 0 0 0.45rem;
+  }
+  h1 { font-size: 1.65rem; margin: 0 0 0.85rem; letter-spacing: -0.02em; }
+  .datos { display: flex; flex-wrap: wrap; gap: 0.4rem 1.25rem; font-size: 0.85rem; color: var(--tinta-media); margin: 0; padding: 0; list-style: none; }
+  .datos b { color: var(--tinta); }
+
+  .pestanas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-bottom: 1.5rem;
+  }
+  .pestana {
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    background: var(--papel);
+    color: var(--tinta-media);
+    border: 1px solid var(--linea);
+    border-radius: 999px;
+    padding: 0.5rem 0.95rem;
+  }
+  .pestana:hover { border-color: var(--tinta); color: var(--tinta); }
+  .pestana[aria-selected="true"] { background: var(--tinta); border-color: var(--tinta); color: var(--papel); }
+  .pestana .grupo { font-weight: 400; opacity: 0.75; }
+
+  .vista[hidden] { display: none; }
+  .vista-titulo { font-size: 1.2rem; margin: 0 0 1.15rem; }
+
+  .marco {
+    background: var(--papel);
+    border: 1px solid var(--linea);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: var(--sombra);
+  }
+  .marco-barra {
+    background: #f7f8fb;
+    border-bottom: 1px solid var(--linea-suave);
+    padding: 0.55rem 1rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--tinta-media);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .marco-barra .pip { width: 0.55rem; height: 0.55rem; border-radius: 50%; border: 1px solid var(--linea); background: var(--papel); flex: none; }
+  .lwc { padding: 1.35rem 1.2rem 1.4rem; }
+
+  .comp-cab { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.6rem; margin-bottom: 1.1rem; }
+  .comp-titulo { font-size: 1.2rem; font-weight: 700; margin: 0; }
+  .comp-conteo { font-size: 0.9rem; color: var(--tinta-media); }
+
+  .leyenda {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.7rem 1.1rem;
+    margin-bottom: 1.1rem;
+    font-size: 0.8rem;
+    color: var(--tinta-media);
+  }
+  .leyenda span { display: inline-flex; align-items: center; gap: 0.4rem; }
+  .punto { width: 0.7rem; height: 0.7rem; border-radius: 50%; flex: none; }
+  .punto-critico { background: var(--critico); }
+  .punto-advertencia { background: var(--advertencia); }
+  .punto-normal { background: var(--normal); }
+
+  .filtros {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    align-items: center;
+    margin-bottom: 1.2rem;
+    font-size: 0.85rem;
+  }
+  .filtro-label { color: var(--tinta-media); font-weight: 600; margin-right: 0.15rem; }
+  .campo {
+    background: var(--papel);
+    border: 1px solid var(--linea);
+    border-radius: 999px;
+    padding: 0.4rem 0.8rem;
+    color: var(--tinta-media);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .campo .caret { color: var(--tinta-suave); font-size: 0.7rem; }
+
+  .lista-activos { display: flex; flex-direction: column; gap: 1rem; }
+
+    .tarjeta-activo {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    gap: 0.85rem 1.2rem;
+    align-items: center;
+    border: 1px solid var(--linea);
+    border-radius: var(--radio);
+    padding: 1.25rem 1.25rem 1.25rem 1.1rem;
+    background: var(--papel);
+    border-left-width: 7px;
+  }
+  .tarjeta-activo.critico {
+    border-left-color: var(--critico);
+    background: linear-gradient(90deg, var(--critico-fondo) 0%, #fff 42%);
+  }
+  .tarjeta-activo.advertencia {
+    border-left-color: var(--advertencia);
+    background: linear-gradient(90deg, var(--advertencia-fondo) 0%, #fff 42%);
+  }
+  .tarjeta-activo.normal {
+    border-left-color: var(--normal);
+    background: linear-gradient(90deg, var(--normal-fondo) 0%, #fff 42%);
+  }
+
+  .identidad { min-width: 0; }
+  .nombre-activo { font-size: 1.08rem; font-weight: 700; margin: 0 0 0.2rem; }
+  .meta-activo { margin: 0; color: var(--tinta-media); font-size: 0.86rem; }
+  .meta-activo strong { color: var(--tinta); font-weight: 600; }
+
+  .lectura-bloque {
+    text-align: center;
+    background: rgba(255, 255, 255, 0.78);
+    border: 1px solid var(--linea-suave);
+    border-radius: 10px;
+    padding: 0.55rem 0.9rem;
+    min-width: 8.75rem;
+  }
+  .lectura-valor { display: block; font-size: 1.35rem; font-weight: 750; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .lectura-tipo, .lectura-cuando { display: block; color: var(--tinta-media); font-size: 0.8rem; }
+  .lectura-cuando { margin-top: 0.15rem; }
+
+  .acciones-fila { display: flex; flex-direction: column; align-items: stretch; gap: 0.45rem; min-width: 10.5rem; }
+
+  .sev {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border-radius: 999px;
+    padding: 0.28rem 0.7rem;
+    white-space: nowrap;
+    width: fit-content;
+  }
+  .sev-critico { background: var(--critico); color: #fff; }
+  .sev-advertencia { background: var(--advertencia); color: #fff; }
+  .sev-normal { background: var(--normal); color: #fff; }
+  .sev .glifo { font-size: 0.85em; }
+
+  .boton-falso {
+    font-size: 0.84rem;
+    font-weight: 700;
+    border: 1px solid var(--linea);
+    border-radius: 999px;
+    padding: 0.55rem 0.9rem;
+    background: var(--papel);
+    color: var(--tinta);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    white-space: nowrap;
+  }
+  .boton-falso.principal { background: var(--tinta); border-color: var(--tinta); color: var(--papel); }
+  .boton-falso.urgente { background: var(--critico); border-color: var(--critico); color: #fff; }
+  .boton-falso.grande { padding: 0.75rem 1.15rem; font-size: 0.95rem; }
+
+  /* Detalle */
+  .detalle-grid { display: flex; flex-direction: column; gap: 1rem; }
+
+  .miga { font-size: 0.82rem; color: var(--tinta-media); margin: 0 0 0.15rem; }
+  .miga a { color: var(--info); text-decoration: none; font-weight: 600; }
+  .miga a:hover { text-decoration: underline; }
+
+  .hero-activo {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 1rem;
+    align-items: start;
+    background: var(--critico-fondo);
+    border: 1px solid var(--critico-borde);
+    border-radius: var(--radio);
+    padding: 1.2rem 1.25rem;
+  }
+  .hero-tipo {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--critico);
+    margin: 0 0 0.35rem;
+  }
+  .hero-nombre { font-size: 1.45rem; font-weight: 800; margin: 0 0 0.45rem; letter-spacing: -0.02em; }
+  .fichas { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0; padding: 0; list-style: none; }
+  .ficha {
+    background: var(--papel);
+    border: 1px solid var(--linea);
+    border-radius: 999px;
+    padding: 0.22rem 0.65rem;
+    font-size: 0.8rem;
+    color: var(--tinta-media);
+  }
+  .ficha b { color: var(--tinta); }
+
+  .prio {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.85rem;
+  }
+  .prio-card {
+    background: var(--papel);
+    border: 1px solid var(--linea);
+    border-radius: var(--radio);
+    padding: 0.95rem 1rem;
+  }
+  .prio-card .rot { display: block; font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tinta-media); font-weight: 700; margin-bottom: 0.35rem; }
+  .prio-card .val { display: block; font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em; }
+  .prio-card .sub { display: block; margin-top: 0.25rem; color: var(--tinta-media); font-size: 0.82rem; }
+
+  .card-intervencion {
+    background: linear-gradient(135deg, #9f1239 0%, #e11d48 58%, #fb7185 100%);
+    color: #fff;
+    border-radius: var(--radio);
+    padding: 1.25rem 1.3rem;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 1rem;
+    align-items: center;
+    box-shadow: 0 10px 28px rgba(225, 29, 72, 0.28);
+  }
+  .card-intervencion .rot {
+    display: block;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 800;
+    opacity: 0.85;
+    margin-bottom: 0.35rem;
+  }
+  .card-intervencion .val { font-size: 1.35rem; font-weight: 800; margin: 0 0 0.3rem; }
+  .card-intervencion p { margin: 0; font-size: 0.9rem; opacity: 0.92; max-width: 38rem; }
+  .boton-falso.sobre-rojo { background: #fff; border-color: #fff; color: #9f1239; }
+
+  .extra { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; }
+  .card-extra {
+    background: #f8f9fc;
+    border: 1px solid var(--linea);
+    border-radius: var(--radio);
+    padding: 1rem 1.05rem 1.1rem;
+  }
+  .card-extra.ancho { grid-column: 1 / -1; }
+  .card-extra h3 {
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--tinta-media);
+    margin: 0 0 0.75rem;
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+  thead th {
+    text-align: left;
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--tinta-media);
+    border-bottom: 1px solid var(--linea);
+    padding: 0.4rem 0.4rem 0.5rem;
+    font-weight: 700;
+  }
+  tbody td { border-bottom: 1px solid var(--linea-suave); padding: 0.65rem 0.4rem; vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  .card-extra .sev { font-size: 0.64rem; padding: 0.12rem 0.45rem; }
+  .card-extra table { font-size: 0.8rem; }
+  .celda-fuerte { font-weight: 600; }
+  .celda-sub { color: var(--tinta-media); font-size: 0.8rem; }
+  .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .marca-atraso {
+    display: inline-block;
+    margin-top: 0.2rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--advertencia);
+    background: var(--advertencia-fondo);
+    border-radius: 999px;
+    padding: 0.12rem 0.5rem;
+  }
+
+  .hueso { background: var(--hueco); border-radius: 8px; height: 0.85rem; }
+  .hueso.ancho-l { width: 100%; } .hueso.ancho-m { width: 65%; } .hueso.ancho-s { width: 35%; }
+  .hueso.alto { height: 4.6rem; border-radius: var(--radio); }
+  .esqueleto { display: flex; flex-direction: column; gap: 1rem; }
+
+  .estado-centro { text-align: center; padding: 2.8rem 1.25rem; }
+  .estado-icono {
+    width: 3.4rem; height: 3.4rem;
+    margin: 0 auto 0.9rem;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem;
+  }
+  .estado-icono.vacio { background: var(--info-fondo); color: var(--info); }
+  .estado-icono.error { background: var(--critico-fondo); color: var(--critico); }
+  .estado-titulo { font-size: 1.08rem; font-weight: 800; margin: 0 0 0.4rem; }
+  .estado-texto { color: var(--tinta-media); font-size: 0.92rem; max-width: 28rem; margin: 0 auto 1.1rem; }
+
+  footer { margin-top: 2rem; font-size: 0.85rem; color: var(--tinta-media); }
+  footer p { margin: 0; }
+
+  @media (max-width: 52rem) {
+    .tarjeta-activo { grid-template-columns: 1fr; }
+    .lectura-bloque, .acciones-fila { text-align: left; min-width: 0; }
+    .lectura-bloque { width: fit-content; }
+    .acciones-fila { min-width: 0; }
+    .prio, .extra, .hero-activo, .card-intervencion { grid-template-columns: 1fr; }
+  }
+
+  @media print {
+    body { background: #fff; font-size: 10pt; }
+    .contenedor { max-width: none; padding: 0; }
+    .pestanas { display: none; }
+    .vista[hidden] { display: block !important; }
+    .vista { page-break-before: always; }
+    .vista:first-of-type { page-break-before: avoid; }
+    .marco, .tarjeta-activo, .card-intervencion { break-inside: avoid; }
+  }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="contenedor">
+
+  <header class="cabecera">
+    <p class="etiqueta-doc">Sprint 2 · Nova Casa · Entregable 2 de 5</p>
+    <h1>Prototipo de baja fidelidad — LWC del operador</h1>
+    <ul class="datos">
+      <li><b>Equipo</b> John Alejandro Pastor · Juan Diego Velásquez</li>
+      <li><b>Vistas</b> 2 pantallas + 3 estados</li>
+      <li><b>Estado</b> Borrador</li>
+    </ul>
+  </header>
+
+  <div class="pestanas" role="tablist" aria-label="Vistas del prototipo">
+    <button type="button" class="pestana" role="tab" id="t-lista" aria-controls="v-lista" aria-selected="true">1. Vista de activos</button>
+    <button type="button" class="pestana" role="tab" id="t-detalle" aria-controls="v-detalle" aria-selected="false">2. Detalle del activo</button>
+    <button type="button" class="pestana" role="tab" id="t-carga" aria-controls="v-carga" aria-selected="false"><span class="grupo">Estado:</span> cargando</button>
+    <button type="button" class="pestana" role="tab" id="t-vacio" aria-controls="v-vacio" aria-selected="false"><span class="grupo">Estado:</span> sin datos</button>
+    <button type="button" class="pestana" role="tab" id="t-error" aria-controls="v-error" aria-selected="false"><span class="grupo">Estado:</span> error</button>
+  </div>
+
+  <section class="vista" id="v-lista" role="tabpanel" aria-labelledby="t-lista" tabindex="0">
+    <h2 class="vista-titulo">Vista de activos</h2>
+
+    <div class="marco">
+      <div class="marco-barra"><span class="pip" aria-hidden="true"></span> Página Lightning · App de operaciones</div>
+      <div class="lwc">
+        <div class="comp-cab">
+          <p class="comp-titulo">Mis activos</p>
+          <span class="comp-conteo">3 activos · 2 edificios · actualizado hace 1 min</span>
+        </div>
+
+        <div class="leyenda" aria-label="Leyenda de severidad">
+          <span><i class="punto punto-critico" aria-hidden="true"></i> Crítico — atención ahora</span>
+          <span><i class="punto punto-advertencia" aria-hidden="true"></i> Advertencia — vigilar</span>
+          <span><i class="punto punto-normal" aria-hidden="true"></i> Normal — sin acción</span>
+        </div>
+
+        <div class="filtros">
+          <span class="filtro-label">Filtrar</span>
+          <span class="campo">Edificio: todos <span class="caret" aria-hidden="true">&#9662;</span></span>
+          <span class="campo">Severidad: todas <span class="caret" aria-hidden="true">&#9662;</span></span>
+        </div>
+
+        <div class="lista-activos">
+          <article class="tarjeta-activo critico">
+            <span class="sev sev-critico"><span class="glifo" aria-hidden="true">&#9679;</span> Crítico</span>
+            <div class="identidad">
+              <p class="nombre-activo">Bomba principal de agua</p>
+              <p class="meta-activo"><strong>Nova Alameda</strong> · Bogotá · Bomba de agua · AST-BOG-002</p>
+            </div>
+            <div class="lectura-bloque">
+              <span class="lectura-valor">0,7 BAR</span>
+              <span class="lectura-tipo">Presión</span>
+              <span class="lectura-cuando">hace 2 min</span>
+            </div>
+            <div class="acciones-fila">
+              <span class="boton-falso urgente">Ver intervención</span>
+            </div>
+          </article>
+
+          <article class="tarjeta-activo advertencia">
+            <span class="sev sev-advertencia"><span class="glifo" aria-hidden="true">&#9650;</span> Advertencia</span>
+            <div class="identidad">
+              <p class="nombre-activo">Ventilación del cuarto técnico</p>
+              <p class="meta-activo"><strong>Nova Mirador</strong> · Medellín · Ventilación · AST-MDE-001</p>
+            </div>
+            <div class="lectura-bloque">
+              <span class="lectura-valor">39,0 °C</span>
+              <span class="lectura-tipo">Temperatura</span>
+              <span class="lectura-cuando">hace 3 min</span>
+            </div>
+            <div class="acciones-fila">
+              <span class="boton-falso">Ver activo</span>
+            </div>
+          </article>
+
+          <article class="tarjeta-activo normal">
+            <span class="sev sev-normal"><span class="glifo" aria-hidden="true">&#9675;</span> Normal</span>
+            <div class="identidad">
+              <p class="nombre-activo">Ventilación del cuarto técnico</p>
+              <p class="meta-activo"><strong>Nova Alameda</strong> · Bogotá · Ventilación · AST-BOG-001</p>
+            </div>
+            <div class="lectura-bloque">
+              <span class="lectura-valor">22,5 °C</span>
+              <span class="lectura-tipo">Temperatura</span>
+              <span class="lectura-cuando">hace 2 min</span>
+            </div>
+            <div class="acciones-fila">
+              <span class="boton-falso">Ver activo</span>
+            </div>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v-detalle" role="tabpanel" aria-labelledby="t-detalle" tabindex="0" hidden>
+    <h2 class="vista-titulo">Detalle del activo</h2>
+
+    <div class="marco">
+      <div class="marco-barra"><span class="pip" aria-hidden="true"></span> Página Lightning · Detalle de activo</div>
+      <div class="lwc">
+        <div class="detalle-grid">
+
+          <p class="miga"><a href="#v-lista">Mis activos</a> › Bomba principal de agua</p>
+
+          <section class="hero-activo">
+            <div>
+              <span class="hero-tipo">Bomba de agua</span>
+              <h3 class="hero-nombre">Bomba principal de agua</h3>
+              <ul class="fichas">
+                <li class="ficha"><b>ID</b> AST-BOG-002</li>
+                <li class="ficha"><b>Edificio</b> Nova Alameda</li>
+                <li class="ficha"><b>Ciudad</b> Bogotá</li>
+              </ul>
+            </div>
+            <span class="sev sev-critico"><span class="glifo" aria-hidden="true">&#9679;</span> Crítico</span>
+          </section>
+
+          <div class="prio">
+            <div class="prio-card">
+              <span class="rot">Severidad del activo</span>
+              <span class="val" style="color: var(--critico);">Crítico</span>
+              <span class="sub">La mayor de sus mediciones vigentes</span>
+            </div>
+            <div class="prio-card">
+              <span class="rot">Última lectura</span>
+              <span class="val">0,7 BAR</span>
+              <span class="sub">Presión · hace 2 min · 15:05:30 UTC</span>
+            </div>
+            <div class="prio-card">
+              <span class="rot">Estado operativo</span>
+              <span class="val">Requiere intervención</span>
+              <span class="sub">Hay un incidente abierto</span>
+            </div>
+          </div>
+
+          <section class="card-intervencion" aria-label="Intervención abierta">
+            <div>
+              <span class="rot">Intervención abierta</span>
+              <p class="val">INT-0001</p>
+              <p>Creada por la señal crítica de presión. Un reenvío del mismo aviso no abre otra.</p>
+            </div>
+            <span class="boton-falso sobre-rojo grande">Ir a la intervención</span>
+          </section>
+
+          <div class="extra">
+            <section class="card-extra">
+              <h3>Lectura vigente por tipo</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Medición</th>
+                    <th scope="col">Valor</th>
+                    <th scope="col">Severidad</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="celda-fuerte">Presión</td>
+                    <td class="num">0,7 BAR</td>
+                    <td><span class="sev sev-critico"><span class="glifo" aria-hidden="true">&#9679;</span> Crítico</span></td>
+                  </tr>
+                  <tr>
+                    <td class="celda-fuerte">Temperatura</td>
+                    <td class="celda-sub">Sin lecturas</td>
+                    <td class="celda-sub">—</td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section class="card-extra">
+              <h3>Historial reciente</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Origen</th>
+                    <th scope="col">Valor</th>
+                    <th scope="col">Efecto</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="num celda-fuerte">15:05:30</td>
+                    <td class="num">0,7 BAR</td>
+                    <td>Lectura vigente<br><span class="celda-sub">MSG-000103</span></td>
+                  </tr>
+                  <tr>
+                    <td class="num">15:02:00</td>
+                    <td class="num">1,9 BAR</td>
+                    <td>No actualiza estado
+                      <span class="marca-atraso">Señal atrasada · evidencia</span>
+                      <span class="celda-sub" style="display:block;margin-top:0.2rem;">MSG-000107</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v-carga" role="tabpanel" aria-labelledby="t-carga" tabindex="0" hidden>
+    <h2 class="vista-titulo">Cargando</h2>
+
+    <div class="marco">
+      <div class="marco-barra"><span class="pip" aria-hidden="true"></span> Página Lightning · App de operaciones</div>
+      <div class="lwc">
+        <div class="comp-cab">
+          <p class="comp-titulo">Mis activos</p>
+          <span class="comp-conteo">Cargando activos…</span>
+        </div>
+        <div class="esqueleto">
+          <div class="hueso alto"></div>
+          <div class="hueso alto"></div>
+          <div class="hueso alto"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v-vacio" role="tabpanel" aria-labelledby="t-vacio" tabindex="0" hidden>
+    <h2 class="vista-titulo">Sin datos</h2>
+
+    <div class="marco">
+      <div class="marco-barra"><span class="pip" aria-hidden="true"></span> Página Lightning · App de operaciones</div>
+      <div class="lwc">
+        <div class="comp-cab">
+          <p class="comp-titulo">Mis activos</p>
+          <span class="comp-conteo">0 activos</span>
+        </div>
+        <div class="estado-centro">
+          <div class="estado-icono vacio" aria-hidden="true">&#9633;</div>
+          <p class="estado-titulo">No tienes activos asignados</p>
+          <p class="estado-texto">No hay equipos bajo tu responsabilidad. Si crees que es un error, tu administrador puede revisar la asignación de edificios.</p>
+          <span class="boton-falso">Actualizar</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v-error" role="tabpanel" aria-labelledby="t-error" tabindex="0" hidden>
+    <h2 class="vista-titulo">Error</h2>
+
+    <div class="marco">
+      <div class="marco-barra"><span class="pip" aria-hidden="true"></span> Página Lightning · App de operaciones</div>
+      <div class="lwc">
+        <div class="comp-cab">
+          <p class="comp-titulo">Mis activos</p>
+          <span class="comp-conteo">No disponible</span>
+        </div>
+        <div class="estado-centro">
+          <div class="estado-icono error" aria-hidden="true">&#9888;</div>
+          <p class="estado-titulo">No pudimos cargar tus activos</p>
+          <p class="estado-texto">Esta lista no muestra el estado actual. No asumas que todo está normal. Vuelve a intentar; si sigue, avisa a tu administrador.</p>
+          <span class="boton-falso urgente">Reintentar</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Borrador · pendiente de revisión con Juan Diego y del facilitador.</p>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var pestanas = Array.prototype.slice.call(document.querySelectorAll('[role="tab"]'));
+
+  function mostrar(pestana) {
+    pestanas.forEach(function (p) {
+      var panel = document.getElementById(p.getAttribute("aria-controls"));
+      var activa = p === pestana;
+      p.setAttribute("aria-selected", activa ? "true" : "false");
+      if (panel) { panel.hidden = !activa; }
+    });
+  }
+
+  pestanas.forEach(function (p, i) {
+    p.addEventListener("click", function () { mostrar(p); });
+    p.addEventListener("keydown", function (e) {
+      var salto = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+      if (!salto) { return; }
+      e.preventDefault();
+      var siguiente = pestanas[(i + salto + pestanas.length) % pestanas.length];
+      siguiente.focus();
+      mostrar(siguiente);
+    });
+  });
+
+  var volver = document.querySelector('.miga a[href="#v-lista"]');
+  if (volver) {
+    volver.addEventListener("click", function (e) {
+      e.preventDefault();
+      mostrar(document.getElementById("t-lista"));
+    });
+  }
+})();
+</script>
+
+</body>
+</html>
