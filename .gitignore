@@ -1,9 +1,42 @@
-.DS_Store
+# Repo público: nada con credenciales, tokens ni datos de la org.
 
-# Configuración local del servidor MCP: rutas y usuario de cada máquina
+# Secretos y credenciales
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.crt
+server.key
+authUrl*.txt
+*sfdxAuthUrl*
+
+# Configuración local de cada máquina
 .cursor/mcp.json
 
-# Salesforce CLI
+# Salesforce CLI y servidor local de LWC
 .sf/
 .sfdx/
+.localdevserver/
+deploy-options.json
+
+# Autocompletado de LWC y Aura en el editor
+**/lwc/jsconfig.json
+**/aura/jsconfig.json
+
+# Node, lint y tests de LWC
 node_modules/
+coverage/
+.eslintcache
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
