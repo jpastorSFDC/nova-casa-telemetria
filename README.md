@@ -26,7 +26,7 @@ Si un doc nuevo repite contenido de MDSS con otras palabras, no se agrega: se ci
 - **Ramas**: `feature/<descripcion-corta>` para trabajo manual del equipo. `cursor/<descripcion>` para agentes de IA.
 - **`main` no recibe commits directos de un agente.** El trabajo de un agente queda en su rama hasta que el otro miembro del par lo revisa y mergea.
 - **Aprobación de entregables**: el facilitador de MDSS aprueba cada uno de los 6 entregables; el acuerdo interno del par no lo cierra por sí solo.
-- **GitHub**: este repo es local por ahora, sin remoto configurado. No asumir que algo se subió hasta confirmarlo.
+- **GitHub**: [jpastorSFDC/nova-casa-telemetria](https://github.com/jpastorSFDC/nova-casa-telemetria), público. No asumir que algo se subió hasta confirmarlo en el remoto.
 
 ## Definition of Done (esta fase)
 
@@ -34,4 +34,4 @@ Ver sección "Entregables" en `Sprint 2 - Nova Casa.md`: 6 prototipos (entendimi
 
 ## Próxima fase (Development)
 
-Cuando arranque, esta sección se actualiza con: cómo instalar/desplegar (org Salesforce, simulador Heroku), cómo correr y ver logs de Platform Events, cómo correr los tests de Apex, y si se conecta un remoto de GitHub.
+Cuando arranque, esta sección se actualiza con: cómo instalar/desplegar (org Salesforce, simulador Heroku), cómo correr y ver logs de Platform Events, y cómo correr los tests de Apex.

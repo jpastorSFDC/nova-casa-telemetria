@@ -18,7 +18,7 @@ El facilitador de MDSS aprueba cada entregable; el acuerdo interno del par no lo
 
 Ramas de agentes de IA: prefijo `cursor/`. Ramas manuales del equipo: `feature/<descripcion>`, revisadas por el otro miembro del par antes de mergear. **`main` no recibe commits directos de un agente**: el trabajo de un agente vive en su rama `cursor/...` hasta que John o Juan Diego lo revisan y mergean.
 
-Repo local, sin remoto todavía. No asumir que algo llegó a GitHub hasta confirmarlo.
+Remoto: `origin` → github.com/jpastorSFDC/nova-casa-telemetria, **público**. No asumir que algo llegó a GitHub hasta confirmarlo en el remoto. No subir nada con credenciales, tokens ni datos de la org.
 
 ## Acuerdos que el agente no puede contradecir
 
