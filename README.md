@@ -16,7 +16,8 @@ Estamos en **Discovery**, no en Development. No hay código de producción todav
 | `AGENTS.md` | Instrucciones para agentes de IA: reglas que no se pueden contradecir, frontera formativa, flujo de ramas. | Sí |
 | `docs/br-201-210.md` | Los 10 BR, texto idéntico al de `Sprint 2 - Nova Casa.md`, para referencia rápida. | Solo si el texto fuente cambia |
 | `docs/decisiones.md` | Decisiones propias del par (ADR-lite): alternativa descartada, trade-off, riesgos. Esto sí lo escribimos nosotros. | Sí |
-| `MDSS · My Definitive Study Site.html` + `_files/` | Export HTML crudo de la página de MDSS. Respaldo del verbatim. | No |
+| `docs/entendimiento.md` | Entregable 1 en formato de notas de trabajo del par: problema prioritario, indicadores, preguntas y supuestos. | Sí |
+| `entregables/` | Versiones presentables al facilitador: `01` entendimiento (PDF), `02` prototipo, `03` arquitectura (guía interactiva y diagrama), `04` modelo de datos. Los HTML son autocontenidos y se abren sin servidor. | Sí |
 
 Si un doc nuevo repite contenido de MDSS con otras palabras, no se agrega: se cita el verbatim.
 

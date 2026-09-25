@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="es" data-tema="claro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Modelo de datos · Nova Casa Sprint 2</title>
+<style>
+  :root {
+    --lienzo: #fcfdfe;
+    --papel: #ffffff;
+    --tenue: #f2f5f9;
+    --texto: #142033;
+    --texto-2: #5b6878;
+    --texto-3: #8f9aa9;
+    --borde: #dde3ec;
+    --linea: #8795a8;
+
+    --est: #17864f;
+    --est-f: #e9f7ef;
+    --cus: #b0730f;
+    --cus-f: #fdf6e8;
+    --mdt: #1c6fc4;
+    --mdt-f: #e8f2fd;
+    --pend: #bb3a85;
+    --pend-f: #fdeaf5;
+    --desc: #8a94a3;
+    --desc-f: #f4f6f9;
+  }
+  html[data-tema="oscuro"] {
+    --lienzo: #0c1118;
+    --papel: #141b24;
+    --tenue: #1b232d;
+    --texto: #e8ecf3;
+    --texto-2: #9ba6b6;
+    --texto-3: #76818f;
+    --borde: #28313d;
+    --linea: #6c7889;
+
+    --est: #33b477;
+    --est-f: #0e2a1d;
+    --cus: #d79a35;
+    --cus-f: #2a2011;
+    --mdt: #4d97dd;
+    --mdt-f: #10243c;
+    --pend: #dd6aaa;
+    --pend-f: #2a1322;
+    --desc: #7c8694;
+    --desc-f: #1a212a;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--lienzo); color: var(--texto);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 15px; line-height: 1.55;
+  }
+  :focus-visible { outline: 2px solid var(--mdt); outline-offset: 3px; }
+  .marco { max-width: 94rem; margin: 0 auto; padding: 1.75rem 1.25rem 3.5rem; }
+
+  header.top { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-start; justify-content: space-between; margin-bottom: 1.25rem; }
+  .rot { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; color: var(--texto-3); margin: 0 0 0.35rem; }
+  h1 { font-size: 1.6rem; margin: 0 0 0.35rem; letter-spacing: -0.02em; }
+  .baja { color: var(--texto-2); margin: 0; max-width: 50rem; }
+  .btn {
+    font: inherit; font-size: 0.83rem; font-weight: 600; cursor: pointer;
+    background: var(--papel); color: var(--texto);
+    border: 1px solid var(--borde); border-radius: 6px; padding: 0.45rem 0.8rem;
+    display: inline-flex; align-items: center; gap: 0.45rem; white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--texto-3); }
+
+  .origen {
+    background: var(--papel); border: 1px solid var(--borde); border-left: 4px solid var(--mdt);
+    border-radius: 7px; padding: 0.85rem 1rem; font-size: 0.88rem; margin-bottom: 1.25rem;
+  }
+  .origen p { margin: 0 0 0.45rem; color: var(--texto-2); }
+  .origen p:last-child { margin: 0; }
+  .origen a { color: var(--mdt); }
+
+  .leyenda { display: flex; flex-wrap: wrap; gap: 0.5rem 1.3rem; list-style: none; margin: 0 0 1.25rem; padding: 0; font-size: 0.82rem; color: var(--texto-2); }
+  .leyenda li { display: flex; align-items: center; gap: 0.45rem; }
+  .sw { width: 0.9rem; height: 0.9rem; border-radius: 3px; border: 2.5px solid; flex: none; }
+  .sw-est { background: var(--est-f); border-color: var(--est); }
+  .sw-cus { background: var(--cus-f); border-color: var(--cus); }
+  .sw-mdt { background: var(--mdt-f); border-color: var(--mdt); }
+  .sw-pend { background: var(--pend-f); border-color: var(--pend); border-style: dashed; }
+
+  .lienzo-svg { overflow-x: auto; margin-bottom: 1.75rem; }
+  .lienzo-svg svg { display: block; width: 100%; min-width: 66rem; height: auto; }
+
+  .e-nom { font-size: 22px; font-weight: 700; }
+  .e-tipo { font-size: 12.5px; font-weight: 700; letter-spacing: 0.08em; }
+  .e-sub { font-size: 14px; fill: var(--texto-3); }
+  .f-nom { font-size: 15.5px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: var(--texto); }
+  .f-nom.nuevo { fill: var(--cus); }
+  .f-tipo { font-size: 13.5px; fill: var(--texto-3); }
+  .f-marca { font-size: 11.5px; font-weight: 700; }
+  .r-et { font-size: 15px; font-weight: 600; fill: var(--texto-2); }
+  .r-card { font-size: 17px; font-weight: 700; fill: var(--texto-2); }
+  .an-tx { font-size: 14.5px; fill: var(--texto-3); }
+
+  .caja { stroke-width: 2.5; fill: var(--papel); }
+  .cab { stroke-width: 0; }
+  .div-f { stroke: var(--borde); stroke-width: 1.2; }
+  .rel { fill: none; stroke: var(--linea); stroke-width: 2.5; }
+  .rel.lk { stroke-dasharray: 8 6; }
+
+  .k-est .caja { stroke: var(--est); } .k-est .cab { fill: var(--est-f); } .k-est .e-nom, .k-est .e-tipo { fill: var(--est); }
+  .k-cus .caja { stroke: var(--cus); } .k-cus .cab { fill: var(--cus-f); } .k-cus .e-nom, .k-cus .e-tipo { fill: var(--cus); }
+  .k-mdt .caja { stroke: var(--mdt); } .k-mdt .cab { fill: var(--mdt-f); } .k-mdt .e-nom, .k-mdt .e-tipo { fill: var(--mdt); }
+  .k-pend .caja { stroke: var(--pend); stroke-dasharray: 9 6; } .k-pend .cab { fill: var(--pend-f); } .k-pend .e-nom, .k-pend .e-tipo { fill: var(--pend); }
+
+  .m-ext { fill: var(--mdt); }
+  .m-req { fill: var(--cus); }
+  .m-ru { fill: var(--est); }
+  .m-fx { fill: var(--est); }
+  .m-rel { fill: var(--texto-3); }
+  .m-ver { fill: var(--pend); }
+
+  h2 { font-size: 1.05rem; margin: 0 0 0.2rem; }
+  .sub-nota { color: var(--texto-2); font-size: 0.88rem; margin: 0 0 1.1rem; max-width: 54rem; }
+  hr { border: none; border-top: 1px solid var(--borde); margin: 2rem 0 1.5rem; }
+
+  /* Tabla de alternativas descartadas */
+  .desc-tabla { width: 100%; border-collapse: collapse; font-size: 0.86rem; margin-bottom: 1.75rem; }
+  .desc-tabla th {
+    text-align: left; font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--texto-3); border-bottom: 2px solid var(--borde); padding: 0.5rem 0.6rem; font-weight: 700;
+  }
+  .desc-tabla td { border-bottom: 1px solid var(--borde); padding: 0.6rem; vertical-align: top; color: var(--texto-2); }
+  .desc-tabla td:first-child { color: var(--texto); }
+  .desc-tabla code { white-space: nowrap; }
+  .veredicto { font-weight: 700; font-size: 0.78rem; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
+  .v-no { color: var(--desc); }
+  .v-lic { color: var(--pend); }
+
+  .notas { display: grid; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); gap: 1.15rem; }
+  .nota { border-left: 3px solid var(--mdt); padding-left: 0.9rem; }
+  .nota.rosa { border-left-color: var(--pend); }
+  .nota.ambar { border-left-color: var(--cus); }
+  .nota.verde { border-left-color: var(--est); }
+  .nota h3 { font-size: 0.95rem; margin: 0 0 0.35rem; }
+  .nota p { margin: 0 0 0.45rem; font-size: 0.87rem; color: var(--texto-2); }
+  .nota p:last-child { margin-bottom: 0; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.86em; background: var(--tenue); border-radius: 3px; padding: 0.03rem 0.28rem;
+  }
+  .aviso {
+    border: 1px dashed var(--pend); border-left: 4px solid var(--pend);
+    background: var(--pend-f); border-radius: 7px; padding: 0.85rem 1rem;
+    font-size: 0.88rem; margin-bottom: 1.5rem;
+  }
+  .aviso b { color: var(--pend); }
+  html[data-tema="oscuro"] .aviso { color: var(--texto); }
+  .aviso p { margin: 0 0 0.4rem; }
+  .aviso p:last-child { margin: 0; }
+
+  @media print {
+    body { background: #fff; }
+    .btn { display: none; }
+    .lienzo-svg { overflow: visible; }
+    .lienzo-svg svg { min-width: 0; }
+    .nota, .desc-tabla tr { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="marco">
+
+  <header class="top">
+    <div>
+      <p class="rot">Nova Casa · Sprint 2 · Entregable 4</p>
+      <h1>Modelo de datos</h1>
+      <p class="baja">Parte del modelo oficial de Service de Salesforce, recortado a lo que este problema usa, más lo que hubo que agregar porque no existe equivalente estándar.</p>
+    </div>
+    <button type="button" class="btn" id="btn-tema" aria-pressed="false">
+      <span aria-hidden="true" id="ico">&#9789;</span> <span id="txt">Modo oscuro</span>
+    </button>
+  </header>
+
+  <div class="origen">
+    <p><strong>De dónde sale.</strong> El punto de partida es el <a href="https://developer.salesforce.com/docs/platform/data-models/guide/service-cloud-overview.md">modelo de datos Service Overview</a> de Salesforce, que incluye 38 entidades. De esas usamos cuatro y descartamos el resto por estar fuera del alcance: conocimiento, derechos de servicio, hitos, swarming, contratos y soluciones.</p>
+    <p>Los campos no vienen de ahí: esa página solo lista entidades. El detalle de campos se verificó contra el <strong>Object Reference y el Field Names Reference de Winter '27 (API v68.0)</strong>.</p>
+  </div>
+
+  <div class="aviso">
+    <p><b>Dos cosas siguen abiertas.</b> El objeto de la intervención no está decidido, y <code>Lectura_Vigente__c</code> es nuestra propuesta para cumplir el acuerdo de «última lectura por activo y tipo de medición».</p>
+    <p><b>Una cosa hay que verificar en la org.</b> <code>Case.AssetId</code> no aparece en ninguno de los dos documentos oficiales ni en el diagrama oficial de Service, aunque sí se ve en Object Manager. Se resuelve con un <code>sf sobject describe -s Case</code>.</p>
+  </div>
+
+  <ul class="leyenda">
+    <li><span class="sw sw-est" aria-hidden="true"></span> Estándar del modelo oficial</li>
+    <li><span class="sw sw-cus" aria-hidden="true"></span> Custom que agregamos</li>
+    <li><span class="sw sw-mdt" aria-hidden="true"></span> Custom Metadata</li>
+    <li><span class="sw sw-pend" aria-hidden="true"></span> Por decidir</li>
+    <li><strong style="color:var(--cus)">Nombre en ámbar</strong> campo que agregamos</li>
+    <li><strong style="color:var(--mdt)">EXT</strong> External ID + Unique</li>
+    <li><strong style="color:var(--est)">RU</strong> Roll-Up Summary</li>
+    <li><strong style="color:var(--est)">FX</strong> Fórmula</li>
+    <li><strong style="color:var(--pend)">VER</strong> Verificar en la org</li>
+  </ul>
+
+  <div class="lienzo-svg">
+    <svg id="erd" viewBox="0 0 1840 1080" role="img"
+         aria-label="Diagrama entidad-relación. Account es el edificio y tiene muchos Asset. Cada Asset tiene muchas Lectura_Vigente__c, una por tipo de medición, con relación maestro-detalle, y muchos registros de Log_Senial__c por lookup opcional. La intervención, aún por decidir, se relaciona con Account y con Asset. Umbral__mdt no tiene relaciones."></svg>
+  </div>
+
+  <h2>Alternativas estándar que se evaluaron y se descartaron</h2>
+  <p class="sub-nota">El brief pide justificar estándar frente a personalizado. Esto es lo que se revisó antes de crear cada objeto o campo custom, con la razón concreta del descarte.</p>
+
+  <table class="desc-tabla">
+    <thead>
+      <tr>
+        <th scope="col">Alternativa estándar</th>
+        <th scope="col">Veredicto</th>
+        <th scope="col">Por qué no sirve</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>Asset.ExternalIdentifier</code></td>
+        <td class="veredicto v-no">No alcanza</td>
+        <td>Existe, es texto de 255 y su descripción es literalmente «el ID del registro correspondiente en un sistema externo». Pero <strong>no es <code>idLookup</code></strong>, y esa propiedad es exactamente el criterio de «usable como destino de un <code>upsert</code>». El único <code>idLookup</code> en <code>Asset</code> es <code>Name</code>, que no es único.</td>
+      </tr>
+      <tr>
+        <td><code>Account.AccountNumber</code>, <code>Site</code>, <code>Name</code></td>
+        <td class="veredicto v-no">No alcanza</td>
+        <td><code>Account</code> no tiene <strong>ningún</strong> campo estándar con <code>idLookup</code>. Sin eso no hay <code>upsert</code> por clave externa.</td>
+      </tr>
+      <tr>
+        <td><code>AssetAttribute</code></td>
+        <td class="veredicto v-lic">Licencia</td>
+        <td>Requiere Field Service habilitado. Y aun con licencia no serviría: su valor es texto, no número, y <strong>no tiene campo de momento de la medición</strong>. Sin eje temporal no hay serie. Su propia documentación dice que reemplaza campos custom en Asset, o sea es un descriptor estático.</td>
+      </tr>
+      <tr>
+        <td><code>AssetStatePeriod</code></td>
+        <td class="veredicto v-lic">Licencia</td>
+        <td>Requiere Revenue Cloud. Sí tiene eje temporal, pero el «estado» es comercial: cantidad, importe, ingreso recurrente mensual. Y es de solo lectura, generado por la plataforma, así que no se puede escribir desde un suscriptor.</td>
+      </tr>
+      <tr>
+        <td><code>AssetDowntimePeriod</code></td>
+        <td class="veredicto v-no">No aplica</td>
+        <td>Sin gate de licencia documentado y con eje temporal real, pero modela <strong>intervalos de indisponibilidad</strong>, no valores medidos: no tiene campo de magnitud ni de tipo de medición. Serviría para registrar equipo caído, nunca para una lectura de presión.</td>
+      </tr>
+      <tr>
+        <td><code>Incident</code> + <code>IncidentRelatedItem</code></td>
+        <td class="veredicto v-lic">Licencia</td>
+        <td>En el diagrama oficial aparecen en rosa, que su propia leyenda define como «Other Object Included in License», frente al blanco de los objetos estándar puros. Es la forma en que el modelo oficial enlaza <code>Asset</code> con incidentes, por lookup polimórfico, pero está detrás de una licencia adicional.</td>
+      </tr>
+      <tr>
+        <td><code>Case.SourceId</code></td>
+        <td class="veredicto v-no">No aplica</td>
+        <td>Suena a «origen del caso», pero la documentación lo define como el ID de una publicación social. No es un identificador de texto libre de un sistema externo.</td>
+      </tr>
+      <tr>
+        <td><code>Case.CaseNumber</code></td>
+        <td class="veredicto v-no">No alcanza</td>
+        <td>Es el único <code>idLookup</code> de <code>Case</code>, pero es autonumérico y no se puede crear, así que no puede alimentar la rama de creación de un <code>upsert</code>.</td>
+      </tr>
+      <tr>
+        <td>Objetos de telemetría o IoT</td>
+        <td class="veredicto v-no">No existen</td>
+        <td>Se revisó el catálogo completo de objetos estándar buscando lecturas, mediciones, telemetría, sensores y series temporales. No hay ninguno. Los objetos <code>*Metric</code> que aparecen son de analítica de producto o gestión de objetivos.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <hr>
+
+  <h2>Decisiones de modelado</h2>
+  <p class="sub-nota">Lo que no se ve solo en el diagrama.</p>
+
+  <div class="notas">
+
+    <div class="nota verde">
+      <h3>La severidad la mantiene la plataforma, no Apex</h3>
+      <p>Como <code>Lectura_Vigente__c</code> es <strong>Master-Detail</strong> con <code>Asset</code>, se pueden usar campos de resumen. El truco es guardar la severidad también como número.</p>
+      <p><code>Lectura_Vigente__c.Severidad_Nivel__c</code> con 1, 2 o 3 · <code>Asset.Severidad_Nivel__c</code> como Roll-Up MAX · <code>Asset.Severidad_Actual__c</code> como fórmula que traduce el número a etiqueta. Así «la mayor severidad de sus últimas lecturas válidas» se cumple sola, sin código que pueda desincronizarse.</p>
+      <p>Lo mismo con <code>Ultima_Senal__c</code>, Roll-Up MAX de <code>Occurred_At__c</code>, que da gratis la antigüedad que pide BR-207.</p>
+    </div>
+
+    <div class="nota ambar">
+      <h3>Eso no funciona hacia el edificio</h3>
+      <p>La relación <code>Asset → Account</code> es un <strong>Lookup</strong> estándar, y los campos de resumen requieren Master-Detail.</p>
+      <p>Así que la severidad agregada por edificio, lo que necesita el gerente regional, <strong>no puede ser un campo de resumen</strong>. Tendría que ser Apex o un informe. Es una limitación real del modelo y conviene decirla antes de prometer esa vista.</p>
+    </div>
+
+    <div class="nota verde">
+      <h3>La unicidad hace el control de duplicados</h3>
+      <p><code>Log_Senial__c.Identidad__c</code> es External ID y Unique, y guarda origen más clave del mensaje. La base de datos <strong>rechaza físicamente</strong> un reenvío.</p>
+      <p>Importa porque la plataforma reintenta lotes de eventos: una verificación por consulta puede dejar pasar un duplicado si dos intentos corren a la vez, un índice único no.</p>
+      <p>Por eso la bitácora se escribe con <code>upsert</code>, no <code>insert</code>: una fila por mensaje único, y <code>Reenvios__c</code> cuenta cuántas veces llegó. Si se insertara, la propia unicidad impediría registrar el reenvío.</p>
+    </div>
+
+    <div class="nota ambar">
+      <h3><code>StatusReason</code> cubre la pérdida de comunicación</h3>
+      <p>Es un picklist estándar sin gate, con valores <code>Online</code>, <code>Offline</code>, <code>Not Ready</code>, <code>Paused</code> y <code>Standby</code>.</p>
+      <p>Eso atiende «pérdida de comunicación con un dispositivo», que es uno de los cuatro tipos de señal del brief, sin inventar un campo. Es el mejor ejemplo de reutilizar estándar en este modelo.</p>
+    </div>
+
+    <div class="nota">
+      <h3>Por qué <code>Log_Senial__c.Asset__c</code> es opcional</h3>
+      <p>Es el único campo de relación que puede quedar vacío, a propósito: una señal inválida puede traer un identificador de activo que no existe.</p>
+      <p>Si fuera obligatorio no se podría registrar ese rechazo, y el administrador se quedaría sin la evidencia que pide BR-209 justo en el caso que más le interesa.</p>
+    </div>
+
+    <div class="nota">
+      <h3><code>Clave__c</code> la escribe el código</h3>
+      <p>Salesforce no soporta unicidad compuesta de dos campos, así que la clave concatenada de activo y tipo de medición es el patrón para poder hacer <code>upsert</code>.</p>
+      <p>Y no puede ser un campo fórmula: los campos fórmula no admiten la propiedad External ID. La compone el procesador.</p>
+    </div>
+
+    <div class="nota mdt">
+      <h3><code>Umbral__mdt</code> no tiene relaciones</h3>
+      <p>Es Custom Metadata, no un objeto. Se busca por valores de tipo de activo y tipo de medición, no por relación de registro.</p>
+      <p>Cumple BR-204 porque una persona autorizada cambia los límites sin volver a desplegar, y como es metadata viaja entre orgs con el despliegue. <code>Unidad_Esperada__c</code> además da criterio para decidir si una lectura con unidad inesperada es inválida.</p>
+    </div>
+
+    <div class="nota rosa">
+      <h3>Lo que falta cerrar</h3>
+      <p><strong>Qué objeto es la intervención.</strong> <code>Case</code> es el candidato dibujado y el único de los tres sin licencia adicional. <code>Incident</code> permitiría agrupar varios elementos en uno, pero está detrás de licencia según el propio diagrama oficial.</p>
+      <p><strong>El empate de <code>occurredAt</code>.</strong> Si dos lecturas válidas del mismo activo y tipo llegan con el mismo momento de origen, falta la regla determinista que decida cuál gana.</p>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var ANCHO = 400, CAB = 54, FILA = 31, PAD = 14;
+
+  var entidades = {
+    account: {
+      x: 60, y: 120, clase: "k-est", tipo: "ESTÁNDAR",
+      nom: "Account", sub: "El edificio",
+      campos: [
+        { n: "Name", t: "Text", m: "REQ" },
+        { n: "BillingCity", t: "Text" },
+        { n: "External_Id__c", t: "Text (50)", m: "EXT", nuevo: true }
+      ]
+    },
+    asset: {
+      x: 620, y: 120, clase: "k-est", tipo: "ESTÁNDAR",
+      nom: "Asset", sub: "El equipo con sensor",
+      campos: [
+        { n: "Name", t: "Text", m: "REQ" },
+        { n: "AccountId", t: "Lookup", m: "REL" },
+        { n: "StatusReason", t: "Picklist" },
+        { n: "External_Id__c", t: "Text (50)", m: "EXT", nuevo: true },
+        { n: "Tipo_Activo__c", t: "Picklist", nuevo: true },
+        { n: "Severidad_Nivel__c", t: "Number", m: "RU", nuevo: true },
+        { n: "Severidad_Actual__c", t: "Text", m: "FX", nuevo: true },
+        { n: "Ultima_Senal__c", t: "Date/Time", m: "RU", nuevo: true }
+      ]
+    },
+    lectura: {
+      x: 1180, y: 120, clase: "k-cus", tipo: "CUSTOM",
+      nom: "Lectura_Vigente__c", sub: "Una por activo y tipo de medición",
+      campos: [
+        { n: "Clave__c", t: "Text (60)", m: "EXT", nuevo: true },
+        { n: "Asset__c", t: "Master-Detail", m: "REL", nuevo: true },
+        { n: "Tipo_Medicion__c", t: "Picklist", m: "REQ", nuevo: true },
+        { n: "Valor__c", t: "Number (10,2)", m: "REQ", nuevo: true },
+        { n: "Unidad__c", t: "Picklist", m: "REQ", nuevo: true },
+        { n: "Occurred_At__c", t: "Date/Time", m: "REQ", nuevo: true },
+        { n: "Severidad_Nivel__c", t: "Number", nuevo: true },
+        { n: "Sensor_Id__c", t: "Text", nuevo: true },
+        { n: "Identidad_Senal__c", t: "Text (60)", nuevo: true }
+      ]
+    },
+    intervencion: {
+      x: 60, y: 640, clase: "k-pend", tipo: "POR DECIDIR",
+      nom: "Case", sub: "único candidato sin licencia extra",
+      campos: [
+        { n: "AccountId", t: "Lookup", m: "REL" },
+        { n: "AssetId", t: "Lookup", m: "VER" },
+        { n: "Subject", t: "Text" },
+        { n: "Status", t: "Picklist" },
+        { n: "Priority", t: "Picklist" },
+        { n: "Origin", t: "Telemetría" },
+        { n: "Identidad_Senal__c", t: "Text (60)", m: "EXT", nuevo: true }
+      ]
+    },
+    log: {
+      x: 620, y: 640, clase: "k-cus", tipo: "CUSTOM",
+      nom: "Log_Senial__c", sub: "Bitácora · se escribe con upsert",
+      campos: [
+        { n: "Identidad__c", t: "Text (60)", m: "EXT", nuevo: true },
+        { n: "Message_Id__c", t: "Text", m: "REQ", nuevo: true },
+        { n: "Source__c", t: "Text", m: "REQ", nuevo: true },
+        { n: "Asset__c", t: "Lookup opcional", m: "REL", nuevo: true },
+        { n: "Occurred_At__c", t: "Date/Time", nuevo: true },
+        { n: "Resultado__c", t: "Picklist", m: "REQ", nuevo: true },
+        { n: "Motivo__c", t: "Text (255)", nuevo: true },
+        { n: "Reenvios__c", t: "Number", nuevo: true },
+        { n: "Ultimo_Reenvio__c", t: "Date/Time", nuevo: true }
+      ]
+    },
+    umbral: {
+      x: 1180, y: 640, clase: "k-mdt", tipo: "CUSTOM METADATA",
+      nom: "Umbral__mdt", sub: "Sin relaciones · se busca por tipo",
+      campos: [
+        { n: "Tipo_Activo__c", t: "Text", m: "REQ", nuevo: true },
+        { n: "Tipo_Medicion__c", t: "Text", m: "REQ", nuevo: true },
+        { n: "Operador__c", t: "Picklist", nuevo: true },
+        { n: "Valor__c", t: "Number (10,2)", nuevo: true },
+        { n: "Unidad_Esperada__c", t: "Picklist", nuevo: true },
+        { n: "Severidad__c", t: "Picklist", nuevo: true },
+        { n: "Severidad_Nivel__c", t: "Number", nuevo: true }
+      ]
+    }
+  };
+
+  var relaciones = [
+    { de: "account", a: "asset", lado: "h", et: "tiene muchos", tipo: "Lookup" },
+    { de: "asset", a: "lectura", lado: "h", et: "tiene muchas", tipo: "Master-Detail" },
+    { de: "asset", a: "log", lado: "v", et: "registra", tipo: "Lookup opcional" },
+    { de: "account", a: "intervencion", lado: "v", et: "concentra", tipo: "Lookup" },
+    { de: "asset", a: "intervencion", lado: "diag", et: "origina", tipo: "Lookup" }
+  ];
+
+  var NS = "http://www.w3.org/2000/svg";
+  var svg = document.getElementById("erd");
+
+  function el(nombre, attrs) {
+    var n = document.createElementNS(NS, nombre);
+    Object.keys(attrs || {}).forEach(function (k) { n.setAttribute(k, attrs[k]); });
+    return n;
+  }
+  function texto(x, y, clase, contenido, anchor) {
+    var t = el("text", { x: x, y: y, "class": clase });
+    if (anchor) { t.setAttribute("text-anchor", anchor); }
+    t.textContent = contenido;
+    return t;
+  }
+
+  var defs = el("defs", {});
+  var marker = el("marker", {
+    id: "pta", viewBox: "0 0 12 12", refX: "10", refY: "6",
+    markerWidth: "6", markerHeight: "6", orient: "auto-start-reverse"
+  });
+  var mpath = el("path", { d: "M 1 1 L 11 6 L 1 11 z" });
+  mpath.style.fill = "var(--linea)";
+  marker.appendChild(mpath);
+  defs.appendChild(marker);
+  svg.appendChild(defs);
+
+  var capaRel = el("g", {});
+  var capaEnt = el("g", {});
+  svg.appendChild(capaRel);
+  svg.appendChild(capaEnt);
+
+  Object.keys(entidades).forEach(function (clave) {
+    var e = entidades[clave];
+    e.alto = CAB + e.campos.length * FILA + PAD;
+
+    var g = el("g", { "class": e.clase });
+
+    g.appendChild(el("rect", { "class": "caja", x: e.x, y: e.y, width: ANCHO, height: e.alto, rx: 10 }));
+    g.appendChild(el("path", {
+      "class": "cab",
+      d: "M " + e.x + " " + (e.y + 10) +
+         " a 10 10 0 0 1 10 -10 h " + (ANCHO - 20) +
+         " a 10 10 0 0 1 10 10 v " + (CAB - 10) + " h " + (-ANCHO) + " Z"
+    }));
+    g.appendChild(el("path", { "class": "div-f", d: "M " + e.x + " " + (e.y + CAB) + " H " + (e.x + ANCHO) }));
+
+    g.appendChild(texto(e.x + 16, e.y + 29, "e-nom", e.nom));
+    g.appendChild(texto(e.x + ANCHO - 16, e.y + 24, "e-tipo", e.tipo, "end"));
+    g.appendChild(texto(e.x + 16, e.y + 46, "e-sub", e.sub));
+
+    e.campos.forEach(function (c, i) {
+      var fy = e.y + CAB + 22 + i * FILA;
+      g.appendChild(texto(e.x + 16, fy, "f-nom" + (c.nuevo ? " nuevo" : ""), c.n));
+      g.appendChild(texto(e.x + ANCHO - 56, fy, "f-tipo", c.t, "end"));
+      if (c.m) {
+        var cls = c.m === "EXT" ? "m-ext" : c.m === "REQ" ? "m-req"
+                : c.m === "RU" ? "m-ru" : c.m === "FX" ? "m-fx"
+                : c.m === "VER" ? "m-ver" : "m-rel";
+        g.appendChild(texto(e.x + ANCHO - 14, fy, "f-marca " + cls, c.m, "end"));
+      }
+      if (i < e.campos.length - 1) {
+        g.appendChild(el("path", {
+          "class": "div-f",
+          d: "M " + (e.x + 12) + " " + (fy + 9) + " H " + (e.x + ANCHO - 12),
+          opacity: "0.5"
+        }));
+      }
+    });
+
+    capaEnt.appendChild(g);
+  });
+
+  relaciones.forEach(function (r) {
+    var a = entidades[r.de], b = entidades[r.a];
+    var d, etX, etY, etAnchor, unoX, unoY, muchosX, muchosY;
+
+    if (r.lado === "h") {
+      var y = a.y + CAB + 40;
+      d = "M " + (a.x + ANCHO) + " " + y + " H " + (b.x - 7);
+      etX = (a.x + ANCHO + b.x) / 2; etY = y - 30; etAnchor = "middle";
+      unoX = a.x + ANCHO + 16; unoY = y + 24;
+      muchosX = b.x - 18; muchosY = y + 24;
+
+    } else if (r.lado === "v") {
+      var x = a.x + ANCHO / 2;
+      var medioY = (a.y + a.alto + b.y) / 2;
+      d = "M " + x + " " + (a.y + a.alto) + " V " + (b.y - 7);
+      etX = x + 16; etY = medioY - 6; etAnchor = "start";
+      unoX = x - 16; unoY = a.y + a.alto + 26;
+      muchosX = x - 16; muchosY = b.y - 16;
+
+    } else {
+      var x0 = a.x + 90, y0 = a.y + a.alto;
+      var x1 = b.x + ANCHO - 70, y1 = b.y;
+      var ym = (y0 + y1) / 2;
+      d = "M " + x0 + " " + y0 + " V " + ym + " H " + x1 + " V " + (y1 - 7);
+      etX = (x0 + x1) / 2; etY = ym - 32; etAnchor = "middle";
+      unoX = x0 - 16; unoY = y0 + 26;
+      muchosX = x1 + 18; muchosY = y1 - 16;
+    }
+
+    var p = el("path", { "class": "rel" + (r.tipo.indexOf("Lookup") === 0 ? " lk" : ""), d: d });
+    p.setAttribute("marker-end", "url(#pta)");
+    capaRel.appendChild(p);
+
+    capaRel.appendChild(texto(etX, etY, "r-et", r.et, etAnchor));
+    capaRel.appendChild(texto(etX, etY + 19, "an-tx", r.tipo, etAnchor));
+    capaRel.appendChild(texto(unoX, unoY, "r-card", "1", "middle"));
+    capaRel.appendChild(texto(muchosX, muchosY, "r-card", "N", "middle"));
+  });
+
+  var u = entidades.umbral;
+  var ucx = u.x + ANCHO / 2;
+  capaRel.appendChild(texto(ucx, u.y - 52, "an-tx", "El procesador la consulta por tipo de activo", "middle"));
+  capaRel.appendChild(texto(ucx, u.y - 32, "an-tx", "y tipo de medición. No hay relación de registro.", "middle"));
+  capaRel.appendChild(el("path", {
+    "class": "rel lk", d: "M " + ucx + " " + (u.y - 24) + " V " + (u.y - 7), opacity: "0.5"
+  }));
+
+  var raiz = document.documentElement;
+  var btn = document.getElementById("btn-tema");
+  var ico = document.getElementById("ico");
+  var txt = document.getElementById("txt");
+
+  function aplicar(tema) {
+    raiz.setAttribute("data-tema", tema);
+    var oscuro = tema === "oscuro";
+    btn.setAttribute("aria-pressed", oscuro ? "true" : "false");
+    ico.innerHTML = oscuro ? "&#9728;" : "&#9789;";
+    txt.textContent = oscuro ? "Modo claro" : "Modo oscuro";
+    try { localStorage.setItem("nova-casa-tema", tema); } catch (e) { /* file:// */ }
+  }
+  var inicial = null;
+  try { inicial = localStorage.getItem("nova-casa-tema"); } catch (e) { /* ignorado */ }
+  if (!inicial) {
+    inicial = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "oscuro" : "claro";
+  }
+  aplicar(inicial);
+  btn.addEventListener("click", function () {
+    aplicar(raiz.getAttribute("data-tema") === "oscuro" ? "claro" : "oscuro");
+  });
+})();
+</script>
+
+</body>
+</html>

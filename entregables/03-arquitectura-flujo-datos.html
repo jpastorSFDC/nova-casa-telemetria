@@ -1,0 +1,1500 @@
+<!DOCTYPE html>
+<html lang="es" data-tema="claro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arquitectura y flujo de datos · Nova Casa Sprint 2</title>
+<style>
+  :root {
+    --fondo: #f5f6f8;
+    --superficie: #ffffff;
+    --superficie-2: #eef0f4;
+    --borde: #d8dce4;
+    --borde-fuerte: #b4bac6;
+    --texto: #1a1d23;
+    --texto-2: #565d6b;
+    --texto-3: #838a97;
+
+    --externo: #6b7280;
+    --externo-bg: #f0f1f3;
+    --codigo: #1b6acb;
+    --codigo-bg: #e8f1fc;
+    --evento: #8b5cf6;
+    --evento-bg: #f1ebfe;
+    --estandar: #1a8754;
+    --estandar-bg: #e6f4ec;
+    --custom: #b45309;
+    --custom-bg: #fdf2e3;
+
+    --cod-fondo: #f7f8fa;
+    --cod-borde: #e1e5ec;
+    --cod-texto: #24292f;
+    --cod-coment: #6a737d;
+    --cod-cadena: #0a7d52;
+    --cod-clave: #a426a4;
+    --cod-tipo: #1b6acb;
+    --cod-num: #b45309;
+
+    --sombra: 0 1px 2px rgba(16, 24, 40, 0.06), 0 4px 12px rgba(16, 24, 40, 0.05);
+    --radio: 10px;
+  }
+
+  html[data-tema="oscuro"] {
+    --fondo: #0f1319;
+    --superficie: #171c24;
+    --superficie-2: #1e242e;
+    --borde: #2b323d;
+    --borde-fuerte: #3d4653;
+    --texto: #e8ebf0;
+    --texto-2: #a3abb9;
+    --texto-3: #7b8493;
+
+    --externo: #9aa3b2;
+    --externo-bg: #20262f;
+    --codigo: #5aa7f5;
+    --codigo-bg: #14243a;
+    --evento: #b291fb;
+    --evento-bg: #241a3d;
+    --estandar: #45c17e;
+    --estandar-bg: #122b1f;
+    --custom: #e0a458;
+    --custom-bg: #2e2112;
+
+    --cod-fondo: #11151b;
+    --cod-borde: #262d38;
+    --cod-texto: #d6dbe3;
+    --cod-coment: #6f7885;
+    --cod-cadena: #6cc39a;
+    --cod-clave: #d98adb;
+    --cod-tipo: #6cb0f7;
+    --cod-num: #e0a458;
+
+    --sombra: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 14px rgba(0, 0, 0, 0.3);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--fondo);
+    color: var(--texto);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+
+  :focus-visible { outline: 2px solid var(--codigo); outline-offset: 2px; border-radius: 4px; }
+
+  .envoltura { max-width: 84rem; margin: 0 auto; padding: 1.75rem 1.25rem 4rem; }
+
+  /* ---------- Encabezado ---------- */
+  .cabecera {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-start;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--borde);
+    padding-bottom: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+  .rotulo {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--texto-3);
+    margin: 0 0 0.4rem;
+  }
+  h1 { font-size: 1.6rem; margin: 0 0 0.4rem; letter-spacing: -0.015em; }
+  .bajada { color: var(--texto-2); margin: 0; max-width: 46rem; font-size: 0.95rem; }
+
+  .btn {
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    background: var(--superficie);
+    color: var(--texto);
+    border: 1px solid var(--borde);
+    border-radius: 6px;
+    padding: 0.45rem 0.8rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--borde-fuerte); background: var(--superficie-2); }
+
+  /* ---------- Leyenda ---------- */
+  .leyenda {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.15rem;
+    list-style: none;
+    margin: 0 0 1.5rem;
+    padding: 0.85rem 1rem;
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    font-size: 0.84rem;
+    color: var(--texto-2);
+  }
+  .leyenda li { display: flex; align-items: center; gap: 0.45rem; }
+  .muestra { width: 0.9rem; height: 0.9rem; border-radius: 3px; border: 2px solid; flex: none; }
+  .m-externo { border-color: var(--externo); background: var(--externo-bg); }
+  .m-codigo { border-color: var(--codigo); background: var(--codigo-bg); }
+  .m-evento { border-color: var(--evento); background: var(--evento-bg); }
+  .m-estandar { border-color: var(--estandar); background: var(--estandar-bg); }
+  .m-custom { border-color: var(--custom); background: var(--custom-bg); border-style: dashed; }
+
+  /* ---------- Rejilla principal ---------- */
+  .tablero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  /* ---------- Diagrama ---------- */
+  .diagrama { display: flex; flex-direction: column; }
+
+  .fase { display: flex; flex-direction: column; }
+
+  .zona {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--texto-3);
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0.35rem 0 0.55rem;
+  }
+  .zona::after { content: ""; flex: 1; height: 1px; background: var(--borde); }
+
+  .nodo {
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    width: 100%;
+    background: var(--superficie);
+    color: var(--texto);
+    border: 2px solid var(--borde);
+    border-left-width: 5px;
+    border-radius: var(--radio);
+    padding: 0.8rem 0.9rem;
+    box-shadow: var(--sombra);
+    transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+    display: block;
+  }
+  .nodo:hover { transform: translateX(2px); }
+  .nodo-cab { display: flex; align-items: center; gap: 0.55rem; margin-bottom: 0.2rem; }
+  .indice {
+    flex: none;
+    width: 1.5rem; height: 1.5rem;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    border: 1.5px solid;
+  }
+  .nodo-titulo { font-weight: 700; font-size: 0.95rem; }
+  .nodo-api { font-size: 0.78rem; color: var(--texto-3); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .nodo-resumen { font-size: 0.85rem; color: var(--texto-2); margin: 0.15rem 0 0; }
+
+  .nodo.tipo-externo { border-color: var(--externo); background: var(--externo-bg); }
+  .nodo.tipo-externo .indice { border-color: var(--externo); color: var(--externo); }
+  .nodo.tipo-codigo { border-color: var(--codigo); background: var(--codigo-bg); }
+  .nodo.tipo-codigo .indice { border-color: var(--codigo); color: var(--codigo); }
+  .nodo.tipo-evento { border-color: var(--evento); background: var(--evento-bg); border-style: solid; }
+  .nodo.tipo-evento .indice { border-color: var(--evento); color: var(--evento); }
+  .nodo.tipo-estandar { border-color: var(--estandar); background: var(--estandar-bg); }
+  .nodo.tipo-estandar .indice { border-color: var(--estandar); color: var(--estandar); }
+
+  .nodo[aria-current="true"] { box-shadow: 0 0 0 3px color-mix(in srgb, var(--codigo) 35%, transparent), var(--sombra); }
+  @supports not (color: color-mix(in srgb, red 50%, blue)) {
+    .nodo[aria-current="true"] { outline: 2px solid var(--codigo); outline-offset: 1px; }
+  }
+
+  /* Conector con etiqueta de sincronía */
+  .flecha { display: flex; align-items: center; gap: 0.55rem; padding: 0.15rem 0 0.15rem 1.15rem; min-height: 2.4rem; }
+  .flecha .linea { width: 2px; align-self: stretch; background: var(--borde-fuerte); flex: none; position: relative; }
+  .flecha .linea::after {
+    content: "";
+    position: absolute;
+    bottom: -1px; left: 50%;
+    transform: translateX(-50%);
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid var(--borde-fuerte);
+  }
+  .flecha .rot {
+    font-size: 0.74rem;
+    color: var(--texto-2);
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    border-radius: 999px;
+    padding: 0.1rem 0.55rem;
+  }
+  .flecha .rot b { color: var(--texto); font-weight: 600; }
+
+  /* Fichas dentro de un nodo agrupador */
+  .fichas { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.6rem; }
+  .ficha {
+    font: inherit;
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-weight: 600;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    border-radius: 6px;
+    padding: 0.25rem 0.55rem;
+    border: 1.5px solid;
+    background: var(--superficie);
+  }
+  .ficha.f-estandar { border-color: var(--estandar); color: var(--estandar); }
+  .ficha.f-custom { border-color: var(--custom); color: var(--custom); border-style: dashed; }
+  .ficha.f-codigo { border-color: var(--codigo); color: var(--codigo); }
+  .ficha:hover { background: var(--superficie-2); }
+  .ficha[aria-current="true"] { box-shadow: 0 0 0 2px currentColor inset; }
+
+  .grupo {
+    border: 2px dashed var(--borde-fuerte);
+    border-radius: var(--radio);
+    padding: 0.7rem;
+    background: color-mix(in srgb, var(--superficie) 60%, transparent);
+  }
+  .grupo-rot { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--texto-3); margin: 0 0 0.55rem; }
+
+  /* ---------- Panel de detalle ---------- */
+  .panel {
+    position: sticky;
+    top: 1rem;
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    box-shadow: var(--sombra);
+    overflow: hidden;
+  }
+  .panel-cab { padding: 1rem 1.1rem 0.85rem; border-bottom: 1px solid var(--borde); }
+  .panel-tipo {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    border-radius: 999px;
+    padding: 0.15rem 0.5rem;
+    border: 1.5px solid;
+    display: inline-block;
+    margin-bottom: 0.5rem;
+  }
+  .t-externo { color: var(--externo); border-color: var(--externo); background: var(--externo-bg); }
+  .t-codigo { color: var(--codigo); border-color: var(--codigo); background: var(--codigo-bg); }
+  .t-evento { color: var(--evento); border-color: var(--evento); background: var(--evento-bg); }
+  .t-estandar { color: var(--estandar); border-color: var(--estandar); background: var(--estandar-bg); }
+  .t-custom { color: var(--custom); border-color: var(--custom); background: var(--custom-bg); }
+
+  .panel-titulo { font-size: 1.1rem; font-weight: 700; margin: 0 0 0.15rem; }
+  .panel-api { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.8rem; color: var(--texto-3); margin: 0; }
+  .panel-cuerpo { padding: 1rem 1.1rem 1.15rem; max-height: 62vh; overflow-y: auto; }
+  .panel-cuerpo p { margin: 0 0 0.8rem; font-size: 0.92rem; }
+  .panel-cuerpo p:last-child { margin-bottom: 0; }
+  .panel-cuerpo ul { margin: 0 0 0.9rem; padding-left: 1.2rem; font-size: 0.9rem; }
+  .panel-cuerpo li { margin-bottom: 0.4rem; }
+
+  .sub { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--texto-3); margin: 1.1rem 0 0.5rem; }
+
+  .cuidado {
+    border: 1px solid var(--custom);
+    border-left: 4px solid var(--custom);
+    background: var(--custom-bg);
+    border-radius: 6px;
+    padding: 0.7rem 0.85rem;
+    font-size: 0.87rem;
+    margin: 0.9rem 0 0;
+  }
+  .cuidado b { display: block; margin-bottom: 0.15rem; color: var(--custom); }
+  html[data-tema="oscuro"] .cuidado { color: var(--texto); }
+
+  pre {
+    margin: 0;
+    background: var(--cod-fondo);
+    border: 1px solid var(--cod-borde);
+    border-radius: 8px;
+    padding: 0.85rem 0.95rem;
+    overflow-x: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.79rem;
+    line-height: 1.6;
+    color: var(--cod-texto);
+    tab-size: 4;
+  }
+  pre .c { color: var(--cod-coment); font-style: italic; }
+  pre .s { color: var(--cod-cadena); }
+  pre .k { color: var(--cod-clave); font-weight: 600; }
+  pre .t { color: var(--cod-tipo); }
+  pre .n { color: var(--cod-num); }
+  .cod-barra {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--texto-3);
+    font-weight: 700;
+    margin-bottom: 0.4rem;
+  }
+
+  /* ---------- Simulador de señal atrasada ---------- */
+  .demo { margin-top: 2.25rem; }
+  .demo-cab { border-bottom: 1px solid var(--borde); padding-bottom: 0.85rem; margin-bottom: 1.25rem; }
+  .demo-cab h2 { font-size: 1.25rem; margin: 0 0 0.3rem; }
+  .demo-cab p { margin: 0; color: var(--texto-2); font-size: 0.92rem; max-width: 52rem; }
+
+  .demo-caja {
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    padding: 1.15rem;
+    box-shadow: var(--sombra);
+  }
+  .demo-controles { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.15rem; }
+  .btn-demo { background: var(--codigo); border-color: var(--codigo); color: #fff; }
+  .btn-demo:hover { filter: brightness(1.08); background: var(--codigo); }
+  .btn-demo.alt { background: var(--estandar); border-color: var(--estandar); }
+  .btn-demo.alt:hover { background: var(--estandar); }
+
+  .pista {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.85rem;
+    align-items: stretch;
+  }
+  .tarj {
+    border: 2px solid var(--borde);
+    border-radius: 8px;
+    padding: 0.85rem;
+    background: var(--superficie-2);
+    transition: border-color 0.25s ease, opacity 0.25s ease, transform 0.25s ease;
+  }
+  .tarj .rot { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--texto-3); display: block; margin-bottom: 0.4rem; }
+  .tarj .val { font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; display: block; }
+  .tarj .ts { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.82rem; color: var(--texto-2); display: block; margin-top: 0.15rem; }
+  .tarj .et { font-size: 0.78rem; color: var(--texto-3); display: block; margin-top: 0.45rem; }
+
+  .tarj.activa { border-color: var(--codigo); transform: translateY(-2px); }
+  .tarj.gana { border-color: var(--estandar); }
+  .tarj.pierde { border-color: var(--custom); opacity: 0.62; }
+
+  .veredicto {
+    margin-top: 1rem;
+    border-radius: 8px;
+    padding: 0.9rem 1rem;
+    border: 2px solid var(--borde);
+    background: var(--superficie-2);
+    font-size: 0.92rem;
+    min-height: 4.6rem;
+  }
+  .veredicto .paso { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.83rem; color: var(--texto-2); display: block; margin-bottom: 0.4rem; }
+  .veredicto .fallo { font-weight: 700; }
+  .veredicto.descartada { border-color: var(--custom); background: var(--custom-bg); }
+  .veredicto.descartada .fallo { color: var(--custom); }
+  .veredicto.aceptada { border-color: var(--estandar); background: var(--estandar-bg); }
+  .veredicto.aceptada .fallo { color: var(--estandar); }
+  html[data-tema="oscuro"] .veredicto.descartada, html[data-tema="oscuro"] .veredicto.aceptada { color: var(--texto); }
+
+  .demo-nota { font-size: 0.85rem; color: var(--texto-2); margin: 1rem 0 0; }
+
+  footer { margin-top: 2.5rem; border-top: 1px solid var(--borde); padding-top: 1.15rem; font-size: 0.86rem; color: var(--texto-2); }
+  footer p { margin: 0 0 0.5rem; }
+  footer strong { color: var(--texto); }
+  code.inl {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.86em;
+    background: var(--superficie-2);
+    border: 1px solid var(--borde);
+    border-radius: 4px;
+    padding: 0.03rem 0.3rem;
+  }
+
+  @media (max-width: 62rem) {
+    .tablero { grid-template-columns: 1fr; }
+    .panel { position: static; }
+    .panel-cuerpo { max-height: none; }
+    .pista { grid-template-columns: 1fr; }
+  }
+
+  @media print {
+    body { background: #fff; }
+    .btn, .demo-controles { display: none; }
+    .tablero { grid-template-columns: 1fr; }
+    .panel { position: static; }
+    .panel-cuerpo { max-height: none; }
+    .nodo, .panel, .demo-caja { break-inside: avoid; box-shadow: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="envoltura">
+
+  <header class="cabecera">
+    <div>
+      <p class="rotulo">Nova Casa · Sprint 2 · Arquitectura de solución</p>
+      <h1>Del sensor a la pantalla del operador</h1>
+      <p class="bajada">El recorrido completo de una señal: quién la produce, quién la traduce, quién la procesa, dónde queda guardada y quién la consulta. Haz clic en cualquier pieza del diagrama para ver qué hace y con qué código.</p>
+    </div>
+    <button type="button" class="btn" id="btn-tema" aria-pressed="false">
+      <span aria-hidden="true" id="icono-tema">&#9789;</span>
+      <span id="texto-tema">Modo oscuro</span>
+    </button>
+  </header>
+
+  <ul class="leyenda">
+    <li><span class="muestra m-externo" aria-hidden="true"></span> Sistema externo</li>
+    <li><span class="muestra m-codigo" aria-hidden="true"></span> Código que escribimos</li>
+    <li><span class="muestra m-evento" aria-hidden="true"></span> Platform Event (desacople)</li>
+    <li><span class="muestra m-estandar" aria-hidden="true"></span> Objeto estándar de Salesforce</li>
+    <li><span class="muestra m-custom" aria-hidden="true"></span> Objeto custom (justificado)</li>
+  </ul>
+
+  <div class="tablero">
+
+    <!-- ============ DIAGRAMA ============ -->
+    <div class="diagrama">
+
+      <p class="zona">Fase 1 · Ingesta</p>
+
+      <button type="button" class="nodo tipo-externo" data-etapa="simulador">
+        <span class="nodo-cab">
+          <span class="indice" aria-hidden="true">1</span>
+          <span class="nodo-titulo">Simulador de telemetría</span>
+        </span>
+        <span class="nodo-api">GET /api/v1/telemetry?limit=200</span>
+        <p class="nodo-resumen">App en Heroku. Expone las lecturas de los sensores como JSON paginado, protegido con Bearer token.</p>
+      </button>
+
+      <div class="flecha">
+        <span class="linea" aria-hidden="true"></span>
+        <span class="rot"><b>Síncrono</b> · HTTP callout, hasta 200 por página</span>
+      </div>
+
+      <button type="button" class="nodo tipo-codigo" data-etapa="callout">
+        <span class="nodo-cab">
+          <span class="indice" aria-hidden="true">2</span>
+          <span class="nodo-titulo">Servicio de callout</span>
+        </span>
+        <span class="nodo-api">TelemetriaCalloutService.cls</span>
+        <p class="nodo-resumen">Consulta el endpoint, recorre la paginación, parsea el JSON y aplana cada lectura en un evento. Sin reglas de negocio.</p>
+      </button>
+
+      <div class="flecha">
+        <span class="linea" aria-hidden="true"></span>
+        <span class="rot"><b>Publicación</b> · EventBus.publish() en bloque</span>
+      </div>
+
+      <button type="button" class="nodo tipo-evento" data-etapa="evento">
+        <span class="nodo-cab">
+          <span class="indice" aria-hidden="true">3</span>
+          <span class="nodo-titulo">Platform Event</span>
+        </span>
+        <span class="nodo-api">Senial_Sensor__e</span>
+        <p class="nodo-resumen">El punto de desacople. Transporte, no almacenamiento: quien produce la señal no sabe quién la consume.</p>
+      </button>
+
+      <div class="flecha">
+        <span class="linea" aria-hidden="true"></span>
+        <span class="rot"><b>Asíncrono</b> · transacción nueva, usuario Automated Process</span>
+      </div>
+
+      <p class="zona">Fase 2 · Procesamiento</p>
+
+      <button type="button" class="nodo tipo-codigo" data-etapa="trigger">
+        <span class="nodo-cab">
+          <span class="indice" aria-hidden="true">4</span>
+          <span class="nodo-titulo">Trigger suscriptor</span>
+        </span>
+        <span class="nodo-api">SenialSensorTrigger · after insert</span>
+        <p class="nodo-resumen">Tres líneas. Recibe el lote que le entrega la plataforma y delega al handler sin decidir nada.</p>
+      </button>
+
+      <div class="flecha">
+        <span class="linea" aria-hidden="true"></span>
+        <span class="rot">Delegación directa</span>
+      </div>
+
+      <button type="button" class="nodo tipo-codigo" data-etapa="handler">
+        <span class="nodo-cab">
+          <span class="indice" aria-hidden="true">5</span>
+          <span class="nodo-titulo">Handler de negocio</span>
+        </span>
+        <span class="nodo-api">SenialSensorHandler.cls</span>
+        <p class="nodo-resumen">Toda la lógica: duplicados, señales atrasadas, severidad por umbral, y DML bulkificado al final.</p>
+      </button>
+
+      <div class="flecha">
+        <span class="linea" aria-hidden="true"></span>
+        <span class="rot"><b>DML</b> · upsert y insert en bloque</span>
+      </div>
+
+      <p class="zona">Fase 3 · Persistencia</p>
+
+      <div class="grupo">
+        <p class="grupo-rot">6 · Donde quedan los datos</p>
+        <div class="fichas">
+          <button type="button" class="ficha f-estandar" data-etapa="account">Account</button>
+          <button type="button" class="ficha f-estandar" data-etapa="asset">Asset</button>
+          <button type="button" class="ficha f-estandar" data-etapa="caso">Case</button>
+          <button type="button" class="ficha f-custom" data-etapa="log">Log_Senial__c</button>
+        </div>
+      </div>
+
+      <div class="flecha">
+        <span class="linea" aria-hidden="true"></span>
+        <span class="rot">Frontera: aquí termina la ingesta</span>
+      </div>
+
+      <p class="zona">Fase 4 · Consumo</p>
+
+      <div class="grupo">
+        <p class="grupo-rot">7 · La capa que ve el operador</p>
+        <div class="fichas">
+          <button type="button" class="ficha f-codigo" data-etapa="controller">Apex Controller</button>
+          <button type="button" class="ficha f-codigo" data-etapa="lwc">LWC</button>
+          <button type="button" class="ficha f-codigo" data-etapa="seguridad">Seguridad</button>
+          <button type="button" class="ficha f-codigo" data-etapa="tests">Tests</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ PANEL ============ -->
+    <div class="panel" id="panel" aria-live="polite">
+      <div class="panel-cab">
+        <span class="panel-tipo" id="p-tipo">Sistema externo</span>
+        <p class="panel-titulo" id="p-titulo">Simulador de telemetría</p>
+        <p class="panel-api" id="p-api">GET /api/v1/telemetry</p>
+      </div>
+      <div class="panel-cuerpo" id="p-cuerpo"></div>
+    </div>
+
+  </div>
+
+  <!-- ============ DEMO SEÑAL ATRASADA ============ -->
+  <section class="demo">
+    <div class="demo-cab">
+      <h2>Por qué una señal atrasada no pisa el estado actual</h2>
+      <p>El caso más difícil de explicar del sprint. El simulador puede entregar una lectura vieja después de una más nueva, y la pantalla no debe mostrarla como si fuera la condición actual. Esto es lo que hace el handler cuando eso pasa.</p>
+    </div>
+
+    <div class="demo-caja">
+      <div class="demo-controles">
+        <button type="button" class="btn btn-demo" id="btn-atrasada">Simular señal atrasada</button>
+        <button type="button" class="btn btn-demo alt" id="btn-nueva">Simular señal más reciente</button>
+        <button type="button" class="btn" id="btn-reset">Reiniciar</button>
+      </div>
+
+      <div class="pista">
+        <div class="tarj" id="t-actual">
+          <span class="rot">Estado guardado en Asset</span>
+          <span class="val" id="v-actual">0,7 BAR</span>
+          <span class="ts" id="ts-actual">occurredAt 15:05:30Z</span>
+          <span class="et">Bomba principal de agua · AST-BOG-002</span>
+        </div>
+
+        <div class="tarj" id="t-entrante">
+          <span class="rot">Señal que llega</span>
+          <span class="val" id="v-entrante">—</span>
+          <span class="ts" id="ts-entrante">esperando simulación</span>
+          <span class="et" id="et-entrante">Pulsa uno de los botones</span>
+        </div>
+
+        <div class="tarj" id="t-final">
+          <span class="rot">Estado después de procesar</span>
+          <span class="val" id="v-final">0,7 BAR</span>
+          <span class="ts" id="ts-final">occurredAt 15:05:30Z</span>
+          <span class="et" id="et-final">Sin cambios todavía</span>
+        </div>
+      </div>
+
+      <div class="veredicto" id="veredicto">
+        <span class="paso">Esperando una simulación.</span>
+      </div>
+
+      <p class="demo-nota">La comparación es <code class="inl">occurredAt</code> contra <code class="inl">occurredAt</code>, nunca la hora de llegada. Dos señales pueden llegar en orden invertido por reintentos del proveedor o por latencia de red, y el orden de llegada no dice nada sobre cuál describe la condición más reciente del equipo.</p>
+    </div>
+  </section>
+
+  <footer>
+    <p><strong>Qué queda abierto.</strong> El objeto de la intervención todavía no está decidido: este diagrama usa <code class="inl">Case</code> como candidato, pero <code class="inl">WorkOrder</code> y el <code class="inl">Incident</code> estándar siguen en evaluación. Los valores exactos de umbral tampoco están acordados; los que aparecen acá son de ejemplo y su lugar definitivo es Custom Metadata, fuera del código.</p>
+    <p><strong>Sobre el código de esta guía.</strong> Son fragmentos ilustrativos para explicar la arquitectura, no metadata lista para desplegar. Falta manejo de errores completo, cobertura de tests y los umbrales reales.</p>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ============ Resaltado de sintaxis ============ */
+  function escapar(txt) {
+    return txt.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  var CLAVES = ["public","private","protected","global","static","final","virtual","override","abstract",
+    "class","interface","enum","extends","implements","new","return","if","else","for","while","do",
+    "try","catch","finally","throw","break","continue","this","super","null","true","false",
+    "insert","update","upsert","delete","undelete","with","sharing","without","inherited",
+    "SELECT","FROM","WHERE","IN","ORDER","BY","LIMIT","AND","OR","NOT","ASC","DESC","GROUP","HAVING",
+    "trigger","on","after","before","instanceof","void","testmethod"];
+
+  var TIPOS = ["String","Integer","Decimal","Boolean","Datetime","Date","Id","List","Set","Map",
+    "Object","Double","Long","Blob","Http","HttpRequest","HttpResponse","JSON","EventBus","Database",
+    "Assert","Test","System","Schema","Account","Asset","Case","EncodingUtil","Math","AuraHandledException",
+    "CalloutException","SObject","Senial_Sensor__e","Log_Senial__c","Umbral__mdt"];
+
+  function pintarApex(codigo) {
+    var txt = escapar(codigo);
+    var re = new RegExp(
+      "(\\/\\/[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/)" +      // 1 comentarios
+      "|('(?:[^'\\\\\\n]|\\\\.)*')" +                  // 2 cadenas
+      "|(@[A-Za-z]+)" +                                // 3 anotaciones
+      "|\\b(" + CLAVES.join("|") + ")\\b" +            // 4 palabras clave
+      "|\\b(" + TIPOS.join("|") + ")\\b" +             // 5 tipos
+      "|\\b(\\d+\\.?\\d*)\\b",                         // 6 numeros
+      "g"
+    );
+    return txt.replace(re, function (m, com, cad, anot, clave, tipo, num) {
+      if (com) { return '<span class="c">' + com + "</span>"; }
+      if (cad) { return '<span class="s">' + cad + "</span>"; }
+      if (anot) { return '<span class="k">' + anot + "</span>"; }
+      if (clave) { return '<span class="k">' + clave + "</span>"; }
+      if (tipo) { return '<span class="t">' + tipo + "</span>"; }
+      if (num) { return '<span class="n">' + num + "</span>"; }
+      return m;
+    });
+  }
+
+  function pintarJson(codigo) {
+    var txt = escapar(codigo);
+    return txt.replace(
+      /("(?:[^"\\]|\\.)*")(\s*:)?|\b(true|false|null)\b|\b(-?\d+\.?\d*)\b/g,
+      function (m, cad, colon, lit, num) {
+        if (cad && colon) { return '<span class="t">' + cad + "</span>" + colon; }
+        if (cad) { return '<span class="s">' + cad + "</span>"; }
+        if (lit) { return '<span class="k">' + lit + "</span>"; }
+        if (num) { return '<span class="n">' + num + "</span>"; }
+        return m;
+      }
+    );
+  }
+
+  function bloque(lenguaje, codigo) {
+    var pintado = lenguaje === "json" ? pintarJson(codigo) : pintarApex(codigo);
+    var nombre = lenguaje === "json" ? "JSON" : lenguaje === "soql" ? "SOQL" : lenguaje === "html" ? "HTML del LWC" : "Apex";
+    return '<div class="cod-barra"><span>' + nombre + "</span></div><pre><code>" + pintado + "</code></pre>";
+  }
+
+  /* ============ Contenido de cada pieza ============ */
+  var ETAPAS = {
+
+    simulador: {
+      tipo: "externo", tipoRot: "Sistema externo",
+      titulo: "Simulador de telemetría",
+      api: "GET /api/v1/telemetry?limit=200",
+      cuerpo:
+        "<p>Una aplicación en Heroku que hace de proveedor de sensores. No es parte de Salesforce y no sabe nada de nuestro modelo de datos: solo expone lecturas.</p>" +
+        "<ul>" +
+        "<li>Autenticación con <strong>Bearer token</strong>, que no debe vivir en el código.</li>" +
+        "<li>Paginado con <code>nextCursor</code> y <code>hasMore</code>, no con fechas ni IDs consecutivos.</li>" +
+        "<li><code>occurredAt</code> es el momento en que el sensor midió. <code>generatedAt</code> es cuándo respondió Heroku. <strong>No son lo mismo</strong> y confundirlos rompe la regla de la señal atrasada.</li>" +
+        "<li>La identidad de un mensaje es <code>source</code> + <code>messageId</code>. Un reenvío conserva ambos.</li>" +
+        "</ul>" +
+        '<p class="sub">Respuesta de ejemplo</p>' +
+        bloque("json",
+'{\n' +
+'  "schemaVersion": "1.0",\n' +
+'  "generatedAt": "2026-09-15T15:06:00Z",\n' +
+'  "data": [\n' +
+'    {\n' +
+'      "messageId": "MSG-000103",\n' +
+'      "source": "nova-casa-simulator",\n' +
+'      "building": {\n' +
+'        "externalId": "BLD-BOG-001",\n' +
+'        "name": "Nova Alameda",\n' +
+'        "city": "Bogota"\n' +
+'      },\n' +
+'      "asset": {\n' +
+'        "externalId": "AST-BOG-002",\n' +
+'        "name": "Bomba principal de agua",\n' +
+'        "type": "WATER_PUMP"\n' +
+'      },\n' +
+'      "sensorId": "SNS-PRESSURE-001",\n' +
+'      "measurement": {\n' +
+'        "type": "PRESSURE",\n' +
+'        "value": 0.7,\n' +
+'        "unit": "BAR"\n' +
+'      },\n' +
+'      "occurredAt": "2026-09-15T15:05:30Z"\n' +
+'    }\n' +
+'  ],\n' +
+'  "pagination": {\n' +
+'    "nextCursor": "page-token-002",\n' +
+'    "hasMore": true\n' +
+'  }\n' +
+'}')
+    },
+
+    callout: {
+      tipo: "codigo", tipoRot: "Código que escribimos",
+      titulo: "Servicio de callout",
+      api: "TelemetriaCalloutService.cls",
+      cuerpo:
+        "<p>Su única responsabilidad es <strong>traducir</strong>: traer el JSON, entenderlo y convertirlo en eventos. Ni una sola regla de negocio vive acá.</p>" +
+        "<p>Esa separación importa porque el día que el proveedor cambie el formato del JSON, solo esta clase cambia. Si acá hubiera cálculo de severidad, ese cambio tocaría la lógica de negocio también.</p>" +
+        "<ul>" +
+        "<li>La URL y el token salen de un <strong>Named Credential</strong>. Nunca del código ni de un campo.</li>" +
+        "<li>Los datos se <strong>aplanan</strong>: el JSON es anidado, el Platform Event es plano.</li>" +
+        "<li><code>EventBus.publish()</code> recibe la lista completa. Publicar de a uno dentro del bucle es el error clásico.</li>" +
+        "</ul>" +
+        '<p class="sub">Código</p>' +
+        bloque("apex",
+'public with sharing class TelemetriaCalloutService {\n' +
+'\n' +
+'    private static final Integer TAMANO_PAGINA = 200;\n' +
+'    // El Named Credential resuelve dominio y token en tiempo de ejecucion\n' +
+'    private static final String BASE = \'callout:Nova_Casa_Simulador/api/v1/telemetry\';\n' +
+'\n' +
+'    public static void sincronizar() {\n' +
+'        String cursor = null;\n' +
+'        Boolean hayMas = true;\n' +
+'\n' +
+'        while (hayMas) {\n' +
+'            Respuesta pagina = traerPagina(cursor);\n' +
+'            if (pagina == null || pagina.data == null || pagina.data.isEmpty()) {\n' +
+'                break;\n' +
+'            }\n' +
+'\n' +
+'            publicar(pagina.data);\n' +
+'\n' +
+'            hayMas = pagina.pagination != null && pagina.pagination.hasMore == true;\n' +
+'            cursor = pagina.pagination == null ? null : pagina.pagination.nextCursor;\n' +
+'        }\n' +
+'    }\n' +
+'\n' +
+'    private static Respuesta traerPagina(String cursor) {\n' +
+'        String url = BASE + \'?limit=\' + TAMANO_PAGINA;\n' +
+'        if (String.isNotBlank(cursor)) {\n' +
+'            url += \'&cursor=\' + EncodingUtil.urlEncode(cursor, \'UTF-8\');\n' +
+'        }\n' +
+'\n' +
+'        HttpRequest peticion = new HttpRequest();\n' +
+'        peticion.setEndpoint(url);\n' +
+'        peticion.setMethod(\'GET\');\n' +
+'        peticion.setHeader(\'Accept\', \'application/json\');\n' +
+'        peticion.setTimeout(20000);\n' +
+'\n' +
+'        HttpResponse resp = new Http().send(peticion);\n' +
+'        if (resp.getStatusCode() != 200) {\n' +
+'            throw new CalloutException(\'El simulador respondio \' + resp.getStatusCode());\n' +
+'        }\n' +
+'        return (Respuesta) JSON.deserialize(resp.getBody(), Respuesta.class);\n' +
+'    }\n' +
+'\n' +
+'    // Traduccion pura: de JSON anidado a evento plano\n' +
+'    private static void publicar(List<Lectura> lecturas) {\n' +
+'        List<Senial_Sensor__e> eventos = new List<Senial_Sensor__e>();\n' +
+'\n' +
+'        for (Lectura l : lecturas) {\n' +
+'            eventos.add(new Senial_Sensor__e(\n' +
+'                MessageId__c          = l.messageId,\n' +
+'                BuildingExternalId__c = l.building?.externalId,\n' +
+'                BuildingName__c       = l.building?.name,\n' +
+'                BuildingCity__c       = l.building?.city,\n' +
+'                AssetExternalId__c    = l.asset?.externalId,\n' +
+'                AssetName__c          = l.asset?.name,\n' +
+'                AssetType__c          = l.asset?.type,\n' +
+'                SensorId__c           = l.sensorId,\n' +
+'                MeasurementType__c    = l.measurement?.type,\n' +
+'                MeasurementValue__c   = l.measurement?.value,\n' +
+'                MeasurementUnit__c    = l.measurement?.unit,\n' +
+'                OccurredAt__c         = l.occurredAt\n' +
+'            ));\n' +
+'        }\n' +
+'\n' +
+'        EventBus.publish(eventos); // una sola llamada para todo el lote\n' +
+'    }\n' +
+'\n' +
+'    // Clases espejo del contrato, para deserializar\n' +
+'    private class Respuesta {\n' +
+'        public List<Lectura> data;\n' +
+'        public Paginacion pagination;\n' +
+'    }\n' +
+'    private class Paginacion {\n' +
+'        public String nextCursor;\n' +
+'        public Boolean hasMore;\n' +
+'    }\n' +
+'    private class Lectura {\n' +
+'        public String messageId;\n' +
+'        public String source;\n' +
+'        public Edificio building;\n' +
+'        public Equipo asset;\n' +
+'        public String sensorId;\n' +
+'        public Medicion measurement;\n' +
+'        public Datetime occurredAt;\n' +
+'    }\n' +
+'    private class Edificio { public String externalId; public String name; public String city; }\n' +
+'    private class Equipo   { public String externalId; public String name; public String type; }\n' +
+'    private class Medicion { public String type; public Decimal value; public String unit; }\n' +
+'}')
+    },
+
+    evento: {
+      tipo: "evento", tipoRot: "Platform Event · desacople",
+      titulo: "Senial_Sensor__e",
+      api: "Platform Event · publish after commit",
+      cuerpo:
+        "<p>La pieza que separa <em>quién trae la señal</em> de <em>quién decide qué hacer con ella</em>. El servicio de callout no sabe que existe un handler; el handler no sabe que los datos vinieron de un HTTP.</p>" +
+        "<p><strong>Un Platform Event es transporte, no almacenamiento.</strong> Vive en el bus con retención limitada y no se consulta con SOQL como un registro normal. Si el suscriptor no escribe en objetos, la señal se pierde.</p>" +
+        "<p>Los campos son planos a propósito: un Platform Event no admite estructuras anidadas como el JSON de origen.</p>" +
+        "<ul>" +
+        "<li><code>MessageId__c</code> — identidad, base del control de duplicados</li>" +
+        "<li><code>BuildingExternalId__c</code>, <code>BuildingName__c</code>, <code>BuildingCity__c</code></li>" +
+        "<li><code>AssetExternalId__c</code>, <code>AssetName__c</code>, <code>AssetType__c</code></li>" +
+        "<li><code>SensorId__c</code></li>" +
+        "<li><code>MeasurementType__c</code>, <code>MeasurementValue__c</code>, <code>MeasurementUnit__c</code></li>" +
+        "<li><code>OccurredAt__c</code> — momento de origen, clave para descartar señales atrasadas</li>" +
+        "</ul>" +
+        '<p class="sub">Publicar no es procesar</p>' +
+        bloque("apex",
+'List<Database.SaveResult> resultados = EventBus.publish(eventos);\n' +
+'\n' +
+'List<Log_Senial__c> fallos = new List<Log_Senial__c>();\n' +
+'\n' +
+'for (Integer i = 0; i < resultados.size(); i++) {\n' +
+'    if (!resultados[i].isSuccess()) {\n' +
+'        for (Database.Error err : resultados[i].getErrors()) {\n' +
+'            // El bus rechazo el evento: nunca llego a procesarse.\n' +
+'            // Es un fallo distinto a que el handler falle despues.\n' +
+'            fallos.add(new Log_Senial__c(\n' +
+'                MessageId__c = eventos[i].MessageId__c,\n' +
+'                Resultado__c = \'Publicacion rechazada\',\n' +
+'                Motivo__c    = err.getMessage()\n' +
+'            ));\n' +
+'        }\n' +
+'    }\n' +
+'}\n' +
+'\n' +
+'if (!fallos.isEmpty()) {\n' +
+'    insert fallos;\n' +
+'}'),
+      cuidado: {
+        titulo: "Dos momentos, dos evidencias",
+        texto: "Que el bus acepte el evento no prueba que se haya procesado. Son transacciones distintas y pueden fallar por separado, así que el log tiene que distinguirlas. Si solo registras la publicación, vas a creer que una señal se procesó cuando en realidad el handler la rechazó."
+      }
+    },
+
+    trigger: {
+      tipo: "codigo", tipoRot: "Código que escribimos",
+      titulo: "Trigger suscriptor",
+      api: "SenialSensorTrigger · after insert",
+      cuerpo:
+        "<p>Es el suscriptor programático del evento. La plataforma lo dispara sola cuando se publica, y le entrega un <strong>lote</strong> de eventos, no uno.</p>" +
+        "<p>Se mantiene mínimo a propósito: no se puede probar un trigger en aislamiento ni reutilizar su lógica, así que todo lo interesante vive en el handler.</p>" +
+        "<ul>" +
+        "<li>Corre en una <strong>transacción nueva</strong>, separada de la del callout.</li>" +
+        "<li>Corre como el usuario <strong>Automated Process</strong>, no como quien publicó. Por eso la ingesta no depende de los permisos del operador.</li>" +
+        "<li>Si lanza una excepción no capturada, la plataforma reintenta el lote. El handler tiene que ser idempotente.</li>" +
+        "</ul>" +
+        '<p class="sub">Código completo</p>' +
+        bloque("apex",
+'trigger SenialSensorTrigger on Senial_Sensor__e (after insert) {\n' +
+'    // El trigger no decide nada: recibe el lote y delega.\n' +
+'    SenialSensorHandler.procesar(Trigger.new);\n' +
+'}')
+    },
+
+    handler: {
+      tipo: "codigo", tipoRot: "Código que escribimos",
+      titulo: "Handler de negocio",
+      api: "SenialSensorHandler.cls",
+      cuerpo:
+        "<p>El corazón de la solución. Recibe el lote y toma cuatro decisiones en orden, porque el orden importa: descartar duplicados antes de calcular severidad evita trabajo inútil, y verificar el atraso antes de escribir evita corromper el estado.</p>" +
+        "<ul>" +
+        "<li><strong>Duplicado</strong> — misma identidad ya procesada, se registra y se ignora.</li>" +
+        "<li><strong>Atrasada</strong> — <code>OccurredAt__c</code> anterior al que ya tiene el activo, se guarda como evidencia sin pisar el estado.</li>" +
+        "<li><strong>Severidad</strong> — se clasifica contra umbrales que viven fuera del código.</li>" +
+        "<li><strong>Persistencia</strong> — upsert de edificio y activo, y una intervención si es crítica y no existe ya.</li>" +
+        "</ul>" +
+        "<p>Todas las consultas y todo el DML están <strong>fuera de los bucles</strong>. Con lotes de hasta 200 señales, hacer una consulta por registro agota los límites de gobernador.</p>" +
+        '<p class="sub">Estructura</p>' +
+        bloque("apex",
+'public with sharing class SenialSensorHandler {\n' +
+'\n' +
+'    public static void procesar(List<Senial_Sensor__e> eventos) {\n' +
+'\n' +
+'        // ---- 1. Dedup dentro del propio lote ----\n' +
+'        Map<String, Senial_Sensor__e> porMensaje = new Map<String, Senial_Sensor__e>();\n' +
+'        Set<String> idsActivo = new Set<String>();\n' +
+'\n' +
+'        for (Senial_Sensor__e e : eventos) {\n' +
+'            if (String.isBlank(e.MessageId__c) || String.isBlank(e.AssetExternalId__c)) {\n' +
+'                continue; // invalido: se registra aparte, no bloquea al resto\n' +
+'            }\n' +
+'            porMensaje.put(e.MessageId__c, e);\n' +
+'            idsActivo.add(e.AssetExternalId__c);\n' +
+'        }\n' +
+'\n' +
+'        // ---- 2. Una sola consulta por cada cosa que necesito saber ----\n' +
+'        Set<String> yaVistos = new Set<String>();\n' +
+'        for (Log_Senial__c log : [\n' +
+'            SELECT MessageId__c FROM Log_Senial__c\n' +
+'            WHERE MessageId__c IN :porMensaje.keySet()\n' +
+'        ]) {\n' +
+'            yaVistos.add(log.MessageId__c);\n' +
+'        }\n' +
+'\n' +
+'        Map<String, Asset> activos = new Map<String, Asset>();\n' +
+'        for (Asset a : [\n' +
+'            SELECT Id, External_Id__c, Ultima_Lectura_Fecha__c, Severidad_Actual__c\n' +
+'            FROM Asset WHERE External_Id__c IN :idsActivo\n' +
+'        ]) {\n' +
+'            activos.put(a.External_Id__c, a);\n' +
+'        }\n' +
+'\n' +
+'        // ---- 3. Decidir, sin tocar la base de datos ----\n' +
+'        List<Asset> porActualizar = new List<Asset>();\n' +
+'        List<Case> intervenciones = new List<Case>();\n' +
+'        List<Log_Senial__c> bitacora = new List<Log_Senial__c>();\n' +
+'\n' +
+'        for (Senial_Sensor__e e : porMensaje.values()) {\n' +
+'\n' +
+'            if (yaVistos.contains(e.MessageId__c)) {\n' +
+'                bitacora.add(anotar(e, \'Duplicada\', \'Identidad ya procesada\'));\n' +
+'                continue;\n' +
+'            }\n' +
+'\n' +
+'            Asset actual = activos.get(e.AssetExternalId__c);\n' +
+'\n' +
+'            // La comparacion es occurredAt contra occurredAt.\n' +
+'            // El orden de llegada no dice cual es mas reciente.\n' +
+'            if (actual != null\n' +
+'                && actual.Ultima_Lectura_Fecha__c != null\n' +
+'                && e.OccurredAt__c < actual.Ultima_Lectura_Fecha__c) {\n' +
+'                bitacora.add(anotar(e, \'Atrasada\', \'Anterior al estado vigente\'));\n' +
+'                continue; // se conserva evidencia, NO se sobrescribe\n' +
+'            }\n' +
+'\n' +
+'            String severidad = Umbrales.clasificar(\n' +
+'                e.AssetType__c, e.MeasurementType__c, e.MeasurementValue__c\n' +
+'            );\n' +
+'\n' +
+'            porActualizar.add(new Asset(\n' +
+'                External_Id__c            = e.AssetExternalId__c,\n' +
+'                Name                      = e.AssetName__c,\n' +
+'                Ultima_Lectura_Valor__c   = e.MeasurementValue__c,\n' +
+'                Ultima_Lectura_Unidad__c  = e.MeasurementUnit__c,\n' +
+'                Ultima_Lectura_Fecha__c   = e.OccurredAt__c,\n' +
+'                Severidad_Actual__c       = severidad\n' +
+'            ));\n' +
+'\n' +
+'            if (severidad == \'Critico\' && !tieneIntervencionAbierta(actual)) {\n' +
+'                intervenciones.add(new Case(\n' +
+'                    Subject     = \'Senal critica: \' + e.AssetName__c,\n' +
+'                    Priority    = \'High\',\n' +
+'                    Status      = \'New\',\n' +
+'                    Origin      = \'Telemetria\',\n' +
+'                    AssetId     = actual?.Id\n' +
+'                ));\n' +
+'            }\n' +
+'\n' +
+'            bitacora.add(anotar(e, \'Procesada\', severidad));\n' +
+'        }\n' +
+'\n' +
+'        // ---- 4. Todo el DML al final, en bloque ----\n' +
+'        if (!porActualizar.isEmpty()) {\n' +
+'            upsert porActualizar External_Id__c;\n' +
+'        }\n' +
+'        if (!intervenciones.isEmpty()) {\n' +
+'            insert intervenciones;\n' +
+'        }\n' +
+'        if (!bitacora.isEmpty()) {\n' +
+'            insert bitacora;\n' +
+'        }\n' +
+'    }\n' +
+'\n' +
+'    private static Log_Senial__c anotar(Senial_Sensor__e e, String resultado, String motivo) {\n' +
+'        return new Log_Senial__c(\n' +
+'            MessageId__c       = e.MessageId__c,\n' +
+'            AssetExternalId__c = e.AssetExternalId__c,\n' +
+'            OccurredAt__c      = e.OccurredAt__c,\n' +
+'            Resultado__c       = resultado,\n' +
+'            Motivo__c          = motivo\n' +
+'        );\n' +
+'    }\n' +
+'}'),
+      cuidado: {
+        titulo: "Los umbrales no van en el código",
+        texto: "La clase Umbrales lee Custom Metadata, no constantes. BR-204 exige que una persona autorizada cambie los límites sin volver a desplegar, así que un if con 30 adentro incumple el requerimiento aunque funcione."
+      }
+    },
+
+    account: {
+      tipo: "estandar", tipoRot: "Objeto estándar reutilizado",
+      titulo: "Account como Edificio",
+      api: "Account · estándar",
+      cuerpo:
+        "<p>El edificio se modela con <code>Account</code> en lugar de un objeto custom. Trae dirección y ciudad de fábrica, jerarquía por <code>ParentId</code>, y sobre todo un <strong>modelo de compartición ya probado</strong>.</p>" +
+        "<p>Ese último punto es el que decide: BR-208 exige que el operador vea solo los edificios a su cargo, y las reglas de compartición de cuentas resuelven eso sin inventar nada.</p>" +
+        '<p class="sub">Campo que hay que agregar</p>' +
+        "<p><code>External_Id__c</code>, marcado como External ID y Unique. Sin él no se puede hacer <code>upsert</code> contra <code>BLD-BOG-001</code> y habría que consultar y mapear a mano.</p>" +
+        bloque("apex",
+'// El upsert por External ID evita el patron consultar-luego-decidir\n' +
+'List<Account> edificios = new List<Account>();\n' +
+'\n' +
+'for (Senial_Sensor__e e : eventos) {\n' +
+'    edificios.add(new Account(\n' +
+'        External_Id__c = e.BuildingExternalId__c,\n' +
+'        Name           = e.BuildingName__c,\n' +
+'        BillingCity    = e.BuildingCity__c\n' +
+'    ));\n' +
+'}\n' +
+'\n' +
+'// Crea los que no existen y actualiza los que si, en una sola operacion\n' +
+'upsert edificios External_Id__c;')
+    },
+
+    asset: {
+      tipo: "estandar", tipoRot: "Objeto estándar reutilizado",
+      titulo: "Asset como Equipo",
+      api: "Asset · estándar",
+      cuerpo:
+        "<p>La bomba de agua y la unidad de ventilación son <code>Asset</code>. Es el objeto estándar pensado para equipos instalados en un sitio: tiene relación con la cuenta, estado, número de serie y jerarquía propia.</p>" +
+        "<p>Acá vive el <strong>estado actual</strong> de cada equipo, que es lo que el operador consulta. No el historial: eso va en el objeto de bitácora.</p>" +
+        '<p class="sub">Campos que hay que agregar</p>' +
+        "<ul>" +
+        "<li><code>External_Id__c</code> — para el upsert contra <code>AST-BOG-002</code></li>" +
+        "<li><code>Ultima_Lectura_Valor__c</code> y <code>Ultima_Lectura_Unidad__c</code></li>" +
+        "<li><code>Ultima_Lectura_Fecha__c</code> — el <code>occurredAt</code> vigente, con el que se compara toda señal nueva</li>" +
+        "<li><code>Severidad_Actual__c</code> — derivada, nunca escrita a mano</li>" +
+        "</ul>" +
+        '<p class="sub">Consulta del estado actual</p>' +
+        bloque("soql",
+'SELECT Id, Name, Account.Name, Account.BillingCity,\n' +
+'       Ultima_Lectura_Valor__c, Ultima_Lectura_Unidad__c,\n' +
+'       Ultima_Lectura_Fecha__c, Severidad_Actual__c\n' +
+'FROM Asset\n' +
+'WHERE Severidad_Actual__c IN (\'Critico\', \'Advertencia\')\n' +
+'ORDER BY Ultima_Lectura_Fecha__c DESC'),
+      cuidado: {
+        titulo: "Un campo de última lectura no alcanza",
+        texto: "El acuerdo del sprint dice que la última lectura se guarda por activo y tipo de medición: una temperatura reciente no reemplaza la última lectura de presión. Con un solo juego de campos en Asset, la temperatura pisa la presión. Modelar bien esto exige un registro por combinación de activo y tipo de medición, y que Asset guarde solo el resumen derivado."
+      }
+    },
+
+    caso: {
+      tipo: "estandar", tipoRot: "Objeto estándar reutilizado",
+      titulo: "Case como Intervención",
+      api: "Case · estándar",
+      cuerpo:
+        "<p>Cuando una señal es crítica y el activo no tiene ya una intervención abierta, se crea un <code>Case</code>, vinculado al activo y a la cuenta.</p>" +
+        "<p>Lo más importante de esta pieza no es crearla, es <strong>no duplicarla</strong>. Si el proveedor reenvía el mismo aviso, el control de duplicados del handler corta antes de llegar acá; y si llega otra señal crítica del mismo activo, se verifica que no haya una intervención abierta.</p>" +
+        '<p class="sub">Verificación antes de crear</p>' +
+        bloque("soql",
+'SELECT Id, AssetId, Status, Priority\n' +
+'FROM Case\n' +
+'WHERE AssetId IN :idsActivo\n' +
+'  AND Status != \'Closed\'\n' +
+'  AND Origin = \'Telemetria\''),
+      cuidado: {
+        titulo: "Esta elección no está cerrada",
+        texto: "Case es un candidato, no una decisión. WorkOrder encaja mejor con trabajo de mantenimiento programado, y el Incident estándar está diseñado justo para agrupar varios elementos relacionados bajo un mismo incidente abierto, que es el escenario que los acuerdos del sprint marcan como extra. Falta evaluar disponibilidad por edición antes de comprometerse."
+      }
+    },
+
+    log: {
+      tipo: "custom", tipoRot: "Objeto custom justificado",
+      titulo: "Bitácora de señales",
+      api: "Log_Senial__c · custom",
+      cuerpo:
+        "<p>El único objeto custom obligatorio de esta arquitectura, y se justifica solo: <strong>no existe un objeto estándar razonable para series de tiempo de telemetría</strong> ni para registrar por qué se rechazó un mensaje.</p>" +
+        "<p>Es lo que responde a las preguntas del administrador: qué señal llegó, qué resultado tuvo, por qué se rechazó y si es seguro reintentarla.</p>" +
+        "<ul>" +
+        "<li><code>MessageId__c</code> — indexado, es la base del control de duplicados</li>" +
+        "<li><code>AssetExternalId__c</code> y <code>OccurredAt__c</code></li>" +
+        "<li><code>Resultado__c</code> — Procesada · Duplicada · Atrasada · Invalida · Publicacion rechazada</li>" +
+        "<li><code>Motivo__c</code> — explicación legible, <strong>sin secretos ni tokens</strong></li>" +
+        "</ul>" +
+        '<p class="sub">Lo que investiga el administrador</p>' +
+        bloque("soql",
+'SELECT MessageId__c, AssetExternalId__c, OccurredAt__c,\n' +
+'       Resultado__c, Motivo__c, CreatedDate\n' +
+'FROM Log_Senial__c\n' +
+'WHERE Resultado__c != \'Procesada\'\n' +
+'  AND CreatedDate = LAST_N_DAYS:7\n' +
+'ORDER BY CreatedDate DESC')
+    },
+
+    controller: {
+      tipo: "codigo", tipoRot: "Código que escribimos",
+      titulo: "Controlador de Apex",
+      api: "ActivosOperadorController.cls",
+      cuerpo:
+        "<p>Sirve al LWC los datos ya procesados. Nunca llama al simulador: lee lo que el handler dejó guardado. Esa separación es la que permite que la pantalla sea rápida aunque la ingesta sea lenta.</p>" +
+        "<p><code>cacheable=true</code> permite que el LWC use el caché de Lightning Data Service y refresque cuando haga falta.</p>" +
+        '<p class="sub">Código</p>' +
+        bloque("apex",
+'public with sharing class ActivosOperadorController {\n' +
+'\n' +
+'    @AuraEnabled(cacheable=true)\n' +
+'    public static List<Asset> misActivos(String edificioId, String severidad) {\n' +
+'        try {\n' +
+'            return [\n' +
+'                SELECT Id, Name, AccountId, Account.Name, Account.BillingCity,\n' +
+'                       Ultima_Lectura_Valor__c, Ultima_Lectura_Unidad__c,\n' +
+'                       Ultima_Lectura_Fecha__c, Severidad_Actual__c\n' +
+'                FROM Asset\n' +
+'                WHERE (:edificioId = null OR AccountId = :edificioId)\n' +
+'                  AND (:severidad = null OR Severidad_Actual__c = :severidad)\n' +
+'                WITH SECURITY_ENFORCED\n' +
+'                ORDER BY Severidad_Actual__c, Ultima_Lectura_Fecha__c DESC\n' +
+'                LIMIT 200\n' +
+'            ];\n' +
+'        } catch (Exception e) {\n' +
+'            // Al cliente no se le devuelve el detalle tecnico\n' +
+'            throw new AuraHandledException(\'No se pudieron cargar los activos.\');\n' +
+'        }\n' +
+'    }\n' +
+'}'),
+      cuidado: {
+        titulo: "WITH SECURITY_ENFORCED tiene límites",
+        texto: "Valida permisos de objeto y campo, pero no cubre todos los casos, como algunos campos en relaciones polimórficas. La alternativa más nueva es WITH USER_MODE, que aplica el modo de usuario a toda la consulta, o Security.stripInaccessible para filtrar el resultado. Dado que la frontera formativa pide seguridad verificable en el servidor, conviene elegir a conciencia y poder explicar por qué."
+      }
+    },
+
+    lwc: {
+      tipo: "codigo", tipoRot: "Código que escribimos",
+      titulo: "Componente del operador",
+      api: "listaActivosOperador · LWC",
+      cuerpo:
+        "<p>La pantalla del operador. Lee del controlador con <code>@wire</code> y muestra tres cosas: qué equipo necesita atención, qué tan grave es, y qué tan vieja es esa información.</p>" +
+        "<p>Los tres estados que exige el sprint no son adorno: <strong>cargando</strong>, <strong>sin datos</strong> y <strong>error</strong> se ven parecidos si se hacen mal, y confundir un error con «todo normal» es exactamente el riesgo del negocio.</p>" +
+        '<p class="sub">Controlador del componente</p>' +
+        bloque("apex",
+'import { LightningElement, wire } from \'lwc\';\n' +
+'import misActivos from \'@salesforce/apex/ActivosOperadorController.misActivos\';\n' +
+'\n' +
+'export default class ListaActivosOperador extends LightningElement {\n' +
+'    edificioId;\n' +
+'    severidad;\n' +
+'\n' +
+'    activos;\n' +
+'    error;\n' +
+'    cargando = true;\n' +
+'\n' +
+'    @wire(misActivos, { edificioId: \'$edificioId\', severidad: \'$severidad\' })\n' +
+'    recibir({ data, error }) {\n' +
+'        this.cargando = false;\n' +
+'        if (data) {\n' +
+'            this.activos = data;\n' +
+'            this.error = undefined;\n' +
+'        } else if (error) {\n' +
+'            // No mostramos lista vacia: seria indistinguible de "todo normal"\n' +
+'            this.error = \'No pudimos cargar tus activos.\';\n' +
+'            this.activos = undefined;\n' +
+'        }\n' +
+'    }\n' +
+'\n' +
+'    get sinDatos() {\n' +
+'        return !this.cargando && !this.error && this.activos?.length === 0;\n' +
+'    }\n' +
+'}')
+    },
+
+    seguridad: {
+      tipo: "codigo", tipoRot: "Configuración y código",
+      titulo: "Seguridad en dos caminos",
+      api: "Permission Sets · Sharing · FLS",
+      cuerpo:
+        "<p>La ingesta y la consulta tienen autorizaciones <strong>distintas</strong>, y confundirlas es un error de diseño que el sprint marca explícitamente.</p>" +
+        '<p class="sub">Camino de ingesta</p>' +
+        "<p>El trigger del Platform Event corre como <strong>Automated Process</strong>, en modo sistema. No necesita que ningún operador tenga permisos, y por eso la automatización no depende de que alguien sea administrador.</p>" +
+        '<p class="sub">Camino de consulta</p>' +
+        "<ul>" +
+        "<li><strong>Objeto y campo</strong> — Permission Sets para el perfil de operador, más validación en el servidor. La restricción tiene que funcionar también cuando alguien llama al método de Apex directamente, no solo cuando usa la pantalla.</li>" +
+        "<li><strong>Registro</strong> — reglas de compartición sobre la cuenta del edificio, para que el operador vea solo los suyos.</li>" +
+        "<li><strong>Bitácora</strong> — visible al administrador, no al operador. Y sin tokens ni secretos en el campo de motivo.</li>" +
+        "</ul>" +
+        '<p class="sub">Verificación explícita cuando hace falta</p>' +
+        bloque("apex",
+'// Cuando la consulta no puede llevar WITH SECURITY_ENFORCED,\n' +
+'// se filtra el resultado antes de devolverlo\n' +
+'SObjectAccessDecision decision = Security.stripInaccessible(\n' +
+'    AccessType.READABLE,\n' +
+'    activosConsultados\n' +
+');\n' +
+'\n' +
+'return (List<Asset>) decision.getRecords();')
+    },
+
+    tests: {
+      tipo: "codigo", tipoRot: "Código que escribimos",
+      titulo: "Pruebas que fallan de verdad",
+      api: "SenialSensorHandlerTest.cls",
+      cuerpo:
+        "<p>El sprint es explícito: las pruebas deben <strong>fallar si se rompe el comportamiento que afirman verificar</strong>. Un test que solo ejecuta código y no afirma nada da cobertura y no prueba nada.</p>" +
+        "<p>En pruebas de Platform Events, el evento se entrega cuando llamas <code>Test.stopTest()</code>. Antes de eso el trigger no corrió.</p>" +
+        '<p class="sub">El caso de la señal atrasada</p>' +
+        bloque("apex",
+'@isTest\n' +
+'private class SenialSensorHandlerTest {\n' +
+'\n' +
+'    @isTest\n' +
+'    static void laSenialAtrasadaNoPisaElEstadoActual() {\n' +
+'        // Dado un activo cuyo estado vigente es de las 15:05:30\n' +
+'        Asset activo = new Asset(\n' +
+'            Name                    = \'Bomba principal de agua\',\n' +
+'            External_Id__c          = \'AST-BOG-002\',\n' +
+'            Ultima_Lectura_Valor__c = 0.7,\n' +
+'            Ultima_Lectura_Fecha__c = Datetime.newInstanceGmt(2026, 9, 15, 15, 5, 30)\n' +
+'        );\n' +
+'        insert activo;\n' +
+'\n' +
+'        // Cuando llega una lectura de las 15:02, es decir anterior\n' +
+'        Senial_Sensor__e atrasada = new Senial_Sensor__e(\n' +
+'            MessageId__c        = \'MSG-000107\',\n' +
+'            AssetExternalId__c  = \'AST-BOG-002\',\n' +
+'            MeasurementType__c  = \'PRESSURE\',\n' +
+'            MeasurementValue__c = 1.9,\n' +
+'            OccurredAt__c       = Datetime.newInstanceGmt(2026, 9, 15, 15, 2, 0)\n' +
+'        );\n' +
+'\n' +
+'        Test.startTest();\n' +
+'        EventBus.publish(new List<Senial_Sensor__e>{ atrasada });\n' +
+'        Test.stopTest(); // aqui se entrega el evento y corre el trigger\n' +
+'\n' +
+'        // Entonces el estado no cambio\n' +
+'        Asset despues = [\n' +
+'            SELECT Ultima_Lectura_Valor__c, Ultima_Lectura_Fecha__c\n' +
+'            FROM Asset WHERE Id = :activo.Id\n' +
+'        ];\n' +
+'\n' +
+'        Assert.areEqual(0.7, despues.Ultima_Lectura_Valor__c,\n' +
+'            \'Una lectura de las 15:02 no debe reemplazar la de las 15:05\');\n' +
+'\n' +
+'        // Y quedo evidencia de que llego\n' +
+'        Log_Senial__c log = [\n' +
+'            SELECT Resultado__c FROM Log_Senial__c\n' +
+'            WHERE MessageId__c = \'MSG-000107\'\n' +
+'        ];\n' +
+'        Assert.areEqual(\'Atrasada\', log.Resultado__c,\n' +
+'            \'La senal atrasada debe registrarse como evidencia\');\n' +
+'    }\n' +
+'}'),
+      cuidado: {
+        titulo: "Qué más hay que probar",
+        texto: "Clasificación por severidad, creación de intervención, volumen de 200 señales en un lote, mensajes inválidos que no bloquean a los válidos, duplicados por reenvío, orden temporal y seguridad. Cada uno con aserciones propias, no con un solo test que toque todo."
+      }
+    }
+  };
+
+  /* ============ Panel de detalle ============ */
+  var pTipo = document.getElementById("p-tipo");
+  var pTitulo = document.getElementById("p-titulo");
+  var pApi = document.getElementById("p-api");
+  var pCuerpo = document.getElementById("p-cuerpo");
+  var seleccionables = Array.prototype.slice.call(document.querySelectorAll("[data-etapa]"));
+
+  function seleccionar(clave, mover) {
+    var d = ETAPAS[clave];
+    if (!d) { return; }
+
+    pTipo.textContent = d.tipoRot;
+    pTipo.className = "panel-tipo t-" + d.tipo;
+    pTitulo.textContent = d.titulo;
+    pApi.textContent = d.api;
+
+    var html = d.cuerpo;
+    if (d.cuidado) {
+      html += '<div class="cuidado"><b>' + d.cuidado.titulo + "</b>" + d.cuidado.texto + "</div>";
+    }
+    pCuerpo.innerHTML = html;
+    pCuerpo.scrollTop = 0;
+
+    seleccionables.forEach(function (el) {
+      if (el.getAttribute("data-etapa") === clave) {
+        el.setAttribute("aria-current", "true");
+      } else {
+        el.removeAttribute("aria-current");
+      }
+    });
+
+    if (mover && window.matchMedia("(max-width: 62rem)").matches) {
+      document.getElementById("panel").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
+  seleccionables.forEach(function (el) {
+    el.addEventListener("click", function () {
+      seleccionar(el.getAttribute("data-etapa"), true);
+    });
+  });
+
+  seleccionar("simulador", false);
+
+  /* ============ Tema claro y oscuro ============ */
+  var raiz = document.documentElement;
+  var btnTema = document.getElementById("btn-tema");
+  var iconoTema = document.getElementById("icono-tema");
+  var textoTema = document.getElementById("texto-tema");
+
+  function aplicarTema(tema) {
+    raiz.setAttribute("data-tema", tema);
+    var oscuro = tema === "oscuro";
+    btnTema.setAttribute("aria-pressed", oscuro ? "true" : "false");
+    iconoTema.innerHTML = oscuro ? "&#9728;" : "&#9789;";
+    textoTema.textContent = oscuro ? "Modo claro" : "Modo oscuro";
+    try { localStorage.setItem("nova-casa-tema", tema); } catch (e) { /* file:// sin storage */ }
+  }
+
+  var temaInicial = null;
+  try { temaInicial = localStorage.getItem("nova-casa-tema"); } catch (e) { /* ignorado */ }
+  if (!temaInicial) {
+    temaInicial = window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches ? "oscuro" : "claro";
+  }
+  aplicarTema(temaInicial);
+
+  btnTema.addEventListener("click", function () {
+    aplicarTema(raiz.getAttribute("data-tema") === "oscuro" ? "claro" : "oscuro");
+  });
+
+  /* ============ Simulación de señal atrasada ============ */
+  var ESTADO_BASE = { valor: "0,7 BAR", ts: "15:05:30Z", et: "Sin cambios todavía" };
+
+  var elTarjActual = document.getElementById("t-actual");
+  var elTarjEntrante = document.getElementById("t-entrante");
+  var elTarjFinal = document.getElementById("t-final");
+  var elVEntrante = document.getElementById("v-entrante");
+  var elTsEntrante = document.getElementById("ts-entrante");
+  var elEtEntrante = document.getElementById("et-entrante");
+  var elVFinal = document.getElementById("v-final");
+  var elTsFinal = document.getElementById("ts-final");
+  var elEtFinal = document.getElementById("et-final");
+  var elVeredicto = document.getElementById("veredicto");
+
+  var temporizadores = [];
+  var sinAnimacion = window.matchMedia &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function limpiarTemporizadores() {
+    temporizadores.forEach(clearTimeout);
+    temporizadores = [];
+  }
+
+  function reiniciar() {
+    limpiarTemporizadores();
+    [elTarjActual, elTarjEntrante, elTarjFinal].forEach(function (t) {
+      t.className = "tarj";
+    });
+    elVEntrante.textContent = "—";
+    elTsEntrante.textContent = "esperando simulación";
+    elEtEntrante.textContent = "Pulsa uno de los botones";
+    elVFinal.textContent = ESTADO_BASE.valor;
+    elTsFinal.textContent = "occurredAt " + ESTADO_BASE.ts;
+    elEtFinal.textContent = ESTADO_BASE.et;
+    elVeredicto.className = "veredicto";
+    elVeredicto.innerHTML = '<span class="paso">Esperando una simulación.</span>';
+  }
+
+  function correr(pasos) {
+    limpiarTemporizadores();
+    var acumulado = 0;
+    pasos.forEach(function (paso) {
+      acumulado += sinAnimacion ? 0 : paso.espera;
+      temporizadores.push(setTimeout(paso.hacer, acumulado));
+    });
+  }
+
+  function simular(atrasada) {
+    reiniciar();
+
+    var senal = atrasada
+      ? { valor: "1,9 BAR", ts: "15:02:00Z", msg: "MSG-000107" }
+      : { valor: "0,4 BAR", ts: "15:07:10Z", msg: "MSG-000108" };
+
+    correr([
+      {
+        espera: 120,
+        hacer: function () {
+          elTarjEntrante.className = "tarj activa";
+          elVEntrante.textContent = senal.valor;
+          elTsEntrante.textContent = "occurredAt " + senal.ts;
+          elEtEntrante.textContent = senal.msg + " · recién recibida";
+          elVeredicto.innerHTML =
+            '<span class="paso">1 · Llega ' + senal.msg + " con occurredAt " + senal.ts + "</span>";
+        }
+      },
+      {
+        espera: 850,
+        hacer: function () {
+          elTarjActual.className = "tarj activa";
+          elVeredicto.innerHTML +=
+            '<span class="paso">2 · El activo ya tiene estado vigente de ' + ESTADO_BASE.ts + "</span>";
+        }
+      },
+      {
+        espera: 850,
+        hacer: function () {
+          elVeredicto.innerHTML +=
+            '<span class="paso">3 · Comparación: ' + senal.ts +
+            (atrasada ? " &lt; " : " &gt; ") + ESTADO_BASE.ts + "</span>";
+        }
+      },
+      {
+        espera: 900,
+        hacer: function () {
+          if (atrasada) {
+            elTarjEntrante.className = "tarj pierde";
+            elTarjActual.className = "tarj gana";
+            elEtEntrante.textContent = senal.msg + " · descartada";
+            elEtFinal.textContent = "Intacto: la señal atrasada no lo tocó";
+            elVeredicto.className = "veredicto descartada";
+            elVeredicto.innerHTML +=
+              '<span class="fallo">Descartada.</span> La señal es anterior al estado vigente, ' +
+              "así que no actualiza el activo y no abre intervención. Se guarda en la bitácora " +
+              "con resultado <em>Atrasada</em> para que quede evidencia de que llegó.";
+          } else {
+            elTarjEntrante.className = "tarj gana";
+            elTarjActual.className = "tarj pierde";
+            elTarjFinal.className = "tarj gana";
+            elEtEntrante.textContent = senal.msg + " · aceptada";
+            elVFinal.textContent = senal.valor;
+            elTsFinal.textContent = "occurredAt " + senal.ts;
+            elEtFinal.textContent = "Estado actualizado por " + senal.msg;
+            elVeredicto.className = "veredicto aceptada";
+            elVeredicto.innerHTML +=
+              '<span class="fallo">Aceptada.</span> La señal es posterior al estado vigente, ' +
+              "así que reemplaza la última lectura y se reevalúa la severidad. " +
+              "Con 0,4 BAR sigue siendo crítica, y como ya existe una intervención abierta " +
+              "para este activo, no se crea otra.";
+          }
+        }
+      }
+    ]);
+  }
+
+  document.getElementById("btn-atrasada").addEventListener("click", function () { simular(true); });
+  document.getElementById("btn-nueva").addEventListener("click", function () { simular(false); });
+  document.getElementById("btn-reset").addEventListener("click", reiniciar);
+})();
+</script>
+
+</body>
+</html>

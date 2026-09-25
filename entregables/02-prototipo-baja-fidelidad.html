@@ -15,17 +15,13 @@
     --papel: #ffffff;
     --hueco: #e4e8ef;
     --radio: 12px;
-    --sombra: 0 1px 2px rgba(18, 20, 26, 0.05), 0 8px 24px rgba(18, 20, 26, 0.06);
 
     --critico: #e11d48;
     --critico-fondo: #fff1f3;
     --critico-borde: #fb7185;
-    --advertencia: #ea580c;
+    --advertencia: #c2410c;
     --advertencia-fondo: #fff7ed;
-    --advertencia-borde: #fb923c;
-    --normal: #16a34a;
-    --normal-fondo: #f0fdf4;
-    --normal-borde: #4ade80;
+    --normal: #64748b;
     --info: #2563eb;
     --info-fondo: #eff6ff;
   }
@@ -41,7 +37,7 @@
     line-height: 1.5;
   }
 
-  .contenedor { max-width: 72rem; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+  .contenedor { max-width: 68rem; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
 
   :focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
 
@@ -79,7 +75,7 @@
   .pestana[aria-selected="true"] { background: var(--tinta); border-color: var(--tinta); color: var(--papel); }
   .pestana .grupo { font-weight: 400; opacity: 0.75; }
 
-  .vista[hidden] { display: none; }
+  .tarjeta-activo[hidden], .detalle-panel[hidden], .vista[hidden] { display: none !important; }
   .vista-titulo { font-size: 1.2rem; margin: 0 0 1.15rem; }
 
   .marco {
@@ -87,7 +83,6 @@
     border: 1px solid var(--linea);
     border-radius: 16px;
     overflow: hidden;
-    box-shadow: var(--sombra);
   }
   .marco-barra {
     background: #f7f8fb;
@@ -102,36 +97,51 @@
     gap: 0.5rem;
   }
   .marco-barra .pip { width: 0.55rem; height: 0.55rem; border-radius: 50%; border: 1px solid var(--linea); background: var(--papel); flex: none; }
-  .lwc { padding: 1.35rem 1.2rem 1.4rem; }
+  .lwc { padding: 1.25rem 1.2rem 1.4rem; }
 
-  .comp-cab { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.6rem; margin-bottom: 1.1rem; }
-  .comp-titulo { font-size: 1.2rem; font-weight: 700; margin: 0; }
-  .comp-conteo { font-size: 0.9rem; color: var(--tinta-media); }
+  .comp-cab { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.9rem; }
+  .comp-titulo { font-size: 1.15rem; font-weight: 700; margin: 0; }
+  .comp-conteo { font-size: 0.88rem; color: var(--tinta-media); }
 
-  .leyenda {
+  .situacion {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.7rem 1.1rem;
-    margin-bottom: 1.1rem;
-    font-size: 0.8rem;
-    color: var(--tinta-media);
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem 1rem;
+    background: var(--critico-fondo);
+    border: 1px solid var(--critico-borde);
+    border-radius: var(--radio);
+    padding: 0.85rem 1rem;
+    margin-bottom: 1rem;
   }
-  .leyenda span { display: inline-flex; align-items: center; gap: 0.4rem; }
-  .punto { width: 0.7rem; height: 0.7rem; border-radius: 50%; flex: none; }
-  .punto-critico { background: var(--critico); }
-  .punto-advertencia { background: var(--advertencia); }
-  .punto-normal { background: var(--normal); }
+  .situacion .lead { margin: 0; font-size: 1.05rem; font-weight: 800; }
+  .situacion .lead em { font-style: normal; color: var(--critico); }
+  .situacion-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem 0.7rem; font-size: 0.82rem; color: var(--tinta-media); }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    border-radius: 999px;
+    padding: 0.15rem 0.55rem;
+    font-weight: 700;
+    font-size: 0.75rem;
+  }
+  .chip-critico { background: var(--critico); color: #fff; }
+  .chip-advertencia { background: var(--papel); color: var(--advertencia); border: 1px solid var(--advertencia); }
+  .chip-normal { background: var(--papel); color: var(--normal); border: 1px solid var(--linea); }
+  .frescor { font-weight: 600; color: var(--tinta); }
 
   .filtros {
     display: flex;
     flex-wrap: wrap;
     gap: 0.55rem;
     align-items: center;
-    margin-bottom: 1.2rem;
+    margin-bottom: 1rem;
     font-size: 0.85rem;
   }
-  .filtro-label { color: var(--tinta-media); font-weight: 600; margin-right: 0.15rem; }
-  .campo {
+  .filtro-label { color: var(--tinta-media); font-weight: 600; }
+  .campo, select.campo {
     background: var(--papel);
     border: 1px solid var(--linea);
     border-radius: 999px;
@@ -140,78 +150,116 @@
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
   }
-  .campo .caret { color: var(--tinta-suave); font-size: 0.7rem; }
 
-  .lista-activos { display: flex; flex-direction: column; gap: 1rem; }
+  .lista-activos { display: flex; flex-direction: column; gap: 0.7rem; }
 
-    .tarjeta-activo {
+  .tarjeta-activo {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto auto;
-    gap: 0.85rem 1.2rem;
+    grid-template-columns: 2.6rem minmax(11rem, 22rem) auto;
+    justify-content: start;
     align-items: center;
+    column-gap: 0.85rem;
+    row-gap: 0.55rem;
     border: 1px solid var(--linea);
     border-radius: var(--radio);
-    padding: 1.25rem 1.25rem 1.25rem 1.1rem;
+    padding: 0.9rem 1rem;
     background: var(--papel);
-    border-left-width: 7px;
+    border-left: 4px solid var(--linea);
+    cursor: pointer;
   }
+  .tarjeta-activo:hover { border-color: var(--tinta-media); }
+  .tarjeta-activo.critico:hover { border-color: var(--critico-borde); }
   .tarjeta-activo.critico {
+    border-left-width: 8px;
     border-left-color: var(--critico);
-    background: linear-gradient(90deg, var(--critico-fondo) 0%, #fff 42%);
+    border-color: var(--critico-borde);
+    background: var(--critico-fondo);
+    padding: 1.15rem 1.1rem;
   }
   .tarjeta-activo.advertencia {
     border-left-color: var(--advertencia);
-    background: linear-gradient(90deg, var(--advertencia-fondo) 0%, #fff 42%);
+    background: var(--papel);
   }
   .tarjeta-activo.normal {
-    border-left-color: var(--normal);
-    background: linear-gradient(90deg, var(--normal-fondo) 0%, #fff 42%);
+    border-left-width: 3px;
+    border-left-color: #cbd5e1;
+    background: #fafbfc;
+    color: #334155;
   }
+
+  .tipo-ico {
+    width: 2.6rem;
+    height: 2.6rem;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    background: var(--papel);
+    border: 1px solid var(--linea);
+    color: var(--tinta-media);
+  }
+  .critico .tipo-ico { border-color: var(--critico-borde); color: var(--critico); }
+  .tipo-ico svg { width: 1.35rem; height: 1.35rem; }
 
   .identidad { min-width: 0; }
-  .nombre-activo { font-size: 1.08rem; font-weight: 700; margin: 0 0 0.2rem; }
-  .meta-activo { margin: 0; color: var(--tinta-media); font-size: 0.86rem; }
-  .meta-activo strong { color: var(--tinta); font-weight: 600; }
+  .fila-estado { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.55rem; margin-bottom: 0.25rem; }
+  .edificio { font-size: 0.8rem; font-weight: 700; color: var(--tinta); }
+  .normal .edificio { color: var(--tinta-media); }
+  .nombre-activo { font-size: 1.02rem; font-weight: 700; margin: 0 0 0.12rem; }
+  .critico .nombre-activo { font-size: 1.12rem; }
+  .meta-activo { margin: 0; color: var(--tinta-media); font-size: 0.8rem; }
 
-  .lectura-bloque {
-    text-align: center;
-    background: rgba(255, 255, 255, 0.78);
-    border: 1px solid var(--linea-suave);
-    border-radius: 10px;
-    padding: 0.55rem 0.9rem;
-    min-width: 8.75rem;
+  .cluster {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
   }
-  .lectura-valor { display: block; font-size: 1.35rem; font-weight: 750; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
-  .lectura-tipo, .lectura-cuando { display: block; color: var(--tinta-media); font-size: 0.8rem; }
-  .lectura-cuando { margin-top: 0.15rem; }
-
-  .acciones-fila { display: flex; flex-direction: column; align-items: stretch; gap: 0.45rem; min-width: 10.5rem; }
+  .lectura-bloque {
+    text-align: left;
+    min-width: 6.5rem;
+  }
+  .critico .lectura-bloque {
+    background: var(--papel);
+    border: 1px solid var(--critico-borde);
+    border-radius: 8px;
+    padding: 0.4rem 0.7rem;
+  }
+  .lectura-valor { display: block; font-size: 1.2rem; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .critico .lectura-valor { font-size: 1.35rem; }
+  .lectura-tipo, .lectura-cuando { display: block; color: var(--tinta-media); font-size: 0.75rem; }
 
   .sev {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
-    font-size: 0.72rem;
+    gap: 0.3rem;
+    font-size: 0.68rem;
     font-weight: 800;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.05em;
     text-transform: uppercase;
     border-radius: 999px;
-    padding: 0.28rem 0.7rem;
+    padding: 0.18rem 0.55rem;
     white-space: nowrap;
-    width: fit-content;
   }
   .sev-critico { background: var(--critico); color: #fff; }
-  .sev-advertencia { background: var(--advertencia); color: #fff; }
-  .sev-normal { background: var(--normal); color: #fff; }
+  .sev-advertencia { background: var(--papel); color: var(--advertencia); border: 1px solid var(--advertencia); }
+  .sev-normal { background: transparent; color: var(--normal); border: 1px solid #cbd5e1; }
   .sev .glifo { font-size: 0.85em; }
 
+  button.boton-falso {
+    font-family: inherit;
+    cursor: pointer;
+  }
   .boton-falso {
-    font-size: 0.84rem;
+    font-size: 0.82rem;
     font-weight: 700;
     border: 1px solid var(--linea);
     border-radius: 999px;
-    padding: 0.55rem 0.9rem;
+    padding: 0.45rem 0.8rem;
     background: var(--papel);
     color: var(--tinta);
     display: inline-flex;
@@ -220,73 +268,98 @@
     text-align: center;
     white-space: nowrap;
   }
-  .boton-falso.principal { background: var(--tinta); border-color: var(--tinta); color: var(--papel); }
-  .boton-falso.urgente { background: var(--critico); border-color: var(--critico); color: #fff; }
+  .boton-falso.secundario {
+    font-weight: 600;
+    color: var(--tinta-media);
+    background: transparent;
+  }
+  .boton-falso.urgente {
+    background: var(--critico);
+    border-color: var(--critico);
+    color: #fff;
+    padding: 0.6rem 0.95rem;
+    font-size: 0.88rem;
+  }
   .boton-falso.grande { padding: 0.75rem 1.15rem; font-size: 0.95rem; }
 
   /* Detalle */
-  .detalle-grid { display: flex; flex-direction: column; gap: 1rem; }
+  .detalle-grid { display: flex; flex-direction: column; gap: 0.9rem; }
 
-  .miga { font-size: 0.82rem; color: var(--tinta-media); margin: 0 0 0.15rem; }
+  .miga { font-size: 0.82rem; color: var(--tinta-media); margin: 0; }
   .miga a { color: var(--info); text-decoration: none; font-weight: 600; }
   .miga a:hover { text-decoration: underline; }
 
   .hero-activo {
     display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 1rem;
-    align-items: start;
+    grid-template-columns: 3.1rem 1fr auto;
+    gap: 0.85rem;
+    align-items: center;
     background: var(--critico-fondo);
     border: 1px solid var(--critico-borde);
     border-radius: var(--radio);
-    padding: 1.2rem 1.25rem;
+    padding: 1.1rem 1.15rem;
   }
+  .hero-activo .tipo-ico { width: 3.1rem; height: 3.1rem; }
+  .hero-activo.critico .tipo-ico { color: var(--critico); border-color: var(--critico-borde); }
+  .hero-activo.advertencia {
+    background: var(--advertencia-fondo);
+    border-color: #fdba74;
+  }
+  .hero-activo.advertencia .tipo-ico, .hero-activo.advertencia .hero-tipo { color: var(--advertencia); border-color: #fdba74; }
+  .hero-activo.normal {
+    background: #f8fafc;
+    border-color: var(--linea);
+  }
+  .hero-activo.normal .hero-tipo { color: var(--normal); }
+  .hero-activo .tipo-ico svg { width: 1.6rem; height: 1.6rem; }
+  .detalle-panel[hidden] { display: none; }
+  .filtro-vacio { display: none; color: var(--tinta-media); font-size: 0.9rem; padding: 1.25rem 0.2rem; }
+  .filtro-vacio.visible { display: block; }
   .hero-tipo {
-    display: inline-block;
+    display: block;
     font-size: 0.72rem;
     font-weight: 800;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--critico);
-    margin: 0 0 0.35rem;
+    margin: 0 0 0.2rem;
   }
-  .hero-nombre { font-size: 1.45rem; font-weight: 800; margin: 0 0 0.45rem; letter-spacing: -0.02em; }
-  .fichas { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0; padding: 0; list-style: none; }
+  .hero-nombre { font-size: 1.4rem; font-weight: 800; margin: 0 0 0.4rem; letter-spacing: -0.02em; }
+  .fichas { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0; padding: 0; list-style: none; }
   .ficha {
     background: var(--papel);
     border: 1px solid var(--linea);
     border-radius: 999px;
-    padding: 0.22rem 0.65rem;
-    font-size: 0.8rem;
+    padding: 0.18rem 0.6rem;
+    font-size: 0.78rem;
     color: var(--tinta-media);
   }
   .ficha b { color: var(--tinta); }
 
   .prio {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.85rem;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
   }
   .prio-card {
     background: var(--papel);
     border: 1px solid var(--linea);
     border-radius: var(--radio);
-    padding: 0.95rem 1rem;
+    padding: 0.85rem 1rem;
   }
-  .prio-card .rot { display: block; font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tinta-media); font-weight: 700; margin-bottom: 0.35rem; }
-  .prio-card .val { display: block; font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em; }
-  .prio-card .sub { display: block; margin-top: 0.25rem; color: var(--tinta-media); font-size: 0.82rem; }
+  .prio-card .rot { display: block; font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tinta-media); font-weight: 700; margin-bottom: 0.3rem; }
+  .prio-card .val { display: block; font-size: 1.2rem; font-weight: 800; letter-spacing: -0.02em; }
+  .prio-card .sub { display: block; margin-top: 0.2rem; color: var(--tinta-media); font-size: 0.8rem; }
 
   .card-intervencion {
-    background: linear-gradient(135deg, #9f1239 0%, #e11d48 58%, #fb7185 100%);
+    background: var(--critico);
     color: #fff;
     border-radius: var(--radio);
-    padding: 1.25rem 1.3rem;
+    padding: 1.15rem 1.2rem;
     display: grid;
     grid-template-columns: 1fr auto;
     gap: 1rem;
     align-items: center;
-    box-shadow: 0 10px 28px rgba(225, 29, 72, 0.28);
   }
   .card-intervencion .rot {
     display: block;
@@ -295,61 +368,104 @@
     text-transform: uppercase;
     font-weight: 800;
     opacity: 0.85;
-    margin-bottom: 0.35rem;
+    margin-bottom: 0.3rem;
   }
-  .card-intervencion .val { font-size: 1.35rem; font-weight: 800; margin: 0 0 0.3rem; }
-  .card-intervencion p { margin: 0; font-size: 0.9rem; opacity: 0.92; max-width: 38rem; }
-  .boton-falso.sobre-rojo { background: #fff; border-color: #fff; color: #9f1239; }
-
-  .extra { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; }
-  .card-extra {
-    background: #f8f9fc;
-    border: 1px solid var(--linea);
+  .card-intervencion .val { font-size: 1.4rem; font-weight: 800; margin: 0 0 0.25rem; }
+  .card-intervencion p { margin: 0; font-size: 0.88rem; opacity: 0.95; max-width: 36rem; }
+  .boton-falso.sobre-rojo { background: #fff; border-color: #fff; color: var(--critico); }
+  .card-sin-int {
+    border: 1px dashed var(--linea);
     border-radius: var(--radio);
-    padding: 1rem 1.05rem 1.1rem;
+    background: #f7f8fb;
+    padding: 1rem 1.1rem;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.85rem;
+    align-items: center;
   }
-  .card-extra.ancho { grid-column: 1 / -1; }
-  .card-extra h3 {
-    font-size: 0.78rem;
+  .card-sin-int .rot {
+    display: block;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 800;
+    color: var(--tinta-media);
+    margin-bottom: 0.25rem;
+  }
+  .card-sin-int .val { font-size: 1.05rem; font-weight: 800; margin: 0 0 0.2rem; }
+  .card-sin-int p { margin: 0; font-size: 0.88rem; color: var(--tinta-media); }
+
+  #aviso {
+    position: fixed;
+    bottom: 1.35rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--tinta);
+    color: #fff;
+    padding: 0.8rem 1.15rem;
+    border-radius: 10px;
+    z-index: 30;
+    max-width: 28rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-align: center;
+  }
+  #aviso[hidden] { display: none; }
+
+  .extra-label {
+    font-size: 0.72rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--tinta-media);
-    margin: 0 0 0.75rem;
+    color: var(--tinta-suave);
+    font-weight: 700;
+    margin: 0.2rem 0 0;
   }
-
-  table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
-  thead th {
-    text-align: left;
-    font-size: 0.7rem;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+  .extra { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
+  .card-extra {
+    background: #f7f8fb;
+    border: 1px solid var(--linea-suave);
+    border-radius: 8px;
+    padding: 0.75rem 0.85rem 0.85rem;
     color: var(--tinta-media);
-    border-bottom: 1px solid var(--linea);
-    padding: 0.4rem 0.4rem 0.5rem;
+  }
+  .card-extra h3 {
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--tinta-suave);
+    margin: 0 0 0.55rem;
     font-weight: 700;
   }
-  tbody td { border-bottom: 1px solid var(--linea-suave); padding: 0.65rem 0.4rem; vertical-align: middle; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  thead th {
+    text-align: left;
+    font-size: 0.66rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--tinta-suave);
+    border-bottom: 1px solid var(--linea-suave);
+    padding: 0.3rem 0.3rem 0.4rem;
+    font-weight: 700;
+  }
+  tbody td { border-bottom: 1px solid var(--linea-suave); padding: 0.5rem 0.3rem; vertical-align: middle; }
   tbody tr:last-child td { border-bottom: none; }
-  .card-extra .sev { font-size: 0.64rem; padding: 0.12rem 0.45rem; }
-  .card-extra table { font-size: 0.8rem; }
-  .celda-fuerte { font-weight: 600; }
-  .celda-sub { color: var(--tinta-media); font-size: 0.8rem; }
+  .card-extra .sev { font-size: 0.62rem; padding: 0.1rem 0.4rem; }
+  .celda-fuerte { font-weight: 600; color: var(--tinta); }
+  .celda-sub { color: var(--tinta-suave); font-size: 0.75rem; }
   .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
   .marca-atraso {
     display: inline-block;
-    margin-top: 0.2rem;
-    font-size: 0.72rem;
+    margin-top: 0.15rem;
+    font-size: 0.68rem;
     font-weight: 700;
     color: var(--advertencia);
-    background: var(--advertencia-fondo);
-    border-radius: 999px;
-    padding: 0.12rem 0.5rem;
   }
 
   .hueso { background: var(--hueco); border-radius: 8px; height: 0.85rem; }
-  .hueso.ancho-l { width: 100%; } .hueso.ancho-m { width: 65%; } .hueso.ancho-s { width: 35%; }
-  .hueso.alto { height: 4.6rem; border-radius: var(--radio); }
-  .esqueleto { display: flex; flex-direction: column; gap: 1rem; }
+  .hueso.situacion { height: 3.2rem; margin-bottom: 1rem; }
+  .hueso.alto { height: 4.1rem; border-radius: var(--radio); }
+  .esqueleto { display: flex; flex-direction: column; gap: 0.7rem; }
 
   .estado-centro { text-align: center; padding: 2.8rem 1.25rem; }
   .estado-icono {
@@ -368,11 +484,9 @@
   footer p { margin: 0; }
 
   @media (max-width: 52rem) {
-    .tarjeta-activo { grid-template-columns: 1fr; }
-    .lectura-bloque, .acciones-fila { text-align: left; min-width: 0; }
-    .lectura-bloque { width: fit-content; }
-    .acciones-fila { min-width: 0; }
-    .prio, .extra, .hero-activo, .card-intervencion { grid-template-columns: 1fr; }
+    .tarjeta-activo, .hero-activo, .prio, .extra, .card-intervencion, .card-sin-int { grid-template-columns: 1fr; }
+    .tipo-ico { grid-row: 1; }
+    .cluster { flex-wrap: wrap; }
   }
 
   @media print {
@@ -396,7 +510,7 @@
     <h1>Prototipo de baja fidelidad — LWC del operador</h1>
     <ul class="datos">
       <li><b>Equipo</b> John Alejandro Pastor · Juan Diego Velásquez</li>
-      <li><b>Vistas</b> 2 pantallas + 3 estados</li>
+      <li><b>Vistas</b> 2 pantallas + 3 estados · clicable</li>
       <li><b>Estado</b> Borrador</li>
     </ul>
   </header>
@@ -417,70 +531,101 @@
       <div class="lwc">
         <div class="comp-cab">
           <p class="comp-titulo">Mis activos</p>
-          <span class="comp-conteo">3 activos · 2 edificios · actualizado hace 1 min</span>
+          <span class="comp-conteo">3 activos · 2 edificios</span>
         </div>
 
-        <div class="leyenda" aria-label="Leyenda de severidad">
-          <span><i class="punto punto-critico" aria-hidden="true"></i> Crítico — atención ahora</span>
-          <span><i class="punto punto-advertencia" aria-hidden="true"></i> Advertencia — vigilar</span>
-          <span><i class="punto punto-normal" aria-hidden="true"></i> Normal — sin acción</span>
+        <div class="situacion" role="status">
+          <p class="lead"><em>1 crítico</em> necesita atención ahora</p>
+          <div class="situacion-meta">
+            <span class="chip chip-critico">1 crítico</span>
+            <span class="chip chip-advertencia">1 advertencia</span>
+            <span class="chip chip-normal">1 normal</span>
+            <span>Actualizado <span class="frescor">hace 1 min</span></span>
+          </div>
         </div>
 
         <div class="filtros">
           <span class="filtro-label">Filtrar</span>
-          <span class="campo">Edificio: todos <span class="caret" aria-hidden="true">&#9662;</span></span>
-          <span class="campo">Severidad: todas <span class="caret" aria-hidden="true">&#9662;</span></span>
+          <label class="filtro-label" for="f-edificio">Edificio</label>
+          <select class="campo" id="f-edificio">
+            <option value="todos">Todos</option>
+            <option value="alameda">Nova Alameda</option>
+            <option value="mirador">Nova Mirador</option>
+          </select>
+          <label class="filtro-label" for="f-severidad">Severidad</label>
+          <select class="campo" id="f-severidad">
+            <option value="todas">Todas</option>
+            <option value="critico">Crítico</option>
+            <option value="advertencia">Advertencia</option>
+            <option value="normal">Normal</option>
+          </select>
         </div>
 
         <div class="lista-activos">
-          <article class="tarjeta-activo critico">
-            <span class="sev sev-critico"><span class="glifo" aria-hidden="true">&#9679;</span> Crítico</span>
+          <article class="tarjeta-activo critico" data-activo="bomba" data-edificio="alameda" data-severidad="critico">
+            <div class="tipo-ico" aria-hidden="true" title="Bomba de agua">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="7" y="11" width="10" height="8" rx="1.5"/><path d="M12 11V6M9 6h6"/><circle cx="12" cy="15.5" r="1.6" fill="currentColor" stroke="none"/></svg>
+            </div>
             <div class="identidad">
+              <div class="fila-estado">
+                <span class="sev sev-critico"><span class="glifo" aria-hidden="true">&#9679;</span> Crítico</span>
+                <span class="edificio">Nova Alameda · Bogotá</span>
+              </div>
               <p class="nombre-activo">Bomba principal de agua</p>
-              <p class="meta-activo"><strong>Nova Alameda</strong> · Bogotá · Bomba de agua · AST-BOG-002</p>
+              <p class="meta-activo">Bomba de agua · AST-BOG-002</p>
             </div>
-            <div class="lectura-bloque">
-              <span class="lectura-valor">0,7 BAR</span>
-              <span class="lectura-tipo">Presión</span>
-              <span class="lectura-cuando">hace 2 min</span>
-            </div>
-            <div class="acciones-fila">
-              <span class="boton-falso urgente">Ver intervención</span>
-            </div>
-          </article>
-
-          <article class="tarjeta-activo advertencia">
-            <span class="sev sev-advertencia"><span class="glifo" aria-hidden="true">&#9650;</span> Advertencia</span>
-            <div class="identidad">
-              <p class="nombre-activo">Ventilación del cuarto técnico</p>
-              <p class="meta-activo"><strong>Nova Mirador</strong> · Medellín · Ventilación · AST-MDE-001</p>
-            </div>
-            <div class="lectura-bloque">
-              <span class="lectura-valor">39,0 °C</span>
-              <span class="lectura-tipo">Temperatura</span>
-              <span class="lectura-cuando">hace 3 min</span>
-            </div>
-            <div class="acciones-fila">
-              <span class="boton-falso">Ver activo</span>
+            <div class="cluster">
+              <div class="lectura-bloque">
+                <span class="lectura-valor">0,7 BAR</span>
+                <span class="lectura-tipo">Presión · hace 2 min</span>
+              </div>
+              <button type="button" class="boton-falso urgente" data-ir="detalle" data-activo="bomba">Ver intervención</button>
             </div>
           </article>
 
-          <article class="tarjeta-activo normal">
-            <span class="sev sev-normal"><span class="glifo" aria-hidden="true">&#9675;</span> Normal</span>
+          <article class="tarjeta-activo advertencia" data-activo="mirador" data-edificio="mirador" data-severidad="advertencia">
+            <div class="tipo-ico" aria-hidden="true" title="Ventilación">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="2.2"/><path d="M12 4.5v3.2M12 16.3v3.2M4.5 12h3.2M16.3 12h3.2M6.4 6.4l2.3 2.3M15.3 15.3l2.3 2.3M17.6 6.4l-2.3 2.3M8.7 15.3l-2.3 2.3"/></svg>
+            </div>
             <div class="identidad">
+              <div class="fila-estado">
+                <span class="sev sev-advertencia"><span class="glifo" aria-hidden="true">&#9650;</span> Advertencia</span>
+                <span class="edificio">Nova Mirador · Medellín</span>
+              </div>
               <p class="nombre-activo">Ventilación del cuarto técnico</p>
-              <p class="meta-activo"><strong>Nova Alameda</strong> · Bogotá · Ventilación · AST-BOG-001</p>
+              <p class="meta-activo">Ventilación · AST-MDE-001</p>
             </div>
-            <div class="lectura-bloque">
-              <span class="lectura-valor">22,5 °C</span>
-              <span class="lectura-tipo">Temperatura</span>
-              <span class="lectura-cuando">hace 2 min</span>
+            <div class="cluster">
+              <div class="lectura-bloque">
+                <span class="lectura-valor">39,0 °C</span>
+                <span class="lectura-tipo">Temperatura · hace 3 min</span>
+              </div>
+              <button type="button" class="boton-falso secundario" data-ir="detalle" data-activo="mirador">Ver activo</button>
             </div>
-            <div class="acciones-fila">
-              <span class="boton-falso">Ver activo</span>
+          </article>
+
+          <article class="tarjeta-activo normal" data-activo="alameda" data-edificio="alameda" data-severidad="normal">
+            <div class="tipo-ico" aria-hidden="true" title="Ventilación">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="2.2"/><path d="M12 4.5v3.2M12 16.3v3.2M4.5 12h3.2M16.3 12h3.2M6.4 6.4l2.3 2.3M15.3 15.3l2.3 2.3M17.6 6.4l-2.3 2.3M8.7 15.3l-2.3 2.3"/></svg>
+            </div>
+            <div class="identidad">
+              <div class="fila-estado">
+                <span class="sev sev-normal"><span class="glifo" aria-hidden="true">&#9675;</span> Normal</span>
+                <span class="edificio">Nova Alameda · Bogotá</span>
+              </div>
+              <p class="nombre-activo">Ventilación del cuarto técnico</p>
+              <p class="meta-activo">Ventilación · AST-BOG-001</p>
+            </div>
+            <div class="cluster">
+              <div class="lectura-bloque">
+                <span class="lectura-valor">22,5 °C</span>
+                <span class="lectura-tipo">Temperatura · hace 2 min</span>
+              </div>
+              <button type="button" class="boton-falso secundario" data-ir="detalle" data-activo="alameda">Ver activo</button>
             </div>
           </article>
         </div>
+        <p class="filtro-vacio" id="filtro-vacio">Ningún activo coincide con esos filtros.</p>
       </div>
     </div>
   </section>
@@ -491,106 +636,201 @@
     <div class="marco">
       <div class="marco-barra"><span class="pip" aria-hidden="true"></span> Página Lightning · Detalle de activo</div>
       <div class="lwc">
-        <div class="detalle-grid">
 
-          <p class="miga"><a href="#v-lista">Mis activos</a> › Bomba principal de agua</p>
-
-          <section class="hero-activo">
-            <div>
-              <span class="hero-tipo">Bomba de agua</span>
-              <h3 class="hero-nombre">Bomba principal de agua</h3>
-              <ul class="fichas">
-                <li class="ficha"><b>ID</b> AST-BOG-002</li>
-                <li class="ficha"><b>Edificio</b> Nova Alameda</li>
-                <li class="ficha"><b>Ciudad</b> Bogotá</li>
-              </ul>
+        <div class="detalle-panel" id="d-bomba">
+          <div class="detalle-grid">
+            <p class="miga"><a href="#v-lista" data-ir="lista">Mis activos</a> › Bomba principal de agua</p>
+            <section class="hero-activo critico">
+              <div class="tipo-ico" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="7" y="11" width="10" height="8" rx="1.5"/><path d="M12 11V6M9 6h6"/><circle cx="12" cy="15.5" r="1.6" fill="currentColor" stroke="none"/></svg>
+              </div>
+              <div>
+                <span class="hero-tipo">Bomba de agua</span>
+                <h3 class="hero-nombre">Bomba principal de agua</h3>
+                <ul class="fichas">
+                  <li class="ficha"><b>Edificio</b> Nova Alameda</li>
+                  <li class="ficha"><b>Ciudad</b> Bogotá</li>
+                  <li class="ficha"><b>ID</b> AST-BOG-002</li>
+                </ul>
+              </div>
+              <span class="sev sev-critico"><span class="glifo" aria-hidden="true">&#9679;</span> Crítico</span>
+            </section>
+            <div class="prio">
+              <div class="prio-card">
+                <span class="rot">Severidad del activo</span>
+                <span class="val" style="color: var(--critico);">Crítico</span>
+                <span class="sub">La mayor de sus mediciones vigentes</span>
+              </div>
+              <div class="prio-card">
+                <span class="rot">Última lectura</span>
+                <span class="val">0,7 BAR</span>
+                <span class="sub">Presión · hace 2 min · 15:05:30 UTC</span>
+              </div>
             </div>
-            <span class="sev sev-critico"><span class="glifo" aria-hidden="true">&#9679;</span> Crítico</span>
-          </section>
-
-          <div class="prio">
-            <div class="prio-card">
-              <span class="rot">Severidad del activo</span>
-              <span class="val" style="color: var(--critico);">Crítico</span>
-              <span class="sub">La mayor de sus mediciones vigentes</span>
-            </div>
-            <div class="prio-card">
-              <span class="rot">Última lectura</span>
-              <span class="val">0,7 BAR</span>
-              <span class="sub">Presión · hace 2 min · 15:05:30 UTC</span>
-            </div>
-            <div class="prio-card">
-              <span class="rot">Estado operativo</span>
-              <span class="val">Requiere intervención</span>
-              <span class="sub">Hay un incidente abierto</span>
+            <section class="card-intervencion" aria-label="Intervención abierta">
+              <div>
+                <span class="rot">Intervención abierta</span>
+                <p class="val">INT-0001</p>
+                <p>Ya existe por la señal crítica. Crear otra no aplica: un reenvío sigue siendo esta.</p>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:0.45rem;align-items:stretch;">
+                <button type="button" class="boton-falso sobre-rojo grande" data-ir="nota" data-texto="Navega al registro de la intervención. Esa pantalla es estándar de Salesforce y queda fuera del prototipo.">Ir a la intervención</button>
+                <button type="button" class="boton-falso secundario" data-ir="crear" data-motivo="ya-existe" style="color:#fff;border-color:rgba(255,255,255,0.55);background:transparent;">Crear intervención</button>
+              </div>
+            </section>
+            <p class="extra-label">Más información</p>
+            <div class="extra">
+              <section class="card-extra">
+                <h3>Lectura vigente por tipo</h3>
+                <table>
+                  <thead><tr><th scope="col">Medición</th><th scope="col">Valor</th><th scope="col">Severidad</th></tr></thead>
+                  <tbody>
+                    <tr><td class="celda-fuerte">Presión</td><td class="num">0,7 BAR</td><td><span class="sev sev-critico"><span class="glifo" aria-hidden="true">&#9679;</span> Crítico</span></td></tr>
+                    <tr><td class="celda-fuerte">Temperatura</td><td class="celda-sub">Sin lecturas</td><td class="celda-sub">—</td></tr>
+                  </tbody>
+                </table>
+              </section>
+              <section class="card-extra">
+                <h3>Historial reciente</h3>
+                <table>
+                  <thead><tr><th scope="col">Origen</th><th scope="col">Valor</th><th scope="col">Efecto</th></tr></thead>
+                  <tbody>
+                    <tr><td class="num celda-fuerte">15:05:30</td><td class="num">0,7 BAR</td><td>Lectura vigente<br><span class="celda-sub">MSG-000103</span></td></tr>
+                    <tr><td class="num">15:02:00</td><td class="num">1,9 BAR</td><td>No actualiza estado <span class="marca-atraso">Señal atrasada · evidencia</span><span class="celda-sub" style="display:block;margin-top:0.15rem;">MSG-000107</span></td></tr>
+                  </tbody>
+                </table>
+              </section>
             </div>
           </div>
-
-          <section class="card-intervencion" aria-label="Intervención abierta">
-            <div>
-              <span class="rot">Intervención abierta</span>
-              <p class="val">INT-0001</p>
-              <p>Creada por la señal crítica de presión. Un reenvío del mismo aviso no abre otra.</p>
-            </div>
-            <span class="boton-falso sobre-rojo grande">Ir a la intervención</span>
-          </section>
-
-          <div class="extra">
-            <section class="card-extra">
-              <h3>Lectura vigente por tipo</h3>
-              <table>
-                <thead>
-                  <tr>
-                    <th scope="col">Medición</th>
-                    <th scope="col">Valor</th>
-                    <th scope="col">Severidad</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td class="celda-fuerte">Presión</td>
-                    <td class="num">0,7 BAR</td>
-                    <td><span class="sev sev-critico"><span class="glifo" aria-hidden="true">&#9679;</span> Crítico</span></td>
-                  </tr>
-                  <tr>
-                    <td class="celda-fuerte">Temperatura</td>
-                    <td class="celda-sub">Sin lecturas</td>
-                    <td class="celda-sub">—</td>
-                  </tr>
-                </tbody>
-              </table>
-            </section>
-
-            <section class="card-extra">
-              <h3>Historial reciente</h3>
-              <table>
-                <thead>
-                  <tr>
-                    <th scope="col">Origen</th>
-                    <th scope="col">Valor</th>
-                    <th scope="col">Efecto</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td class="num celda-fuerte">15:05:30</td>
-                    <td class="num">0,7 BAR</td>
-                    <td>Lectura vigente<br><span class="celda-sub">MSG-000103</span></td>
-                  </tr>
-                  <tr>
-                    <td class="num">15:02:00</td>
-                    <td class="num">1,9 BAR</td>
-                    <td>No actualiza estado
-                      <span class="marca-atraso">Señal atrasada · evidencia</span>
-                      <span class="celda-sub" style="display:block;margin-top:0.2rem;">MSG-000107</span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </section>
-          </div>
-
         </div>
+
+        <div class="detalle-panel" id="d-mirador" hidden>
+          <div class="detalle-grid">
+            <p class="miga"><a href="#v-lista" data-ir="lista">Mis activos</a> › Ventilación · Nova Mirador</p>
+            <section class="hero-activo advertencia">
+              <div class="tipo-ico" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="2.2"/><path d="M12 4.5v3.2M12 16.3v3.2M4.5 12h3.2M16.3 12h3.2M6.4 6.4l2.3 2.3M15.3 15.3l2.3 2.3M17.6 6.4l-2.3 2.3M8.7 15.3l-2.3 2.3"/></svg>
+              </div>
+              <div>
+                <span class="hero-tipo">Ventilación</span>
+                <h3 class="hero-nombre">Ventilación del cuarto técnico</h3>
+                <ul class="fichas">
+                  <li class="ficha"><b>Edificio</b> Nova Mirador</li>
+                  <li class="ficha"><b>Ciudad</b> Medellín</li>
+                  <li class="ficha"><b>ID</b> AST-MDE-001</li>
+                </ul>
+              </div>
+              <span class="sev sev-advertencia"><span class="glifo" aria-hidden="true">&#9650;</span> Advertencia</span>
+            </section>
+            <div class="prio">
+              <div class="prio-card">
+                <span class="rot">Severidad del activo</span>
+                <span class="val" style="color: var(--advertencia);">Advertencia</span>
+                <span class="sub">Vigilar · no abre intervención</span>
+              </div>
+              <div class="prio-card">
+                <span class="rot">Última lectura</span>
+                <span class="val">39,0 °C</span>
+                <span class="sub">Temperatura · hace 3 min · 15:04:00 UTC</span>
+              </div>
+            </div>
+            <section class="card-sin-int">
+              <div>
+                <span class="rot">Intervención</span>
+                <p class="val">Ninguna abierta</p>
+                <p>No es crítica: el sistema no crea un incidente. Puedes probar el botón para ver qué pasaría.</p>
+              </div>
+              <button type="button" class="boton-falso" data-ir="crear" data-motivo="no-critico">Crear intervención</button>
+            </section>
+            <p class="extra-label">Más información</p>
+            <div class="extra">
+              <section class="card-extra">
+                <h3>Lectura vigente por tipo</h3>
+                <table>
+                  <thead><tr><th scope="col">Medición</th><th scope="col">Valor</th><th scope="col">Severidad</th></tr></thead>
+                  <tbody>
+                    <tr><td class="celda-fuerte">Temperatura</td><td class="num">39,0 °C</td><td><span class="sev sev-advertencia"><span class="glifo" aria-hidden="true">&#9650;</span> Advertencia</span></td></tr>
+                    <tr><td class="celda-fuerte">Presión</td><td class="celda-sub">Sin lecturas</td><td class="celda-sub">—</td></tr>
+                  </tbody>
+                </table>
+              </section>
+              <section class="card-extra">
+                <h3>Historial reciente</h3>
+                <table>
+                  <thead><tr><th scope="col">Origen</th><th scope="col">Valor</th><th scope="col">Efecto</th></tr></thead>
+                  <tbody>
+                    <tr><td class="num celda-fuerte">15:04:00</td><td class="num">39,0 °C</td><td>Lectura vigente<br><span class="celda-sub">MSG-000102</span></td></tr>
+                  </tbody>
+                </table>
+              </section>
+            </div>
+          </div>
+        </div>
+
+        <div class="detalle-panel" id="d-alameda" hidden>
+          <div class="detalle-grid">
+            <p class="miga"><a href="#v-lista" data-ir="lista">Mis activos</a> › Ventilación · Nova Alameda</p>
+            <section class="hero-activo normal">
+              <div class="tipo-ico" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="2.2"/><path d="M12 4.5v3.2M12 16.3v3.2M4.5 12h3.2M16.3 12h3.2M6.4 6.4l2.3 2.3M15.3 15.3l2.3 2.3M17.6 6.4l-2.3 2.3M8.7 15.3l-2.3 2.3"/></svg>
+              </div>
+              <div>
+                <span class="hero-tipo">Ventilación</span>
+                <h3 class="hero-nombre">Ventilación del cuarto técnico</h3>
+                <ul class="fichas">
+                  <li class="ficha"><b>Edificio</b> Nova Alameda</li>
+                  <li class="ficha"><b>Ciudad</b> Bogotá</li>
+                  <li class="ficha"><b>ID</b> AST-BOG-001</li>
+                </ul>
+              </div>
+              <span class="sev sev-normal"><span class="glifo" aria-hidden="true">&#9675;</span> Normal</span>
+            </section>
+            <div class="prio">
+              <div class="prio-card">
+                <span class="rot">Severidad del activo</span>
+                <span class="val">Normal</span>
+                <span class="sub">Sin acción requerida</span>
+              </div>
+              <div class="prio-card">
+                <span class="rot">Última lectura</span>
+                <span class="val">22,5 °C</span>
+                <span class="sub">Temperatura · hace 2 min · 15:05:00 UTC</span>
+              </div>
+            </div>
+            <section class="card-sin-int">
+              <div>
+                <span class="rot">Intervención</span>
+                <p class="val">Ninguna abierta</p>
+                <p>El equipo está en rango. Crear una intervención no aplica.</p>
+              </div>
+              <button type="button" class="boton-falso" data-ir="crear" data-motivo="no-critico">Crear intervención</button>
+            </section>
+            <p class="extra-label">Más información</p>
+            <div class="extra">
+              <section class="card-extra">
+                <h3>Lectura vigente por tipo</h3>
+                <table>
+                  <thead><tr><th scope="col">Medición</th><th scope="col">Valor</th><th scope="col">Severidad</th></tr></thead>
+                  <tbody>
+                    <tr><td class="celda-fuerte">Temperatura</td><td class="num">22,5 °C</td><td><span class="sev sev-normal"><span class="glifo" aria-hidden="true">&#9675;</span> Normal</span></td></tr>
+                    <tr><td class="celda-fuerte">Presión</td><td class="celda-sub">Sin lecturas</td><td class="celda-sub">—</td></tr>
+                  </tbody>
+                </table>
+              </section>
+              <section class="card-extra">
+                <h3>Historial reciente</h3>
+                <table>
+                  <thead><tr><th scope="col">Origen</th><th scope="col">Valor</th><th scope="col">Efecto</th></tr></thead>
+                  <tbody>
+                    <tr><td class="num celda-fuerte">15:05:00</td><td class="num">22,5 °C</td><td>Lectura vigente<br><span class="celda-sub">MSG-000101</span></td></tr>
+                    <tr><td class="num">15:02:00</td><td class="num">20,0 °C</td><td>No actualiza estado <span class="marca-atraso">Señal atrasada · evidencia</span><span class="celda-sub" style="display:block;margin-top:0.15rem;">MSG-000104</span></td></tr>
+                  </tbody>
+                </table>
+              </section>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   </section>
@@ -605,6 +845,7 @@
           <p class="comp-titulo">Mis activos</p>
           <span class="comp-conteo">Cargando activos…</span>
         </div>
+        <div class="hueso situacion"></div>
         <div class="esqueleto">
           <div class="hueso alto"></div>
           <div class="hueso alto"></div>
@@ -628,7 +869,7 @@
           <div class="estado-icono vacio" aria-hidden="true">&#9633;</div>
           <p class="estado-titulo">No tienes activos asignados</p>
           <p class="estado-texto">No hay equipos bajo tu responsabilidad. Si crees que es un error, tu administrador puede revisar la asignación de edificios.</p>
-          <span class="boton-falso">Actualizar</span>
+          <button type="button" class="boton-falso secundario" data-ir="lista">Actualizar</button>
         </div>
       </div>
     </div>
@@ -648,7 +889,7 @@
           <div class="estado-icono error" aria-hidden="true">&#9888;</div>
           <p class="estado-titulo">No pudimos cargar tus activos</p>
           <p class="estado-texto">Esta lista no muestra el estado actual. No asumas que todo está normal. Vuelve a intentar; si sigue, avisa a tu administrador.</p>
-          <span class="boton-falso urgente">Reintentar</span>
+          <button type="button" class="boton-falso urgente" data-ir="lista">Reintentar</button>
         </div>
       </div>
     </div>
@@ -659,12 +900,15 @@
   </footer>
 
 </div>
+<div id="aviso" role="status" hidden></div>
 
 <script>
 (function () {
   "use strict";
 
   var pestanas = Array.prototype.slice.call(document.querySelectorAll('[role="tab"]'));
+  var aviso = document.getElementById("aviso");
+  var avisoTimer;
 
   function mostrar(pestana) {
     pestanas.forEach(function (p) {
@@ -673,6 +917,30 @@
       p.setAttribute("aria-selected", activa ? "true" : "false");
       if (panel) { panel.hidden = !activa; }
     });
+  }
+
+  function irA(idPestana) {
+    var pestana = document.getElementById(idPestana);
+    if (pestana) { mostrar(pestana); }
+  }
+
+  function mostrarActivo(id) {
+    var paneles = document.querySelectorAll(".detalle-panel");
+    Array.prototype.forEach.call(paneles, function (p) {
+      p.hidden = p.id !== "d-" + id;
+    });
+    if (!document.getElementById("d-" + id)) {
+      document.getElementById("d-bomba").hidden = false;
+    }
+    irA("t-detalle");
+  }
+
+  function avisar(texto) {
+    if (!aviso) { return; }
+    aviso.textContent = texto;
+    aviso.hidden = false;
+    clearTimeout(avisoTimer);
+    avisoTimer = setTimeout(function () { aviso.hidden = true; }, 4200);
   }
 
   pestanas.forEach(function (p, i) {
@@ -687,13 +955,52 @@
     });
   });
 
-  var volver = document.querySelector('.miga a[href="#v-lista"]');
-  if (volver) {
-    volver.addEventListener("click", function (e) {
+  document.addEventListener("click", function (e) {
+    var destino = e.target.closest("[data-ir]");
+    if (destino) {
       e.preventDefault();
-      mostrar(document.getElementById("t-lista"));
+      e.stopPropagation();
+      var ir = destino.getAttribute("data-ir");
+      if (ir === "lista") { irA("t-lista"); return; }
+      if (ir === "nota") { avisar(destino.getAttribute("data-texto")); return; }
+      if (ir === "detalle") {
+        mostrarActivo(destino.getAttribute("data-activo") || "bomba");
+        return;
+      }
+      if (ir === "crear") {
+        var motivo = destino.getAttribute("data-motivo");
+        if (motivo === "ya-existe") {
+          avisar("No se crea otra. Sigue abierta INT-0001.");
+        } else {
+          avisar("No se abre intervención: la señal no es crítica.");
+        }
+      }
+      return;
+    }
+
+    var tarjeta = e.target.closest(".tarjeta-activo[data-activo]");
+    if (tarjeta) {
+      mostrarActivo(tarjeta.getAttribute("data-activo"));
+    }
+  });
+
+  function filtrar() {
+    var edificio = document.getElementById("f-edificio").value;
+    var severidad = document.getElementById("f-severidad").value;
+    var tarjetas = document.querySelectorAll(".tarjeta-activo");
+    var visibles = 0;
+    Array.prototype.forEach.call(tarjetas, function (t) {
+      var okEd = edificio === "todos" || t.getAttribute("data-edificio") === edificio;
+      var okSev = severidad === "todas" || t.getAttribute("data-severidad") === severidad;
+      var ok = okEd && okSev;
+      t.hidden = !ok;
+      if (ok) { visibles += 1; }
     });
+    document.getElementById("filtro-vacio").classList.toggle("visible", visibles === 0);
   }
+
+  document.getElementById("f-edificio").addEventListener("change", filtrar);
+  document.getElementById("f-severidad").addEventListener("change", filtrar);
 })();
 </script>
 

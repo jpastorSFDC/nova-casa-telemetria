@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="es" data-tema="claro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diseño de la solución · Nova Casa Sprint 2</title>
+<style>
+  :root {
+    --lienzo: #fcfdfe;
+    --papel: #ffffff;
+    --tenue: #f2f5f9;
+    --texto: #142033;
+    --texto-2: #5b6878;
+    --texto-3: #8f9aa9;
+    --borde: #dde3ec;
+
+    --linea: #8795a8;
+    --div: #b9c4d2;
+
+    --ext: #b0730f;
+    --ext-f: #fdf6e8;
+    --apex: #6f4fb0;
+    --apex-f: #f3eefb;
+    --bus: #1c6fc4;
+    --bus-f: #e8f2fd;
+    --dato: #17864f;
+    --dato-f: #e9f7ef;
+    --pend: #bb3a85;
+    --pend-f: #fdeaf5;
+    --ui: #0176d3;
+    --ui-f: #eaf4fe;
+  }
+
+  html[data-tema="oscuro"] {
+    --lienzo: #0c1118;
+    --papel: #141b24;
+    --tenue: #1a222c;
+    --texto: #e8ecf3;
+    --texto-2: #9ba6b6;
+    --texto-3: #76818f;
+    --borde: #28313d;
+
+    --linea: #6c7889;
+    --div: #414d5d;
+
+    --ext: #d79a35;
+    --ext-f: #2a2011;
+    --apex: #a284da;
+    --apex-f: #1f1834;
+    --bus: #4d97dd;
+    --bus-f: #10243c;
+    --dato: #33b477;
+    --dato-f: #0e2a1d;
+    --pend: #dd6aaa;
+    --pend-f: #2a1322;
+    --ui: #4a9ee8;
+    --ui-f: #11233a;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--lienzo);
+    color: var(--texto);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+  }
+  :focus-visible { outline: 2px solid var(--bus); outline-offset: 3px; }
+
+  .marco { max-width: 94rem; margin: 0 auto; padding: 1.75rem 1.25rem 3.5rem; }
+
+  header.top { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-start; justify-content: space-between; margin-bottom: 1.75rem; }
+  .rot { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; color: var(--texto-3); margin: 0 0 0.35rem; }
+  h1 { font-size: 1.65rem; margin: 0 0 0.35rem; letter-spacing: -0.02em; }
+  .baja { color: var(--texto-2); margin: 0; max-width: 48rem; }
+
+  .btn {
+    font: inherit; font-size: 0.83rem; font-weight: 600; cursor: pointer;
+    background: var(--papel); color: var(--texto);
+    border: 1px solid var(--borde); border-radius: 6px; padding: 0.45rem 0.8rem;
+    display: inline-flex; align-items: center; gap: 0.45rem; white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--texto-3); }
+
+  /* ---------- Lienzo del diagrama ---------- */
+  .lienzo-svg { overflow-x: auto; padding-bottom: 0.5rem; margin-bottom: 1.5rem; }
+  .lienzo-svg svg { display: block; width: 100%; min-width: 60rem; height: auto; }
+
+  /* Tipografía dentro del SVG */
+  .n-tit { font-size: 25px; font-weight: 700; }
+  .n-sub { font-size: 17px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .a-et { font-size: 17px; font-weight: 600; fill: var(--texto-2); }
+  .a-et-2 { font-size: 15px; fill: var(--texto-3); }
+  .z-et { font-size: 16px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; fill: var(--texto-3); }
+  .an-tit { font-size: 17px; font-weight: 700; fill: var(--texto); }
+  .an-tx { font-size: 16px; fill: var(--texto-2); }
+  .per-et { font-size: 17px; font-weight: 600; fill: var(--texto-2); }
+
+  .nodo { transition: opacity 0.15s ease; }
+  .forma { stroke-width: 3; }
+  .f-ext .forma { fill: var(--ext-f); stroke: var(--ext); stroke-dasharray: 9 6; }
+  .f-ext .n-tit { fill: var(--ext); }
+  .f-apex .forma { fill: var(--apex-f); stroke: var(--apex); }
+  .f-apex .n-tit { fill: var(--apex); }
+  .f-bus .forma { fill: var(--bus-f); stroke: var(--bus); }
+  .f-bus .n-tit { fill: var(--bus); }
+  .f-dato .forma { fill: var(--dato-f); stroke: var(--dato); }
+  .f-dato .n-tit { fill: var(--dato); }
+  .f-pend .forma { fill: var(--pend-f); stroke: var(--pend); stroke-dasharray: 9 6; }
+  .f-pend .n-tit { fill: var(--pend); }
+  .f-ui .forma { fill: var(--ui-f); stroke: var(--ui); }
+  .f-ui .n-tit { fill: var(--ui); }
+  .n-sub { fill: var(--texto-2); }
+
+  .punta-path { fill: var(--linea); }
+  .flecha { fill: none; stroke: var(--linea); stroke-width: 3.5; }
+  .flecha.punteada { stroke-dasharray: 11 8; }
+  .divisor { stroke: var(--div); stroke-width: 2.5; stroke-dasharray: 12 9; fill: none; }
+  .guia { stroke: var(--div); stroke-width: 1.5; fill: none; }
+  .persona { fill: none; stroke: var(--texto-2); stroke-width: 3; }
+
+  /* ---------- Reglas ---------- */
+  .reglas { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 1rem; margin-bottom: 1.75rem; }
+  .regla { border-top: 3px solid var(--ext); padding-top: 0.6rem; }
+  .regla .id { font-size: 0.7rem; font-weight: 700; color: var(--ext); letter-spacing: 0.08em; }
+  .regla h3 { font-size: 0.95rem; margin: 0.1rem 0 0.3rem; }
+  .regla p { margin: 0 0 0.35rem; font-size: 0.87rem; color: var(--texto-2); }
+  .regla .br { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.74rem; color: var(--texto-3); }
+
+  h2 { font-size: 1.05rem; margin: 0 0 0.2rem; }
+  .sub-nota { color: var(--texto-2); font-size: 0.88rem; margin: 0 0 1.1rem; max-width: 50rem; }
+
+  hr { border: none; border-top: 1px solid var(--borde); margin: 2rem 0 1.5rem; }
+
+  /* ---------- Recorrido ---------- */
+  .recorrido { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1.15rem; }
+  .salto { border-left: 3px solid var(--bus); padding-left: 0.85rem; }
+  .salto .num { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--texto-3); }
+  .salto h3 { font-size: 0.95rem; margin: 0.1rem 0 0.45rem; }
+  .salto pre {
+    margin: 0 0 0.5rem; background: var(--tenue); border-radius: 5px; padding: 0.55rem 0.6rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.7rem; line-height: 1.6; overflow-x: auto; color: var(--texto);
+  }
+  .salto p { margin: 0; font-size: 0.83rem; color: var(--texto-2); }
+  .salto p b { color: var(--texto); }
+  .salto.s-ext { border-left-color: var(--ext); }
+  .salto.s-apex { border-left-color: var(--apex); }
+  .salto.s-dato { border-left-color: var(--dato); }
+
+  .cierre { display: grid; grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr)); gap: 1.15rem; margin-top: 1.75rem; }
+  .cierre div { border-left: 3px solid var(--pend); padding-left: 0.85rem; }
+  .cierre div.b { border-left-color: var(--ext); }
+  .cierre div.c { border-left-color: var(--bus); }
+  .cierre h3 { font-size: 0.95rem; margin: 0 0 0.35rem; }
+  .cierre p { margin: 0 0 0.45rem; font-size: 0.86rem; color: var(--texto-2); }
+  .cierre p:last-child { margin-bottom: 0; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.86em; background: var(--tenue); border-radius: 3px; padding: 0.03rem 0.28rem;
+  }
+
+  @media print {
+    body { background: #fff; }
+    .btn { display: none; }
+    .lienzo-svg { overflow: visible; }
+    .lienzo-svg svg { min-width: 0; }
+    .salto, .regla, .cierre div { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="marco">
+
+  <header class="top">
+    <div>
+      <p class="rot">Nova Casa · Sprint 2 · Entregable 3</p>
+      <h1>Diseño de la solución</h1>
+      <p class="baja">El recorrido de una señal de sensor: de dónde viene, cómo se captura, quién decide qué hacer con ella, dónde queda guardada y cómo llega a la pantalla del operador.</p>
+    </div>
+    <button type="button" class="btn" id="btn-tema" aria-pressed="false">
+      <span aria-hidden="true" id="ico">&#9789;</span> <span id="txt">Modo oscuro</span>
+    </button>
+  </header>
+
+  <div class="lienzo-svg">
+    <svg viewBox="0 0 1800 900" role="img"
+         aria-label="Diagrama de arquitectura. El simulador en Heroku entrega telemetría por HTTP al servicio de Apex, que publica un Platform Event. El procesador suscrito aplica las reglas del negocio y escribe en tres destinos: estado actual, intervención y bitácora. El controlador de Apex y el componente LWC sirven esos datos al operador, y el administrador consulta la bitácora.">
+
+      <defs>
+        <marker id="punta" viewBox="0 0 12 12" refX="10" refY="6"
+                markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path class="punta-path" d="M 1 1 L 11 6 L 1 11 z"></path>
+        </marker>
+      </defs>
+
+      <!-- ===== Divisor de sistemas ===== -->
+      <path class="divisor" d="M 320 55 V 860"></path>
+      <text class="z-et" x="60" y="42">Fuera de Salesforce</text>
+      <text class="z-et" x="348" y="42">Org de Salesforce</text>
+
+      <!-- ===== Divisor síncrono / asíncrono ===== -->
+      <path class="divisor" d="M 1015 90 V 420"></path>
+      <text class="z-et" x="1000" y="78" text-anchor="end">Síncrono</text>
+      <text class="z-et" x="1032" y="78">Asíncrono</text>
+
+      <!-- ===== 1. Heroku ===== -->
+      <g class="nodo f-ext">
+        <rect class="forma" x="60" y="120" width="200" height="130" rx="16"></rect>
+        <text class="n-tit" x="160" y="172" text-anchor="middle">Simulador</text>
+        <text class="n-sub" x="160" y="200" text-anchor="middle">Heroku</text>
+        <text class="n-sub" x="160" y="226" text-anchor="middle">API REST</text>
+      </g>
+
+      <!-- flecha Heroku -> Servicio -->
+      <path class="flecha" d="M 262 185 H 356" marker-end="url(#punta)"></path>
+      <text class="a-et" x="309" y="150" text-anchor="middle">GET</text>
+      <text class="a-et-2" x="309" y="226" text-anchor="middle">REST</text>
+
+      <!-- ===== 2. Servicio de callout ===== -->
+      <g class="nodo f-apex">
+        <rect class="forma" x="360" y="120" width="270" height="130" rx="16"></rect>
+        <text class="n-tit" x="495" y="172" text-anchor="middle">Servicio de</text>
+        <text class="n-tit" x="495" y="200" text-anchor="middle">telemetría</text>
+        <text class="n-sub" x="495" y="228" text-anchor="middle">Apex · traduce</text>
+      </g>
+
+      <!-- flecha Servicio -> Platform Event -->
+      <path class="flecha" d="M 632 185 H 726" marker-end="url(#punta)"></path>
+      <text class="a-et" x="679" y="148" text-anchor="middle">publica</text>
+      <text class="a-et-2" x="679" y="228" text-anchor="middle">en bloque</text>
+
+      <!-- ===== 3. Platform Event (hexágono) ===== -->
+      <g class="nodo f-bus">
+        <path class="forma" d="M 800 110 H 930 L 990 185 L 930 260 H 800 L 730 185 Z"></path>
+        <text class="n-tit" x="860" y="172" text-anchor="middle">Señal</text>
+        <text class="n-sub" x="860" y="200" text-anchor="middle">Platform Event</text>
+        <text class="n-sub" x="860" y="226" text-anchor="middle">12 campos</text>
+      </g>
+
+      <!-- flecha PE -> Procesador (asíncrona) -->
+      <path class="flecha punteada" d="M 992 185 H 1086" marker-end="url(#punta)"></path>
+      <text class="a-et" x="1039" y="150" text-anchor="middle">entrega</text>
+
+      <!-- ===== 4. Procesador ===== -->
+      <g class="nodo f-apex">
+        <rect class="forma" x="1090" y="120" width="270" height="130" rx="16"></rect>
+        <text class="n-tit" x="1225" y="172" text-anchor="middle">Procesador</text>
+        <text class="n-tit" x="1225" y="200" text-anchor="middle">de señales</text>
+        <text class="n-sub" x="1225" y="228" text-anchor="middle">Apex · decide</text>
+      </g>
+
+      <!-- Anotación de reglas, con línea guía y sin caja -->
+      <path class="guia" d="M 1362 168 H 1425"></path>
+      <text class="an-tit" x="1437" y="150">Aplica las cuatro reglas</text>
+      <text class="an-tx" x="1437" y="180">R1 identidad y reenvío</text>
+      <text class="an-tx" x="1437" y="206">R2 señal atrasada</text>
+      <text class="an-tx" x="1437" y="232">R3 severidad y umbrales</text>
+      <text class="an-tx" x="1437" y="258">R4 lote y aislamiento</text>
+      <text class="an-tx" x="1437" y="292">Modo sistema · 200 por lote</text>
+
+      <!-- ===== Abanico hacia los tres destinos ===== -->
+      <path class="flecha" d="M 1180 252 C 1180 350, 640 350, 640 440" marker-end="url(#punta)"></path>
+      <path class="flecha" d="M 1225 252 V 440" marker-end="url(#punta)"></path>
+      <path class="flecha punteada" d="M 1280 252 C 1280 350, 1580 350, 1580 440" marker-end="url(#punta)"></path>
+
+      <text class="a-et-2" x="905" y="336" text-anchor="middle">estado vigente</text>
+      <text class="a-et-2" x="1252" y="336">si es crítica</text>
+      <text class="a-et-2" x="1490" y="336" text-anchor="middle">toda señal</text>
+
+      <!-- ===== 5a. Estado actual (cilindro) ===== -->
+      <g class="nodo f-dato">
+        <path class="forma" d="M 520 460 V 560 A 120 22 0 0 0 760 560 V 460"></path>
+        <ellipse class="forma" cx="640" cy="460" rx="120" ry="22"></ellipse>
+        <text class="n-tit" x="640" y="512" text-anchor="middle">Estado actual</text>
+        <text class="n-sub" x="640" y="540" text-anchor="middle">Account · Asset</text>
+      </g>
+
+      <!-- ===== 5b. Intervención (cilindro, por decidir) ===== -->
+      <g class="nodo f-pend">
+        <path class="forma" d="M 1105 460 V 560 A 120 22 0 0 0 1345 560 V 460"></path>
+        <ellipse class="forma" cx="1225" cy="460" rx="120" ry="22"></ellipse>
+        <text class="n-tit" x="1225" y="506" text-anchor="middle">Intervención</text>
+        <text class="n-sub" x="1225" y="534" text-anchor="middle">por decidir</text>
+      </g>
+
+      <!-- ===== 5c. Bitácora (cilindro) ===== -->
+      <g class="nodo f-dato">
+        <path class="forma" d="M 1470 460 V 560 A 110 22 0 0 0 1690 560 V 460"></path>
+        <ellipse class="forma" cx="1580" cy="460" rx="110" ry="22"></ellipse>
+        <text class="n-tit" x="1580" y="512" text-anchor="middle">Bitácora</text>
+        <text class="n-sub" x="1580" y="540" text-anchor="middle">evidencia</text>
+      </g>
+
+      <!-- ===== Hacia el consumo ===== -->
+      <path class="flecha" d="M 640 584 V 690" marker-end="url(#punta)"></path>
+      <path class="flecha" d="M 1225 584 C 1225 660, 700 660, 700 690" marker-end="url(#punta)"></path>
+      <text class="a-et-2" x="660" y="640">consulta</text>
+
+      <!-- ===== 6. Controlador ===== -->
+      <g class="nodo f-apex">
+        <rect class="forma" x="500" y="694" width="270" height="120" rx="16"></rect>
+        <text class="n-tit" x="635" y="742" text-anchor="middle">Controlador</text>
+        <text class="n-sub" x="635" y="770" text-anchor="middle">Apex · seguridad</text>
+        <text class="n-sub" x="635" y="794" text-anchor="middle">en el servidor</text>
+      </g>
+
+      <!-- flecha Controlador -> LWC -->
+      <path class="flecha" d="M 772 754 H 866" marker-end="url(#punta)"></path>
+      <text class="a-et-2" x="819" y="726" text-anchor="middle">FLS · CRUD</text>
+      <text class="a-et-2" x="819" y="790" text-anchor="middle">sharing</text>
+
+      <!-- ===== 7. LWC ===== -->
+      <g class="nodo f-ui">
+        <rect class="forma" x="870" y="686" width="280" height="136" rx="16"></rect>
+        <path class="forma" d="M 870 720 H 1150" stroke-width="2.5" fill="none"></path>
+        <text class="n-tit" x="1010" y="766" text-anchor="middle">Pantalla del</text>
+        <text class="n-tit" x="1010" y="794" text-anchor="middle">operador</text>
+        <text class="n-sub" x="1010" y="711" text-anchor="middle">LWC</text>
+      </g>
+
+      <!-- flecha LWC -> operador -->
+      <path class="flecha" d="M 1152 754 H 1226" marker-end="url(#punta)"></path>
+
+      <!-- Persona: operador -->
+      <g>
+        <circle class="persona" cx="1276" cy="722" r="21"></circle>
+        <path class="persona" d="M 1243 790 C 1243 754, 1309 754, 1309 790"></path>
+        <text class="per-et" x="1276" y="826" text-anchor="middle">Operador</text>
+      </g>
+
+      <!-- Bitácora -> administrador -->
+      <path class="flecha" d="M 1580 584 V 676" marker-end="url(#punta)"></path>
+      <g>
+        <circle class="persona" cx="1580" cy="712" r="21"></circle>
+        <path class="persona" d="M 1547 780 C 1547 744, 1613 744, 1613 780"></path>
+        <text class="per-et" x="1580" y="816" text-anchor="middle">Administrador</text>
+      </g>
+
+    </svg>
+  </div>
+
+  <h2>Las cuatro reglas que aplica el procesador</h2>
+  <p class="sub-nota">Están en un solo componente a propósito: si se repartieran entre el servicio de callout y el procesador, cambiar una obligaría a revisar dos piezas.</p>
+
+  <div class="reglas">
+    <div class="regla">
+      <span class="id">R1</span>
+      <h3>Identidad y reenvío</h3>
+      <p>La identidad de un mensaje es su origen más su clave. Si ya se procesó, no se actualiza el estado ni se crea otra intervención, y queda evidencia del reenvío. Una misma clave con contenido distinto es un conflicto, no un aviso nuevo.</p>
+      <span class="br">BR-205</span>
+    </div>
+    <div class="regla">
+      <span class="id">R2</span>
+      <h3>Señal atrasada</h3>
+      <p>Si el momento de origen es anterior al de la lectura vigente de ese activo y tipo de medición, se conserva como evidencia pero no reemplaza el estado actual ni abre intervención crítica. Se compara momento de origen contra momento de origen, nunca orden de llegada.</p>
+      <span class="br">BR-203</span>
+    </div>
+    <div class="regla">
+      <span class="id">R3</span>
+      <h3>Severidad y umbrales</h3>
+      <p>Cada lectura se clasifica contra umbrales que varían por tipo de activo y medición, y que viven fuera del código para que una persona autorizada los cambie sin desplegar. La severidad de un activo es la mayor de sus últimas lecturas válidas.</p>
+      <span class="br">BR-204 · BR-206</span>
+    </div>
+    <div class="regla">
+      <span class="id">R4</span>
+      <h3>Lote y aislamiento</h3>
+      <p>El procesador maneja hasta doscientas señales por lote. Una señal con datos inválidos se aísla con su motivo registrado, sin impedir que las demás del mismo lote continúen.</p>
+      <span class="br">BR-202</span>
+    </div>
+  </div>
+
+  <hr>
+
+  <h2>El recorrido de una señal, paso a paso</h2>
+  <p class="sub-nota">La misma medición rastreada de punta a punta: la bomba de Nova Alameda reportando presión baja. En cada salto cambia de forma, y eso es el ciclo de los datos.</p>
+
+  <div class="recorrido">
+
+    <div class="salto s-ext">
+      <span class="num">Salto 1 · el sensor mide</span>
+      <h3>Magnitud física</h3>
+      <pre>Sensor  SNS-PRESSURE-001
+Presion 0,7 BAR
+Momento 15:05:30 UTC</pre>
+      <p>Todavía no hay ningún dato en Salesforce. <b>El momento de la medición nace acá</b> y es el único que sirve para ordenar señales entre sí.</p>
+    </div>
+
+    <div class="salto s-ext">
+      <span class="num">Salto 2 · viaja</span>
+      <h3>JSON anidado y paginado</h3>
+      <pre>"messageId": "MSG-000103"
+"asset": { "externalId":
+           "AST-BOG-002" }
+"measurement": {
+  "type": "PRESSURE",
+  "value": 0.7, "unit": "BAR" }
+"occurredAt": "…T15:05:30Z"</pre>
+      <p>Llega junto a otras ciento noventa y nueve. <b>Los identificadores externos son los que reconocen el equipo</b>; los nombres no identifican nada.</p>
+    </div>
+
+    <div class="salto">
+      <span class="num">Salto 3 · se desacopla</span>
+      <h3>Evento plano en el bus</h3>
+      <pre>MessageId__c        MSG-000103
+AssetExternalId__c  AST-BOG-002
+MeasurementValue__c 0.7
+OccurredAt__c       15:05:30Z</pre>
+      <p>Pierde el anidamiento porque un evento no lo admite. <b>Existe pero no está guardada</b>: si nadie la procesa, desaparece del bus.</p>
+    </div>
+
+    <div class="salto s-apex">
+      <span class="num">Salto 4 · se decide</span>
+      <h3>Dato en memoria</h3>
+      <pre>R1 identidad nueva       -> sigue
+R2 15:05:30 es posterior -> sigue
+R3 0,7 BAR bajo el limite-> Critico
+R4 campos completos      -> valida</pre>
+      <p>Es el único punto donde la señal puede morir. <b>Si una regla la rechaza no llega al siguiente salto</b>, y solo queda su evidencia.</p>
+    </div>
+
+    <div class="salto s-dato">
+      <span class="num">Salto 5 · se guarda</span>
+      <h3>Tres destinos distintos</h3>
+      <pre>Asset    0,7 BAR · Critico
+Intervencion  abierta, alta
+Bitacora MSG-000103 Procesada</pre>
+      <p>Una señal produce tres escrituras porque responden preguntas distintas: <b>cómo está el equipo, qué hay que hacer y qué pasó con el mensaje</b>.</p>
+    </div>
+
+    <div class="salto s-dato">
+      <span class="num">Salto 6 · se ve</span>
+      <h3>Una fila en pantalla</h3>
+      <pre>Critico | Bomba principal
+        | Nova Alameda, Bogota
+        | 0,7 BAR (presion)
+        | hace 2 min
+        | [Ver intervencion]</pre>
+      <p>La antigüedad se muestra porque un valor sin su edad no es información operativa. <b>El botón lleva a la intervención existente</b>, no ofrece crear otra.</p>
+    </div>
+
+  </div>
+
+  <div class="cierre">
+    <div>
+      <h3>Lo que falta decidir</h3>
+      <p>La <strong>intervención</strong> está punteada en rosa porque <code>Case</code>, <code>WorkOrder</code> e <code>Incident</code> siguen en evaluación.</p>
+      <p>Y hay un punto abierto en el modelo: la regla R2 compara por activo <strong>y tipo de medición</strong>, así que la lectura vigente no puede ser un solo juego de campos en <code>Asset</code>, o una temperatura pisaría una presión.</p>
+    </div>
+    <div class="b">
+      <h3>Por qué Apex y no Flow</h3>
+      <p>La frontera formativa exige un suscriptor de Apex programático y bulkificado. Uno hecho con Flow no cumple ese requisito aunque funcione, así que el procesador es Apex.</p>
+    </div>
+    <div class="c">
+      <h3>La decisión que sostiene el diseño</h3>
+      <p>Separar la extracción del procesamiento con un evento en medio. Cuesta una pieza extra y a cambio el componente que conoce el contrato del proveedor y el que conoce las reglas del negocio cambian por separado.</p>
+      <p>Es también lo que hace que publicar y procesar sean dos momentos con evidencia propia.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var raiz = document.documentElement;
+  var btn = document.getElementById("btn-tema");
+  var ico = document.getElementById("ico");
+  var txt = document.getElementById("txt");
+
+  function aplicar(tema) {
+    raiz.setAttribute("data-tema", tema);
+    var oscuro = tema === "oscuro";
+    btn.setAttribute("aria-pressed", oscuro ? "true" : "false");
+    ico.innerHTML = oscuro ? "&#9728;" : "&#9789;";
+    txt.textContent = oscuro ? "Modo claro" : "Modo oscuro";
+    try { localStorage.setItem("nova-casa-tema", tema); } catch (e) { /* file:// */ }
+  }
+
+  var inicial = null;
+  try { inicial = localStorage.getItem("nova-casa-tema"); } catch (e) { /* ignorado */ }
+  if (!inicial) {
+    inicial = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "oscuro" : "claro";
+  }
+  aplicar(inicial);
+
+  btn.addEventListener("click", function () {
+    aplicar(raiz.getAttribute("data-tema") === "oscuro" ? "claro" : "oscuro");
+  });
+})();
+</script>
+
+</body>
+</html>

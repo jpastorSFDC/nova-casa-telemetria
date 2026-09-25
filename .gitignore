@@ -1,1 +1,9 @@
 .DS_Store
+
+# Configuración local del servidor MCP: rutas y usuario de cada máquina
+.cursor/mcp.json
+
+# Salesforce CLI
+.sf/
+.sfdx/
+node_modules/
