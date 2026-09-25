@@ -1,6 +1,6 @@
 # Sprint 2 — Nova Casa Telemetría
 
-Discovery & Design (15–26 sep). Development y QA están bloqueados en MDSS. No generar Apex, LWC ni metadata de producción salvo que John lo pida explícitamente.
+Fase actual: **Development**, habilitado en MDSS desde el 25 sep. Discovery & Design (15–26 sep) entregó los prototipos de `entregables/`. QA & Delivery sigue bloqueado.
 
 Equipo: John Alejandro Pastor + Juan Diego Velásquez. Responder en español.
 
@@ -39,6 +39,11 @@ Platform Events reales desde el simulador · Apex subscriber programático y bul
 
 Preferir objetos estándar si alcanzan. Custom solo justificado en el modelo de datos.
 
-## Discovery: no adelantar código
+## Development
 
-Entregables = prototipos de baja fidelidad (página de entendimiento, 2 pantallas, arquitectura, modelo, contrato, decisiones/riesgos). No se evalúa acabado gráfico ni una app terminada.
+El código y la metadata viven en `force-app/` (proyecto Salesforce DX, API 67.0). La org de trabajo es `nova-cdo`.
+
+- Todo lo que se despliega sale del repo, desde una rama. Nada se crea a mano en la org sin quedar versionado.
+- Antes de desplegar, validar con un ensayo (`--dry-run`) y avisar qué se va a subir.
+- No borrar metadata ni datos de la org sin confirmación explícita de John o Juan Diego.
+- Los prototipos de `entregables/` guían el diseño, pero no son la especificación: si el código se aparta de ellos, se registra en `docs/decisiones.md`.
