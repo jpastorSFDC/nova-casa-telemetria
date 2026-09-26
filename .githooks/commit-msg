@@ -1,0 +1,36 @@
+#!/bin/sh
+# Checks the commit header against CONTRIBUTING.md and removes Cursor's co-author lines.
+
+msg_file="$1"
+
+grep -v -e '^Co-authored-by: Cursor <cursoragent@cursor\.com>$' -e '^Made-with: Cursor$' "$msg_file" > "$msg_file.tmp"
+mv "$msg_file.tmp" "$msg_file"
+
+header=$(grep -v '^#' "$msg_file" | sed '/^[[:space:]]*$/d' | head -n 1)
+
+case "$header" in
+  "Merge "* | "Revert "* | "fixup! "* | "squash! "* | "amend! "*) exit 0 ;;
+esac
+
+fail() {
+  echo "commit-msg: $1" >&2
+  echo "  Expected: type(scope): subject, for example feat(US-201): add SimuladorClient to page through /telemetry" >&2
+  echo "  See CONTRIBUTING.md#commits" >&2
+  exit 1
+}
+
+story='[A-Z]{2}-[0-9]{2,3}'
+
+if ! printf '%s\n' "$header" | grep -Eq "^(feat|fix|docs|chore|refactor|test|ci)(\\(${story}(,${story})*\\))?: [^ ].*[^.]$"; then
+  fail "the header does not follow the format: \"$header\""
+fi
+
+if printf '%s\n' "$header" | grep -Eq '^(feat|fix): '; then
+  fail "feat and fix need the story as scope"
+fi
+
+if [ "${#header}" -gt 100 ]; then
+  fail "the header has ${#header} characters; the limit is 100"
+fi
+
+exit 0
