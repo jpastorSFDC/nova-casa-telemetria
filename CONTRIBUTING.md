@@ -27,7 +27,7 @@ git pull
 git switch -c feat/us-204-thresholds
 ```
 
-`main` is protected: nobody pushes to it directly, admins included. Branches are not deleted automatically; after the merge, the author deletes the branch on GitHub and locally with `git branch -d <branch>`.
+`main` is protected: nobody pushes to it directly, admins included. Branches are not deleted automatically; after the merge, the author deletes the branch on GitHub and locally with `git branch -D <branch>`. It has to be `-D`: after a squash merge, Git does not find the branch's commits in `main`, so `-d` refuses to delete it.
 
 ## Commits
 
