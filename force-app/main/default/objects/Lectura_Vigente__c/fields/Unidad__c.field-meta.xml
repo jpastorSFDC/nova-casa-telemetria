@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Unidad__c</fullName>
+    <label>Unidad</label>
+    <type>Picklist</type>
+    <required>true</required>
+    <valueSet>
+        <restricted>false</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>CELSIUS</fullName>
+                <default>false</default>
+                <label>CELSIUS</label>
+            </value>
+            <value>
+                <fullName>BAR</fullName>
+                <default>false</default>
+                <label>BAR</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>
