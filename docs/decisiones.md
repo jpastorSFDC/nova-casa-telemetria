@@ -23,14 +23,24 @@ Copiar esta plantilla, numerar secuencialmente, y mantener el estado actualizado
 
 ---
 
-## Pendientes heredados de la sección "Acuerdos" (aún por cerrar en Discovery)
+## D001 — Objeto de intervención: Case
 
-Estos cuatro puntos necesitan una entrada D00X cada uno antes de cerrar el entregable 6:
+- **Estado**: Aceptada
+- **Fecha**: 2026-09-29
+- **Contexto**: BR-205/BR-206 requieren que una señal crítica produzca una intervención operativa que el coordinador de mantenimiento pueda revisar y dar seguimiento. El acuerdo de MDSS ("Incidente") exige el comportamiento (una intervención como máximo por mensaje crítico único) pero no fija el objeto Salesforce que la representa. `CONTRIBUTING.md` ya nombraba `Case` como archivo compartido y hablaba de "cases" creados por la ingesta antes de que esta decisión quedara registrada aquí.
+- **Decisión**: la intervención se modela como `Case` (objeto estándar).
+- **Alternativa descartada**: `Work Order`.
+- **Trade-off**: `Case` viene habilitado en la org sin configuración adicional y reutiliza procesos, permisos, queues y vistas de lista que el equipo ya conoce. Se sacrifican los campos propios de mantenimiento de `Work Order` (Work Type, Service Appointment), que además requieren Field Service — no forman parte del alcance base del sprint y no compensan el costo de habilitar y licenciar Field Service solo para esto.
+- **Riesgo / dependencia**: si una fase posterior necesita programar visitas técnicas o asignar recursos de campo, puede que se necesite reabrir esta decisión y evaluar Field Service.
+- **Siguiente acción**: ninguna para cerrar la decisión; al implementar BR-205/BR-206 revisar si `Case` necesita campos custom (severidad, activo relacionado, clave del mensaje) y documentarlos en el modelo de datos.
+
+## Pendientes heredados de la sección "Acuerdos" (abiertos desde Discovery, sin cerrar en Development)
+
+Estos puntos necesitaban una entrada D00X cada uno antes de cerrar el entregable 6 de Discovery. El entregable se aprobó y ya estamos en Development (ver `AGENTS.md`), pero solo el objeto de intervención (ver D001 arriba) tiene su entrada; los otros tres siguen sin ella:
 
 1. Regla determinista cuando dos señales válidas del mismo `asset`+`measurement.type` tienen el mismo `occurredAt`.
 2. Operadores y valores exactos de umbral por `asset.type` + `measurement.type` (van en metadata, no en código).
-3. Objeto de intervención: Case, Work Order u otro, y por qué.
-4. Modelo de sharing de edificios/activos para el operador (BR-208).
+3. Modelo de sharing de edificios/activos para el operador (BR-208).
 
 ## Riesgos generales del sprint
 
