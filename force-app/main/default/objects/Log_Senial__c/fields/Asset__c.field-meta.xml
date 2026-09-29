@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Asset__c</fullName>
+    <label>Activo</label>
+    <description>Activo referenciado. Opcional a propósito: una señal inválida puede referir a un activo desconocido y aún así debe registrarse (BR-209).</description>
+    <type>Lookup</type>
+    <referenceTo>Asset</referenceTo>
+    <relationshipLabel>Registros de Señal</relationshipLabel>
+    <relationshipName>Registros_Senal</relationshipName>
+    <required>false</required>
+</CustomField>

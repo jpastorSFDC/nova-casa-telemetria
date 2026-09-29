@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Identidad__c</fullName>
+    <label>Identidad</label>
+    <description>Identidad del mensaje (origen + messageId). Clave de deduplicación: una fila por mensaje único (BR-205, BR-209).</description>
+    <type>Text</type>
+    <length>60</length>
+    <externalId>true</externalId>
+    <unique>true</unique>
+</CustomField>

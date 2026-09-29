@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Reenvios__c</fullName>
+    <label>Reenvíos</label>
+    <description>Número de veces que se ha reenviado/reprocesado el mismo mensaje (BR-205, BR-209).</description>
+    <type>Number</type>
+    <precision>18</precision>
+    <scale>0</scale>
+    <defaultValue>0</defaultValue>
+</CustomField>

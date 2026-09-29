@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Motivo__c</fullName>
+    <label>Motivo</label>
+    <description>Motivo de rechazo o falla, visible para el Admin (BR-209).</description>
+    <type>Text</type>
+    <length>255</length>
+</CustomField>
