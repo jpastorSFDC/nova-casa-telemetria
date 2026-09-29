@@ -50,10 +50,12 @@ sf project deploy start --source-dir <archivos-de-la-historia>
 
 `force-app` completo se despliega solo desde `main`, después de mergear. Las reglas completas están en [CONTRIBUTING.md](CONTRIBUTING.md#deploying-to-the-shared-org).
 
-Correr los tests de Apex:
+La org es de producción (Enterprise Edition, no sandbox): Apex no se edita en el navegador y cada despliegue con Apex corre pruebas que cubran al menos el 75 % de cada clase. Cada clase va con su prueba en el mismo PR y se despliega corriendo solo nuestras pruebas, con `--test-level RunSpecifiedTests --tests <ClaseTest>`, nunca con `RunLocalTests`, que también corre las pruebas de las clases de la demo. Detalle en [CONTRIBUTING.md](CONTRIBUTING.md#apex-needs-tests).
+
+Correr las pruebas de una clase sin desplegar:
 
 ```bash
-sf apex run test --test-level RunLocalTests --result-format human --wait 10
+sf apex run test --class-names <ClaseTest> --code-coverage --result-format human --wait 10
 ```
 
 Pendiente de documentar cuando exista: la conexión con el simulador de Heroku y cómo ver el procesamiento de los Platform Events.

@@ -45,5 +45,6 @@ El código y la metadata viven en `force-app/` (proyecto Salesforce DX, API 67.0
 
 - Todo lo que se despliega sale del repo. Desde una rama, solo los archivos de la historia; `force-app` completo, solo desde `main` después de mergear. Nada se crea a mano en la org sin quedar versionado.
 - Antes de desplegar, validar con un ensayo (`--dry-run`) y avisar qué se va a subir.
+- `nova-cdo` es una org de producción: cada despliegue con Apex exige pruebas que cubran el 75 % de cada clase o trigger. Cada clase va con su prueba en el mismo PR y se despliega con `--test-level RunSpecifiedTests`, nunca con `RunLocalTests`.
 - No borrar metadata ni datos de la org sin confirmación explícita de John o Juan Diego.
 - Los prototipos de `entregables/` guían el diseño, pero no son la especificación: si el código se aparta de ellos, se registra en `docs/decisiones.md`.
