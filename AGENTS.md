@@ -1,6 +1,6 @@
 # Sprint 2 — Nova Casa Telemetría
 
-Discovery & Design (15–26 sep). Development y QA están bloqueados en MDSS. No generar Apex, LWC ni metadata de producción salvo que John lo pida explícitamente.
+Fase actual: **Development**, habilitado en MDSS desde el 25 sep. Discovery & Design (15–26 sep) entregó los prototipos de `entregables/`. QA & Delivery sigue bloqueado.
 
 Equipo: John Alejandro Pastor + Juan Diego Velásquez. Responder en español.
 
@@ -16,7 +16,7 @@ Leer esto antes de diseñar o implementar. No inventar campos del PE ni cuerpos 
 
 El facilitador de MDSS aprueba cada entregable; el acuerdo interno del par no lo cierra por sí solo. Antes de proponer una alternativa a un acuerdo cerrado, registrarla en `docs/decisiones.md` con justificación y criterios de prueba, no solo aplicarla.
 
-Ramas de agentes de IA: prefijo `cursor/`. Ramas manuales del equipo: `feature/<descripcion>`, revisadas por el otro miembro del par antes de mergear. **`main` no recibe commits directos de un agente**: el trabajo de un agente vive en su rama `cursor/...` hasta que John o Juan Diego lo revisan y mergean.
+Ramas, commits y PRs siguen `CONTRIBUTING.md`, igual para el equipo y para los agentes: una rama por historia (`feat/us-201-receive-signals`), commits con Conventional Commits en inglés y la historia como alcance, y merge con squash después de la aprobación del otro miembro del par. **`main` no recibe commits directos de un agente**: el trabajo de un agente vive en su rama hasta que John o Juan Diego lo revisan. Los PRs de un agente cuentan como de John, así que los revisa Juan Diego. Nunca agregar coautoría de IA en los commits.
 
 Remoto: `origin` → github.com/jpastorSFDC/nova-casa-telemetria, **público**. No asumir que algo llegó a GitHub hasta confirmarlo en el remoto. No subir nada con credenciales, tokens ni datos de la org.
 
@@ -39,6 +39,11 @@ Platform Events reales desde el simulador · Apex subscriber programático y bul
 
 Preferir objetos estándar si alcanzan. Custom solo justificado en el modelo de datos.
 
-## Discovery: no adelantar código
+## Development
 
-Entregables = prototipos de baja fidelidad (página de entendimiento, 2 pantallas, arquitectura, modelo, contrato, decisiones/riesgos). No se evalúa acabado gráfico ni una app terminada.
+El código y la metadata viven en `force-app/` (proyecto Salesforce DX, API 67.0). La org de trabajo es `nova-cdo`, compartida por los dos.
+
+- Todo lo que se despliega sale del repo. Desde una rama, solo los archivos de la historia; `force-app` completo, solo desde `main` después de mergear. Nada se crea a mano en la org sin quedar versionado.
+- Antes de desplegar, validar con un ensayo (`--dry-run`) y avisar qué se va a subir.
+- No borrar metadata ni datos de la org sin confirmación explícita de John o Juan Diego.
+- Los prototipos de `entregables/` guían el diseño, pero no son la especificación: si el código se aparta de ellos, se registra en `docs/decisiones.md`.
