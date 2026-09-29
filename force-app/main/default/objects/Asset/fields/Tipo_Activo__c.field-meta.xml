@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Tipo_Activo__c</fullName>
+    <label>Tipo de activo</label>
+    <description>Valores iniciales del contrato; el set final se carga en T2.12 desde el catálogo; unrestricted.</description>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>false</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>VENTILATION</fullName>
+                <default>false</default>
+                <label>VENTILATION</label>
+            </value>
+            <value>
+                <fullName>WATER_PUMP</fullName>
+                <default>false</default>
+                <label>WATER_PUMP</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>
