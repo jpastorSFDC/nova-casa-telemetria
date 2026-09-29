@@ -329,6 +329,282 @@ Significado de los campos
 | occurredAt | Momento en que el sensor generó la lectura, expresado en UTC. |
 | nextCursor | Continuar la consulta sin depender de fechas o IDs consecutivos. |
 
+## Development
+
+En la fase de Development, el backlog inicial que preparaste en Discovery se convierte en software funcional. Cada historia de usuario describe un resultado observable para un rol de Nova Casa, con criterios de aceptación que definen cuándo está terminada.
+
+Organiza el trabajo en el tablero: arrastra cada historia por las columnas a medida que avanza, asígnala a un miembro del equipo y registra los acuerdos importantes en sus comentarios. Las historias no se eliminan; se mueven hasta quedar listas.
+
+### US-201: Recibir señales de los edificios
+
+BR-201 · Development · 3 pts
+
+Resultado: Recepción real de señales
+
+Como operador de edificios,
+
+quiero que las lecturas de los dispositivos lleguen automáticamente a Salesforce,
+
+para monitorear los equipos sin revisar múltiples portales de proveedores.
+
+Criterios de aceptación
+
+- El simulador publica Platform Events reales hacia la organización y el suscriptor Apex los recibe.
+- El contrato permite reconocer edificio, activo, medición, valor, unidad, fecha de origen y clave del mensaje.
+- La fecha de origen se conserva separada de la recepción o procesamiento.
+- Una publicación aceptada se distingue de una señal efectivamente procesada.
+- La pareja puede ejecutar el recorrido con instrucciones reproducibles y sin crear manualmente el resultado.
+
+Evidencia
+
+Ejecución del simulador y trazabilidad de una clave desde publicación hasta resultado.
+
+Esfuerzo relativo
+
+Integración con un kit ya habilitado y contrato conocido.
+
+### US-202: Procesar señales sin perder las válidas
+
+BR-202 · Development · 5 pts
+
+Resultado: Procesamiento de colecciones y aislamiento de inválidos
+
+Como coordinador de mantenimiento,
+
+quiero que las lecturas válidas de un lote se procesen aunque otra lectura sea inválida,
+
+para que un dispositivo defectuoso no oculte los problemas de los demás.
+
+Criterios de aceptación
+
+- El procesador admite colecciones de hasta 200 señales, incluyendo varias para el mismo activo.
+- Una señal incompleta, de activo desconocido o con medición incompatible queda rechazada con motivo.
+- Las señales válidas de esa colección producen los resultados esperados.
+- No se realizan consultas ni operaciones de escritura de Salesforce una vez por cada elemento de la colección.
+- La prueba de volumen incluye resultados verificables, no solamente ausencia de excepciones.
+
+Evidencia
+
+Prueba automatizada de una colección mixta y ejecución real de publicación de 200 mensajes. La prueba no presupone que Salesforce entregará exactamente esos 200 eventos en una única invocación del suscriptor. La obligación de aislamiento se refiere a los errores de datos definidos para el caso; no implica garantizar éxito parcial frente a cualquier falla global de la plataforma.
+
+Esfuerzo relativo
+
+Procesamiento bulk, resultados parciales y validaciones.
+
+### US-203: Mantener el estado actual
+
+BR-203 · Development · 5 pts
+
+Resultado: Estado reciente por activo y medición
+
+Como operador de edificios,
+
+quiero ver la lectura válida más reciente de cada activo y tipo de medición,
+
+para que los mensajes atrasados no me hagan actuar sobre información desactualizada.
+
+Criterios de aceptación
+
+- La última lectura se mantiene por activo y tipo de medición.
+- Una lectura más reciente actualiza valor, unidad, fecha de origen y severidad correspondiente.
+- Una lectura anterior conserva su evidencia sin reemplazar la lectura actual.
+- Varias señales del mismo activo y medición dentro de la colección dejan como resultado la más reciente válida.
+- Se aplica la regla documentada para empates de fecha y hora.
+- Se respeta la política acordada de acción sobre señales críticas atrasadas.
+
+Evidencia
+
+Llegada en orden y fuera de orden, tanto entre publicaciones como dentro de una colección.
+
+Esfuerzo relativo
+
+Orden temporal, agrupación y consistencia del resumen del activo.
+
+### US-204: Cambiar límites sin desplegar código
+
+BR-204 · Development · 2 pts
+
+Resultado: Límites administrables
+
+Como coordinador de mantenimiento autorizado,
+
+quiero ajustar los límites de advertencia y críticos por activo y tipo de medición,
+
+para que las reglas de monitoreo reflejen los equipos sin requerir un despliegue de código.
+
+Criterios de aceptación
+
+- Los límites no están escritos directamente en el código.
+- Una persona autorizada puede modificarlos mediante el mecanismo administrativo elegido.
+- Al procesar una nueva señal se aplican los límites vigentes, sin desplegar código.
+- Se conocen los resultados para valores exactamente iguales a los límites.
+- La falta de configuración o un rango contradictorio producen un resultado explicable; no se clasifican silenciosamente como normales.
+- El base no requiere reclasificar todo el historial al cambiar un límite.
+
+Evidencia
+
+Cambiar un límite y publicar un valor que cambie de clasificación.
+
+Esfuerzo relativo
+
+Configuración simple y lectura desde el procesador. Si la elección exige una UI nueva de administración, debe estimarse y acotarse aparte.
+
+### US-205: Generar una sola intervención por mensaje crítico
+
+BR-205 · Development · 5 pts
+
+Resultado: Intervención sin duplicados por mensaje
+
+Como coordinador de mantenimiento,
+
+quiero que cada nuevo mensaje crítico cree una sola intervención operativa y que las entregas repetidas reutilicen ese resultado,
+
+para que el equipo no realice trabajo duplicado.
+
+Criterios de aceptación
+
+- Una señal crítica válida y vigente crea una intervención con activo, edificio, causa, severidad y estado de seguimiento.
+- Reenviar su misma identidad no crea una segunda intervención.
+- Los duplicados se reconocen tanto dentro de una colección como en entregas posteriores.
+- La señal y sus reenvíos pueden relacionarse con el resultado existente.
+- Una clave reenviada con contenido diferente se identifica como conflicto.
+- Una falla de creación no deja una señal marcada como procesada satisfactoriamente sin su resultado obligatorio.
+- El equipo explica el mecanismo de protección frente a duplicados y qué garantías o límites tiene ante entregas concurrentes.
+
+Evidencia
+
+Señal crítica, reenvío, conteo de intervenciones y caso de error controlado.
+
+Esfuerzo relativo
+
+Identidad, consistencia y recuperación segura.
+
+### US-206: Diferenciar normal, advertencia y crítico
+
+BR-206 · Development · 2 pts
+
+Resultado: Respuesta por severidad
+
+Como operador de edificios,
+
+quiero que las lecturas produzcan respuestas diferentes según su severidad,
+
+para priorizar la atención sin tratar cada mensaje como una emergencia.
+
+Criterios de aceptación
+
+- Una señal normal vigente actualiza la lectura sin crear intervención.
+- Una advertencia vigente actualiza la lectura y se distingue visualmente, sin crear intervención obligatoria.
+- Una crítica vigente utiliza el recorrido de US-205.
+- La severidad se obtiene de la configuración de US-204 y no de valores independientes en la UI.
+- El resumen del activo utiliza la política de múltiples mediciones acordada en Discovery.
+
+Evidencia
+
+Tres valores representativos y valores de frontera.
+
+Esfuerzo relativo
+
+Reglas acotadas que reutilizan el procesamiento y los límites.
+
+### US-207: Consultar el estado desde una experiencia propia
+
+BR-207 · Development · 5 pts
+
+Resultado: Experiencia del operador
+
+Como operador de edificios,
+
+quiero una vista clara de mis edificios y activos con la severidad y la información de la última lectura,
+
+para identificar qué necesita atención y abrir los registros relevantes.
+
+Criterios de aceptación
+
+- La vista principal está implementada en LWC y consulta datos reales.
+- Permite filtrar por edificio y severidad.
+- Muestra activo, edificio, severidad y fecha de la lectura de origen, con etiquetas comprensibles.
+- Distingue un activo sin lecturas de un filtro sin resultados.
+- Ofrece navegación al activo y a la intervención disponible.
+- Tiene estados de carga, datos, vacío y error, con mensajes y opción de recuperación apropiados.
+- Permite actualizar la información bajo demanda. La actualización automática es extra.
+- Reutiliza componentes base cuando cubren la necesidad y no requiere un diseño gráfico complejo.
+
+Evidencia
+
+LWC con datos de varias severidades, filtros y estados alternativos.
+
+Esfuerzo relativo
+
+Interfaz, consulta Apex, navegación y manejo de estados.
+
+### US-208: Respetar la autorización del usuario
+
+BR-208 · Development · 3 pts
+
+Resultado: Acceso autorizado en interfaz y servidor
+
+Como gerente de operaciones,
+
+quiero que los usuarios accedan solo a los registros, campos y acciones operativos que están autorizados a usar,
+
+para que la información restringida esté protegida más allá de lo que muestra la pantalla.
+
+Criterios de aceptación
+
+- Existe una matriz breve de acceso para operador, coordinador y administrador.
+- El operador no puede obtener datos de un edificio no autorizado mediante el LWC ni solicitándolos directamente a Apex.
+- Se respetan permisos de objeto y campo además del acceso al registro.
+- Las acciones administrativas, como cambiar límites o consultar errores técnicos, tienen una autorización definida.
+- Se prueba con dos usuarios de permisos diferentes, incluyendo acceso insuficiente.
+- El procesamiento de ingesta tiene una autorización explícita y separada del contexto del operador.
+
+Evidencia
+
+Resultados diferentes por usuario y pruebas de solicitudes sin acceso. Usar un usuario distinto en una prueba no demuestra por sí solo que se estén respetando todos los permisos: deben comprobarse resultados concretos.
+
+Esfuerzo relativo
+
+Una frontera de consulta y acciones limitada. Compartición dinámica por múltiples ciudades o regiones es extra.
+
+### US-209: Investigar el procesamiento
+
+BR-209 · Development · 3 pts
+
+Resultado: Trazabilidad de procesamiento
+
+Como administrador de Salesforce,
+
+quiero inspeccionar el resultado de procesamiento y el motivo de rechazo de cada mensaje,
+
+para investigar las fallas y determinar si un reintento es seguro.
+
+Criterios de aceptación
+
+- Es posible buscar la señal por su identidad y reconocer su fecha de origen y procesamiento.
+- Se distingue entre procesada, rechazada, duplicada, atrasada o fallida, o estados equivalentes explicados por el equipo.
+- Se registra una causa útil de rechazo o falla y el resultado relacionado cuando exista.
+- Se identifica si un reintento sería seguro o qué condición debe corregirse primero.
+- No se almacenan contraseñas, tokens ni datos innecesarios en la evidencia.
+- La vista de investigación está restringida a personas autorizadas.
+- La información persiste después de la ejecución; no depende únicamente de logs temporales.
+
+Evidencia
+
+Inspección de señales normal, inválida, duplicada y atrasada. No se exige una consola LWC nueva ni un botón de reproceso.
+
+Esfuerzo relativo
+
+Modelo de trazabilidad y presentación administrativa simple.
+
+### US-210: Validación integrada y evidencia de entrega
+
+BR-210 · QA & Delivery · 5 pts
+
+Resultado: Validación integrada y evidencia de entrega
+
+Esta historia pertenece a la fase Testing & Delivery; su detalle completo se definirá en esa fase.
+
 ## My Team
 
 John Alejandro Pastor
