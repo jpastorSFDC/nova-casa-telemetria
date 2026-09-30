@@ -50,10 +50,12 @@ sf project deploy start --source-dir <story-files>
 
 The full `force-app` deploys only from `main`, after merging. Full rules are in [CONTRIBUTING.md](CONTRIBUTING.md#deploying-to-the-shared-org).
 
-Run the Apex tests:
+The org is production (Enterprise Edition, not a sandbox): Apex can't be edited in the browser, and every deploy that includes Apex runs tests that must cover at least 75% of each class. Each class ships with its test in the same PR and deploys running only our tests, with `--test-level RunSpecifiedTests --tests <ClassTest>`, never with `RunLocalTests`, which also runs the tests of the demo classes. Details are in [CONTRIBUTING.md](CONTRIBUTING.md#apex-needs-tests).
+
+Run one class's tests without deploying:
 
 ```bash
-sf apex run test --class-names <ClaseTest> --code-coverage --result-format human --wait 10
+sf apex run test --class-names <ClassTest> --code-coverage --result-format human --wait 10
 ```
 
 Still to document once it exists: the connection to the Heroku simulator and how to watch Platform Event processing.
