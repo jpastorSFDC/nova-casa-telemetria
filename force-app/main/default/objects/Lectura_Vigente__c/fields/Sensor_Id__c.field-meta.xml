@@ -3,5 +3,5 @@
     <fullName>Sensor_Id__c</fullName>
     <label>Sensor</label>
     <type>Text</type>
-    <length>40</length>
+    <length>50</length>
 </CustomField>
