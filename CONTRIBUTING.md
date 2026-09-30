@@ -8,6 +8,7 @@ How we work on this repo: branches, commits, pull requests and deploys to the or
 2. Commits follow Conventional Commits, in English, with the story as scope.
 3. Every change reaches `main` through a pull request approved by the other person, merged with squash.
 4. In the shared org, deploy only your story's files from your branch. The full `force-app` is deployed only from `main`.
+5. Every Apex class ships with its test class: the org is production and rejects Apex deploys without coverage.
 
 ## Branches
 
@@ -142,7 +143,7 @@ We both work on the same org, `nova-cdo`. The org keeps a single version of each
    sf project deploy start --source-dir force-app
    ```
 
-Shared files are changed by one person at a time: permission sets, page layouts, the app and `Case`. Whoever needs one says so in Slack, and the other waits until that PR is merged before changing it.
+Shared files are changed by one person at a time: permission sets, page layouts, the app and `Case` (the intervention object, [D001](docs/decisiones.md#d001--objeto-de-intervención-case)). Whoever needs one says so in Slack, and the other waits until that PR is merged before changing it.
 
 Nothing is changed by hand in Setup. Anything created by clicking exists only in the org, and the next deploy does not know about it. If you try something in Setup, bring it into your branch the same day:
 
@@ -153,6 +154,27 @@ sf project retrieve start --metadata CustomField:Log_Senial__c.Caso__c
 Changes that are hard to undo go in their own PR, need both of us to agree and are deployed only from `main`: deleting fields or objects, changing a field's type, changing org-wide sharing, removing picklist values, deleting data.
 
 The ingestion creates real records: readings, log entries and cases. Run it one person at a time, say so in Slack, and don't delete records the other person created.
+
+### Apex needs tests
+
+`nova-cdo` is a production org (Enterprise Edition, not a sandbox). Apex cannot be edited in the browser, and every deploy that includes Apex must run tests that cover at least 75% of each class and trigger in it.
+
+- Every Apex class or trigger ships with its test class in the same PR.
+- Tests use `@isTest`, check results with `Assert` and never call the simulator: `HttpCalloutMock` stands in for it.
+- Deploy Apex running only our tests:
+
+  ```bash
+  sf project deploy start --source-dir force-app/main/default/classes/CatalogoService.cls --source-dir force-app/main/default/classes/CatalogoServiceTest.cls --test-level RunSpecifiedTests --tests CatalogoServiceTest --dry-run
+  ```
+
+- When deploying `main` in full, list every one of our test classes in `--tests`.
+- Never use `RunLocalTests`: it also runs the tests of the demo classes that came with the org, and one failure there blocks our deploy.
+
+To run tests without deploying:
+
+```bash
+sf apex run test --class-names CatalogoServiceTest --code-coverage --result-format human --wait 10
+```
 
 ## Decisions and secrets
 

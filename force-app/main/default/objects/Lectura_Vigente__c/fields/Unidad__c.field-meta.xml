@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Unidad__c</fullName>
+    <label>Unidad</label>
+    <description>Solo las unidades canónicas del catálogo (T1.6). Una unidad alterna (FAHRENHEIT, PSI, GALLON_PER_15_MIN, WATT) se rechaza como medición incompatible.</description>
+    <type>Picklist</type>
+    <required>true</required>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>CELSIUS</fullName>
+                <default>false</default>
+                <label>°C</label>
+            </value>
+            <value>
+                <fullName>BAR</fullName>
+                <default>false</default>
+                <label>bar</label>
+            </value>
+            <value>
+                <fullName>LITER_PER_15_MIN</fullName>
+                <default>false</default>
+                <label>L / 15 min</label>
+            </value>
+            <value>
+                <fullName>KWH_PER_15_MIN</fullName>
+                <default>false</default>
+                <label>kWh / 15 min</label>
+            </value>
+            <value>
+                <fullName>SECONDS</fullName>
+                <default>false</default>
+                <label>s</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

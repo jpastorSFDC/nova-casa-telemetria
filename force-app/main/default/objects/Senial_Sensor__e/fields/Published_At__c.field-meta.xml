@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Published_At__c</fullName>
+    <label>publishedAt</label>
+    <description>publishedAt en ISO 8601, como texto crudo: cuándo lo publicó el simulador.</description>
+    <type>Text</type>
+    <length>40</length>
+    <required>false</required>
+</CustomField>

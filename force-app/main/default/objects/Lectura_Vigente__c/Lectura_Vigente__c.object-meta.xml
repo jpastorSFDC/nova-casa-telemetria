@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <deploymentStatus>Deployed</deploymentStatus>
+    <description>Última lectura válida por combinación de activo y tipo de medición (BR-203). Detalle de Asset para permitir resúmenes de severidad y antigüedad sin código.</description>
+    <label>Lectura Vigente</label>
+    <pluralLabel>Lecturas Vigentes</pluralLabel>
+    <nameField>
+        <displayFormat>LV-{00000000}</displayFormat>
+        <label>Número de Lectura</label>
+        <type>AutoNumber</type>
+    </nameField>
+    <sharingModel>ControlledByParent</sharingModel>
+</CustomObject>

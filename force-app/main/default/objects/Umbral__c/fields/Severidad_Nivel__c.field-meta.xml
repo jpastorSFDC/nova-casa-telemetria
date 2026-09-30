@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Severidad_Nivel__c</fullName>
+    <label>Nivel de severidad</label>
+    <description>Misma escala que Lectura_Vigente__c.Severidad_Nivel__c. Vacío para Invalida, que no es un nivel sino un rechazo.</description>
+    <type>Number</type>
+    <precision>1</precision>
+    <scale>0</scale>
+    <formula>CASE(TEXT(Severidad__c), &quot;Critica&quot;, 2, &quot;Advertencia&quot;, 1, NULL)</formula>
+    <formulaTreatBlanksAs>BlankAsBlank</formulaTreatBlanksAs>
+</CustomField>

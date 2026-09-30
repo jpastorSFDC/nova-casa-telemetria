@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Ultimo_Reenvio__c</fullName>
+    <label>Último reenvío</label>
+    <description>Momento del último reenvío/reproceso del mensaje.</description>
+    <type>DateTime</type>
+</CustomField>

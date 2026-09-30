@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>External_Id__c</fullName>
+    <label>ID Externo</label>
+    <description>Código del activo en el catálogo, p.ej. AST-BOG-002; permite upsert sin duplicar.</description>
+    <type>Text</type>
+    <length>50</length>
+    <externalId>true</externalId>
+    <unique>true</unique>
+</CustomField>
