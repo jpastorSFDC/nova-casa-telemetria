@@ -2,21 +2,37 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Tipo_Medicion__c</fullName>
     <label>Tipo de medición</label>
+    <description>Valores de measurement.type en el catálogo del simulador (T1.6). Restringida: un tipo desconocido se rechaza antes de escribir (T2.12).</description>
     <type>Picklist</type>
     <required>true</required>
     <valueSet>
-        <restricted>false</restricted>
+        <restricted>true</restricted>
         <valueSetDefinition>
             <sorted>false</sorted>
             <value>
                 <fullName>TEMPERATURE</fullName>
                 <default>false</default>
-                <label>TEMPERATURE</label>
+                <label>Temperatura</label>
             </value>
             <value>
-                <fullName>PRESSURE</fullName>
+                <fullName>WATER_PRESSURE</fullName>
                 <default>false</default>
-                <label>PRESSURE</label>
+                <label>Presión de agua</label>
+            </value>
+            <value>
+                <fullName>WATER_CONSUMPTION</fullName>
+                <default>false</default>
+                <label>Consumo de agua</label>
+            </value>
+            <value>
+                <fullName>ENERGY_CONSUMPTION</fullName>
+                <default>false</default>
+                <label>Consumo de energía</label>
+            </value>
+            <value>
+                <fullName>CAMERA_CONNECTIVITY</fullName>
+                <default>false</default>
+                <label>Conectividad de cámara</label>
             </value>
         </valueSetDefinition>
     </valueSet>

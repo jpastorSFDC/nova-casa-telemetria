@@ -75,12 +75,22 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
+        <field>Log_Senial__c.Delivery_Id__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
         <field>Log_Senial__c.Huella__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
         <field>Log_Senial__c.Identidad__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Log_Senial__c.Message_Type__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
