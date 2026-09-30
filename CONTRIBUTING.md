@@ -142,7 +142,7 @@ We both work on the same org, `nova-cdo`. The org keeps a single version of each
    sf project deploy start --source-dir force-app
    ```
 
-Shared files are changed by one person at a time: permission sets, page layouts, the app and `Case`. Whoever needs one says so in Slack, and the other waits until that PR is merged before changing it.
+Shared files are changed by one person at a time: permission sets, page layouts, the app and `Case` (the intervention object, [D001](docs/decisiones.md#d001--objeto-de-intervención-case)). Whoever needs one says so in Slack, and the other waits until that PR is merged before changing it.
 
 Nothing is changed by hand in Setup. Anything created by clicking exists only in the org, and the next deploy does not know about it. If you try something in Setup, bring it into your branch the same day:
 
