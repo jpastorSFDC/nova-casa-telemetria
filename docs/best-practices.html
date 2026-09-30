@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Complete Guide: GitHub → Salesforce</title>
+<style>
+  :root {
+    --bg:#f5f6f8; --surface:#fff; --surface-2:#eef0f4; --border:#d8dce4; --border-strong:#b4bac6;
+    --text:#1a1d23; --text-2:#565d6b; --text-3:#838a97;
+    --accent:#1b6acb; --accent-bg:#e8f1fc; --good:#1a8754; --good-bg:#e6f4ec;
+    --bad:#c0392b; --bad-bg:#fdece9; --warn:#b45309; --warn-bg:#fdf2e3; --violet:#8b5cf6; --violet-bg:#f1ebfe;
+    --code-bg:#f7f8fa; --code-border:#e1e5ec; --code-text:#24292f; --code-comment:#6a737d;
+    --code-string:#0a7d52; --code-key:#a426a4; --code-type:#1b6acb; --code-num:#b45309;
+    --shadow:0 1px 2px rgba(16,24,40,.06),0 4px 12px rgba(16,24,40,.05); --radius:10px;
+  }
+  html[data-theme="dark"] {
+    --bg:#0f1319; --surface:#171c24; --surface-2:#1e242e; --border:#2b323d; --border-strong:#3d4653;
+    --text:#e8ebf0; --text-2:#a3abb9; --text-3:#7b8493;
+    --accent:#5aa7f5; --accent-bg:#14243a; --good:#45c17e; --good-bg:#122b1f;
+    --bad:#f0796b; --bad-bg:#2e1512; --warn:#e0a458; --warn-bg:#2e2112; --violet:#b291fb; --violet-bg:#241a3d;
+    --code-bg:#11151b; --code-border:#262d38; --code-text:#d6dbe3; --code-comment:#6f7885;
+    --code-string:#6cc39a; --code-key:#d98adb; --code-type:#6cb0f7; --code-num:#e0a458;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:15px; line-height:1.6; transition:background .2s,color .2s; }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:4px; }
+  a { color:var(--accent); }
+  .wrap { max-width:70rem; margin:0 auto; padding:1.75rem 1.25rem 5rem; }
+  .header { display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-start; justify-content:space-between;
+    border-bottom:1px solid var(--border); padding-bottom:1.25rem; margin-bottom:1.5rem; }
+  .eyebrow { font-size:.7rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--text-3); margin:0 0 .4rem; }
+  h1 { font-size:1.7rem; margin:0 0 .4rem; letter-spacing:-.015em; }
+  .lede { color:var(--text-2); margin:0; max-width:48rem; font-size:.95rem; }
+  .btn { font:inherit; font-size:.85rem; font-weight:600; cursor:pointer; background:var(--surface); color:var(--text);
+    border:1px solid var(--border); border-radius:8px; padding:.45rem .8rem; display:inline-flex; align-items:center; gap:.4rem; transition:.15s; }
+  .btn:hover { background:var(--surface-2); border-color:var(--border-strong); }
+  .progress-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:1rem 1.15rem; box-shadow:var(--shadow); margin-bottom:1.5rem; display:flex; align-items:center; gap:1rem; flex-wrap:wrap; }
+  .progress-track { flex:1; min-width:200px; height:10px; background:var(--surface-2); border-radius:999px; overflow:hidden; }
+  .progress-fill { height:100%; width:0; background:linear-gradient(90deg,var(--accent),var(--good)); transition:width .3s; }
+  .progress-label { font-size:.85rem; color:var(--text-2); font-weight:600; white-space:nowrap; }
+  .tabs { display:flex; gap:.4rem; flex-wrap:wrap; position:sticky; top:0; background:var(--bg);
+    padding:.75rem 0; z-index:20; border-bottom:1px solid var(--border); margin-bottom:1.5rem; }
+  .tab { font:inherit; font-size:.82rem; font-weight:600; cursor:pointer; background:transparent; color:var(--text-2);
+    border:1px solid transparent; border-radius:8px; padding:.5rem .8rem; }
+  .tab:hover { background:var(--surface-2); color:var(--text); }
+  .tab[aria-selected="true"] { background:var(--accent-bg); color:var(--accent); border-color:var(--accent); }
+  .panel { display:none; animation:fade .25s; }
+  .panel.active { display:block; }
+  @keyframes fade { from{opacity:0;transform:translateY(4px);} to{opacity:1;transform:none;} }
+  h2 { font-size:1.35rem; margin:0 0 .3rem; letter-spacing:-.01em; }
+  h3 { font-size:1.08rem; margin:1.7rem 0 .5rem; }
+  h4 { font-size:.98rem; margin:1.1rem 0 .3rem; }
+  .section-intro { color:var(--text-2); margin:0 0 1rem; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:1rem 1.15rem; box-shadow:var(--shadow); margin:.9rem 0; }
+  .callout { border-left:4px solid var(--accent); background:var(--accent-bg); border-radius:0 8px 8px 0;
+    padding:.8rem 1rem; margin:1rem 0; font-size:.92rem; }
+  .callout.warn { border-color:var(--warn); background:var(--warn-bg); }
+  .callout.good { border-color:var(--good); background:var(--good-bg); }
+  .callout.why { border-color:var(--violet); background:var(--violet-bg); }
+  .callout strong { display:block; margin-bottom:.15rem; }
+  ul.clean, ol.clean { margin:.5rem 0; padding-left:1.2rem; }
+  ul.clean li, ol.clean li { margin:.35rem 0; }
+  details.acc { border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); margin:.7rem 0; overflow:hidden; }
+  details.acc>summary { cursor:pointer; padding:.85rem 1.1rem; font-weight:600; display:flex; align-items:center; gap:.6rem; list-style:none; }
+  details.acc>summary::-webkit-details-marker { display:none; }
+  details.acc>summary::before { content:"\25B8"; color:var(--text-3); transition:transform .2s; }
+  details.acc[open]>summary::before { transform:rotate(90deg); }
+  details.acc>summary:hover { background:var(--surface-2); }
+  .acc-body { padding:0 1.1rem 1rem; }
+  .pill { font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; padding:.12rem .5rem; border-radius:999px; margin-left:auto; }
+  .pill.must { background:var(--bad-bg); color:var(--bad); }
+  .pill.should { background:var(--warn-bg); color:var(--warn); }
+  .pill.info { background:var(--accent-bg); color:var(--accent); }
+  .compare { display:grid; grid-template-columns:1fr 1fr; gap:.8rem; margin:.8rem 0; }
+  @media (max-width:720px){ .compare{grid-template-columns:1fr;} }
+  .compare>div { border-radius:var(--radius); overflow:hidden; border:1px solid var(--border); }
+  .compare .head { padding:.5rem .9rem; font-weight:700; font-size:.82rem; display:flex; align-items:center; gap:.4rem; }
+  .compare .dont .head { background:var(--bad-bg); color:var(--bad); }
+  .compare .do .head { background:var(--good-bg); color:var(--good); }
+  pre { background:var(--code-bg); border:1px solid var(--code-border); border-radius:8px; padding:.85rem .95rem;
+    overflow-x:auto; margin:0; font-size:.82rem; line-height:1.55; }
+  code, pre { font-family:"SF Mono","JetBrains Mono",Menlo,Consolas,monospace; }
+  pre code { color:var(--code-text); }
+  .k{color:var(--code-key);} .t{color:var(--code-type);} .s{color:var(--code-string);} .c{color:var(--code-comment);font-style:italic;} .n{color:var(--code-num);}
+  p code, li code, td code { background:var(--surface-2); padding:.1rem .35rem; border-radius:5px; font-size:.85em; }
+  table { border-collapse:collapse; width:100%; margin:.8rem 0; font-size:.86rem; }
+  th, td { border:1px solid var(--border); padding:.5rem .7rem; text-align:left; vertical-align:top; }
+  th { background:var(--surface-2); font-weight:700; }
+  tbody tr:nth-child(even) { background:var(--surface-2); }
+  .flow { display:flex; flex-wrap:wrap; align-items:stretch; gap:.5rem; margin:1rem 0; }
+  .node { background:var(--surface); border:1px solid var(--border-strong); border-radius:8px; padding:.6rem .8rem;
+    min-width:120px; text-align:center; font-size:.82rem; box-shadow:var(--shadow); }
+  .node b { display:block; font-size:.88rem; }
+  .node small { color:var(--text-3); }
+  .arrow { display:flex; flex-direction:column; align-items:center; justify-content:center; color:var(--accent); font-weight:700; font-size:.72rem; }
+  .arrow .a { font-size:1.1rem; }
+  .glossary { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:.6rem; margin:.8rem 0; }
+  .term { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:.7rem .85rem; }
+  .term b { color:var(--accent); }
+  .quiz { background:var(--violet-bg); border:1px solid var(--border); border-radius:var(--radius); padding:1rem 1.15rem; margin:1.2rem 0; }
+  .quiz .q { font-weight:700; margin:0 0 .6rem; display:flex; gap:.5rem; align-items:center; }
+  .quiz .q::before { content:"?"; background:var(--violet); color:#fff; width:22px; height:22px; border-radius:50%;
+    display:inline-flex; align-items:center; justify-content:center; font-size:.8rem; flex:none; }
+  .opt { display:block; width:100%; text-align:left; font:inherit; font-size:.9rem; background:var(--surface);
+    border:1px solid var(--border); border-radius:8px; padding:.55rem .8rem; margin:.35rem 0; cursor:pointer; }
+  .opt:hover { border-color:var(--border-strong); }
+  .opt.correct { background:var(--good-bg); border-color:var(--good); color:var(--good); font-weight:600; }
+  .opt.wrong { background:var(--bad-bg); border-color:var(--bad); color:var(--bad); }
+  .explain { margin-top:.6rem; font-size:.88rem; color:var(--text-2); display:none; }
+  .explain.show { display:block; }
+  .checklist { list-style:none; margin:.5rem 0; padding:0; }
+  .checklist li { display:flex; align-items:flex-start; gap:.6rem; padding:.55rem .7rem; border:1px solid var(--border);
+    border-radius:8px; margin:.4rem 0; background:var(--surface); cursor:pointer; }
+  .checklist li:hover { border-color:var(--border-strong); }
+  .checklist input { margin-top:.25rem; width:16px; height:16px; accent-color:var(--good); cursor:pointer; }
+  .checklist li.done span { text-decoration:line-through; color:var(--text-3); }
+  .sources { font-size:.85rem; }
+  .sources ol { padding-left:1.3rem; }
+  .sources li { margin:.35rem 0; }
+  footer { margin-top:3rem; padding-top:1.25rem; border-top:1px solid var(--border); color:var(--text-3); font-size:.82rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="header">
+    <div>
+      <p class="eyebrow">Nova Casa · Sprint 2 · Learning guide</p>
+      <h1>The Complete Guide: GitHub, from zero &rarr; Salesforce</h1>
+      <p class="lede">How developers actually work with Git and GitHub day to day &mdash; explained from scratch, with the reasoning behind every practice &mdash; and then how all of it translates to building on Salesforce (Apex, the org, and LWC). Every claim links to a primary source.</p>
+    </div>
+    <button class="btn" id="themeBtn" aria-label="Toggle theme">&#127769; Dark</button>
+  </header>
+
+  <div class="callout warn">
+    <strong>Support material &mdash; not the spec.</strong>
+    When anything here conflicts with <code>CONTRIBUTING.md</code>, <code>AGENTS.md</code>, or <code>Sprint 2 - Nova Casa.md</code>, those win. Use this to learn the &ldquo;why&rdquo;.
+  </div>
+
+  <div class="progress-card">
+    <span class="progress-label" id="progLabel">Checklist: 0 / 0</span>
+    <div class="progress-track"><div class="progress-fill" id="progFill"></div></div>
+    <button class="btn" id="resetBtn">Reset</button>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-tab="foundations">1 · Foundations</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="model">2 · How Git thinks</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="daily">3 · The daily loop</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="collab">4 · Collaboration</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="merge">5 · Merging &amp; conflicts</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="pro">6 · Pro practices</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="salesforce">7 · &rarr; Salesforce</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="checklist">&#9989; Checklist</button>
+  </div>
+
+  <!-- ============ 1 · FOUNDATIONS ============ -->
+  <section class="panel active" id="foundations" role="tabpanel">
+    <h2>1 &middot; Foundations: what problem is this even solving?</h2>
+    <p class="section-intro">Before any command, understand <em>why</em> version control exists. If you get the mental model, everything else is just vocabulary.</p>
+
+    <h3>The problem, without version control</h3>
+    <p>Imagine a team writing code (or any file) with no tooling. You quickly hit four pains:</p>
+    <ul class="clean">
+      <li><b>The &ldquo;final_v2_REALLYfinal&rdquo; mess</b> &mdash; copies everywhere, and nobody knows which is the real one.</li>
+      <li><b>Overwrites</b> &mdash; two people edit the same file; one save destroys the other&rsquo;s work.</li>
+      <li><b>&ldquo;It worked yesterday&rdquo;</b> &mdash; something broke and there&rsquo;s no way to go back to a known-good state.</li>
+      <li><b>No memory</b> &mdash; no record of <em>who</em> changed <em>what</em>, and above all <em>why</em>.</li>
+    </ul>
+    <div class="callout"><strong>Definition</strong>Version control is a system that records changes to a set of files over time so you can recall specific versions later. <a href="#s1">[1]</a> Think of it as three tools in one: a <b>time machine</b> (restore any past state), a <b>logbook</b> (who/what/why), and a <b>merge machine</b> (combine parallel work safely).</div>
+
+    <h3>Git vs GitHub &mdash; not the same thing</h3>
+    <p>This trips up every beginner, so nail it now:</p>
+    <div class="compare">
+      <div class="do">
+        <div class="head">Git = the tool</div>
+        <div style="padding:.7rem .9rem; font-size:.9rem;">A free, open-source program that runs <b>on your computer</b> and does the version control. Works offline. Created by Linus Torvalds. It knows nothing about the internet by itself.</div>
+      </div>
+      <div class="do">
+        <div class="head">GitHub = the platform</div>
+        <div style="padding:.7rem .9rem; font-size:.9rem;">A website that <b>hosts</b> Git repositories in the cloud and adds collaboration on top: pull requests, code review, issues, automation (CI), permissions. It&rsquo;s where the team meets around the code.</div>
+      </div>
+    </div>
+    <p><b>Analogy:</b> Git is the <em>engine</em>; GitHub is the <em>dealership + garage + meeting room</em> built around it. Alternatives to GitHub exist (GitLab, Bitbucket) and Git works with all of them.</p>
+
+    <h3>Two ideas that make Git click</h3>
+    <h4>1. It&rsquo;s <em>distributed</em></h4>
+    <p>When you <b>clone</b> a repository you download its <b>entire history</b>, not just the latest files. <a href="#s2">[2]</a> Every clone is a full backup.</p>
+    <div class="callout why"><strong>Why it matters</strong>You can work fully offline, commit as much as you want locally, and if the server dies, any clone can restore it. There&rsquo;s no single point of failure. <a href="#s1">[1]</a></div>
+    <h4>2. It stores <em>snapshots</em>, not differences</h4>
+    <p>Every time you save (a <b>commit</b>), Git takes a picture of what all your files look like at that moment (unchanged files are just referenced, to save space). <a href="#s2">[2]</a></p>
+    <div class="callout why"><strong>Why it matters</strong>You reason about whole <em>states</em> of the project (&ldquo;go back to this snapshot&rdquo;) instead of juggling a pile of patches.</div>
+
+    <h3>The vocabulary you&rsquo;ll keep hearing</h3>
+    <div class="glossary">
+      <div class="term"><b>Repository (repo)</b><br>The project + its full history. Lives locally and on GitHub.</div>
+      <div class="term"><b>Commit</b><br>One saved snapshot with a message, author, and unique ID (hash).</div>
+      <div class="term"><b>Branch</b><br>An independent line of work; a movable pointer to a commit.</div>
+      <div class="term"><b>main</b><br>The default/trunk branch. The &ldquo;official&rdquo; state.</div>
+      <div class="term"><b>Remote</b><br>A copy of the repo hosted elsewhere (e.g. on GitHub).</div>
+      <div class="term"><b>origin</b><br>The default name for your main remote.</div>
+      <div class="term"><b>Clone</b><br>Download a full copy of a repo to your machine.</div>
+      <div class="term"><b>Fork</b><br>Your own server-side copy of someone else&rsquo;s repo.</div>
+      <div class="term"><b>push / pull</b><br>Upload your commits / download others&rsquo; commits.</div>
+      <div class="term"><b>Merge</b><br>Combine the work of one branch into another.</div>
+      <div class="term"><b>Pull Request (PR)</b><br>A request to merge your branch, with review + checks.</div>
+      <div class="term"><b>HEAD</b><br>&ldquo;You are here&rdquo; &mdash; a pointer to your current commit/branch.</div>
+    </div>
+
+    <div class="quiz" data-quiz>
+      <p class="q">Your internet is down. Can you still commit your work with Git?</p>
+      <button class="opt" data-correct>Yes &mdash; Git is distributed and runs locally; commits are local.</button>
+      <button class="opt">No &mdash; commits are saved on GitHub&rsquo;s servers.</button>
+      <button class="opt">Only if you enable offline mode first.</button>
+      <p class="explain">Git lives on your machine with the full history. You commit offline all day; you only need the network to <code>push</code>/<code>pull</code>. <a href="#s1">[1]</a><a href="#s2">[2]</a></p>
+    </div>
+  </section>
+
+  <!-- ============ 2 · HOW GIT THINKS ============ -->
+  <section class="panel" id="model" role="tabpanel">
+    <h2>2 &middot; How Git thinks (the model to internalize)</h2>
+    <p class="section-intro">This is <em>the</em> thing to remember. Get this and the commands stop being magic. <a href="#s2">[2]</a></p>
+
+    <h3>The three areas + the remote</h3>
+    <p>Your work moves through four places:</p>
+    <div class="flow">
+      <div class="node"><b>Working directory</b><small>the files you edit</small></div>
+      <div class="arrow"><span class="a">&rarr;</span><span>git add</span></div>
+      <div class="node"><b>Staging area</b><small>the &ldquo;index&rdquo;: next commit&rsquo;s draft</small></div>
+      <div class="arrow"><span class="a">&rarr;</span><span>git commit</span></div>
+      <div class="node"><b>Local repo</b><small>.git : saved snapshots</small></div>
+      <div class="arrow"><span class="a">&rarr;</span><span>git push</span></div>
+      <div class="node"><b>Remote (GitHub)</b><small>shared copy</small></div>
+    </div>
+    <p>And it flows back: <code>git fetch</code>/<code>git pull</code> bring the remote&rsquo;s new commits down into your local repo and working directory.</p>
+    <p>Correspondingly, a file is always in one of three <b>states</b>: <b>modified</b> (changed but not staged), <b>staged</b> (marked for the next commit), or <b>committed</b> (safely stored). <a href="#s2">[2]</a></p>
+
+    <div class="callout why"><strong>Why a staging area at all?</strong>It lets you <em>craft</em> each commit deliberately &mdash; stage only the changes that belong together, leave the rest for the next commit. That&rsquo;s how you get clean, logical history instead of one giant &ldquo;did stuff&rdquo; blob. <a href="#s3">[3]</a></div>
+
+    <h3>What a commit really is</h3>
+    <p>A commit = a <b>snapshot</b> + metadata: author, date, a <b>message</b>, a unique <b>hash</b>, and a pointer to its <b>parent</b> commit(s). Commits are immutable &mdash; the hash <em>is</em> the content.</p>
+    <div class="callout why"><strong>Why messages matter</strong>The diff already shows <em>what</em> changed. The message exists to explain <em>why</em>. Six months later, that &ldquo;why&rdquo; is the difference between understanding a change and fearing it.</div>
+
+    <h3>Branches &amp; HEAD</h3>
+    <p>A branch is just a <b>lightweight, movable pointer</b> to a commit. Creating one is instant and cheap. <a href="#s4">[4]</a> <code>HEAD</code> points to the branch you&rsquo;re currently on.</p>
+    <pre><code><span class="c"># main has commits A-B-C. You branch off and add D, E:</span>
+
+  A---B---C        <span class="c">main</span>
+           \
+            D---E   <span class="c">feature  (HEAD here)</span></code></pre>
+    <div class="callout why"><strong>Why branch?</strong>To isolate a piece of work so <code>main</code> stays stable and deployable, and so several people work in parallel without stepping on each other. Branching is the whole basis of team workflows.</div>
+
+    <h3>Merging brings branches back together</h3>
+    <pre><code>  A---B---C-------F   <span class="c">main   (F = merge commit)</span>
+           \     /
+            D---E      <span class="c">feature</span></code></pre>
+    <ul class="clean">
+      <li><b>Fast-forward:</b> if <code>main</code> didn&rsquo;t move, its pointer just slides forward to your commits. No merge commit needed.</li>
+      <li><b>Merge commit:</b> if both branches moved, Git creates a new commit (<code>F</code>) with two parents, joining the histories.</li>
+    </ul>
+
+    <h3>Remotes: origin &amp; upstream</h3>
+    <ul class="clean">
+      <li><code>origin</code> &mdash; the default name for your main remote (your GitHub copy).</li>
+      <li><code>upstream</code> &mdash; the conventional name for the <em>original</em> repo you forked from (open-source flow).</li>
+      <li><code>git fetch</code> downloads new data but changes nothing in your files; <code>git pull</code> = <code>fetch</code> + <code>merge</code>.</li>
+    </ul>
+
+    <div class="quiz" data-quiz>
+      <p class="q">You edited 3 files but only want 1 in your next commit. What does the staging area let you do?</p>
+      <button class="opt" data-correct><code>git add file1</code> to stage just that one, then commit only it.</button>
+      <button class="opt">Nothing &mdash; a commit always includes every changed file.</button>
+      <button class="opt">Delete the other 2 files first, then commit.</button>
+      <p class="explain">Staging exists precisely so you assemble a commit deliberately: <code>git add</code> the changes that belong together and commit those. <a href="#s2">[2]</a><a href="#s3">[3]</a></p>
+    </div>
+  </section>
+
+  <!-- ============ 3 · DAILY LOOP ============ -->
+  <section class="panel" id="daily" role="tabpanel">
+    <h2>3 &middot; A day in the life: the loop you&rsquo;ll repeat forever</h2>
+    <p class="section-intro">This is what &ldquo;working on GitHub&rdquo; actually looks like, hour to hour. Learn this loop and you can function on almost any team.</p>
+
+    <h3>One-time setup</h3>
+    <pre><code><span class="c"># Copy the repo (with full history) to your machine, once:</span>
+<span class="t">git</span> clone https://github.com/org/repo.git
+<span class="t">cd</span> repo</code></pre>
+
+    <h3>The loop, step by step</h3>
+    <ol class="clean">
+      <li><b>Start from the latest.</b> <code>git switch main &amp;&amp; git pull</code><br><small>Why: never build on stale code; fewer conflicts later.</small></li>
+      <li><b>Create a branch for the task.</b> <code>git switch -c feat/login-form</code><br><small>One task = one branch. <code>main</code> stays clean.</small></li>
+      <li><b>Do the work.</b> Edit files. Run the app / tests locally.</li>
+      <li><b>Inspect before saving.</b> <code>git status</code> (what changed), <code>git diff</code> (the actual lines).<br><small>Habit of good engineers: look before you commit.</small></li>
+      <li><b>Stage what belongs together.</b> <code>git add file.js</code> (or <code>git add -p</code> to pick pieces).</li>
+      <li><b>Commit small &amp; often.</b> <code>git commit -m "feat: validate login form"</code></li>
+      <li><b>Repeat 3&ndash;6</b> as the work grows.</li>
+      <li><b>Push the branch to GitHub.</b> <code>git push -u origin feat/login-form</code></li>
+      <li><b>Open a Pull Request</b> on GitHub (details in tab 4).</li>
+      <li><b>Address review:</b> push more commits; discussion lives in the PR.</li>
+      <li><b>Merge</b> after approval + green checks.</li>
+      <li><b>Clean up.</b> <code>git switch main &amp;&amp; git pull &amp;&amp; git branch -d feat/login-form</code></li>
+    </ol>
+
+    <div class="card">
+      <h4 style="margin-top:0;">A realistic terminal session</h4>
+      <pre><code><span class="t">git</span> switch main
+<span class="t">git</span> pull                       <span class="c"># get teammates' merged work</span>
+<span class="t">git</span> switch -c feat/us-201-signals
+
+<span class="c"># ...edit code...</span>
+<span class="t">git</span> status                     <span class="c"># see what changed</span>
+<span class="t">git</span> diff                       <span class="c"># review the exact lines</span>
+<span class="t">git</span> add force-app/main/default/classes/SimuladorClient.cls
+<span class="t">git</span> commit -m <span class="s">"feat(US-201): add SimuladorClient to page /telemetry"</span>
+
+<span class="t">git</span> push -u origin feat/us-201-signals
+<span class="c"># -> GitHub prints a link to open the Pull Request</span></code></pre>
+    </div>
+
+    <h3>Your three instruments</h3>
+    <ul class="clean">
+      <li><code>git status</code> &mdash; where is everything? (modified / staged / clean) <a href="#s6">[6]</a></li>
+      <li><code>git diff</code> &mdash; what exactly did I change? <a href="#s6">[6]</a></li>
+      <li><code>git log --oneline --graph</code> &mdash; the history as a picture.</li>
+    </ul>
+
+    <div class="callout why"><strong>Why small commits &amp; short branches?</strong>Small commits are easy to review, easy to revert one-by-one, and produce a readable history. Short-lived branches merge before they drift far from <code>main</code>, which means <em>fewer and smaller conflicts</em>. Big branches are where projects get stuck.</div>
+
+    <div class="quiz" data-quiz>
+      <p class="q">What&rsquo;s the very first thing to do before starting a new task?</p>
+      <button class="opt" data-correct>Switch to <code>main</code> and <code>git pull</code> so you branch off the latest.</button>
+      <button class="opt">Create the branch immediately; syncing can wait.</button>
+      <button class="opt">Delete <code>main</code> to avoid confusion.</button>
+      <p class="explain">Always start from an up-to-date <code>main</code>. Branching off stale code guarantees painful conflicts later. <a href="#s7">[7]</a></p>
+    </div>
+  </section>
+
+
+  <!-- ============ 4 · COLLABORATION ============ -->
+  <section class="panel" id="collab" role="tabpanel">
+    <h2>4 &middot; Collaboration: the GitHub platform</h2>
+    <p class="section-intro">Git handles history. GitHub is where a <em>team</em> turns that into a process: issues, pull requests, review, and permissions.</p>
+
+    <h3>The building blocks</h3>
+    <ul class="clean">
+      <li><b>Repository</b> &mdash; the home of the project: code, history, issues, PRs, settings. Public or private.</li>
+      <li><b>README</b> &mdash; the front page: what the project is, why it exists, how to run it. First thing anyone reads.</li>
+      <li><b>Issues</b> &mdash; trackable units of work (bugs, features, tasks) with title, description, labels, assignees, milestones. <a href="#s16">[16]</a></li>
+    </ul>
+    <div class="callout why"><strong>Why issues?</strong>They give the team one searchable backlog and a place to discuss <em>before</em> code is written. Linking a PR to an issue with a keyword (<code>Closes #123</code>) auto-closes the issue on merge &mdash; full traceability from idea &rarr; code. <a href="#s16">[16]</a></div>
+
+    <h3>Pull Requests &mdash; the heart of it</h3>
+    <p>A <b>Pull Request</b> proposes merging your branch into another (usually <code>main</code>). It&rsquo;s the checkpoint before code reaches the trunk. <a href="#s8">[8]</a></p>
+    <p><b>Anatomy of a PR:</b></p>
+    <ul class="clean">
+      <li><b>The diff</b> &mdash; every change, reviewable line by line.</li>
+      <li><b>The conversation</b> &mdash; general and line-level comments.</li>
+      <li><b>Commits</b> &mdash; the history of the branch.</li>
+      <li><b>Checks</b> &mdash; automated CI results (tests, lint) shown right there.</li>
+      <li><b>Reviewers</b> &mdash; who must approve / requested changes.</li>
+    </ul>
+    <p>Not ready yet but want early eyes? Open it as a <b>draft PR</b>. <a href="#s8">[8]</a></p>
+    <div class="callout why"><strong>Why PRs instead of pushing to main?</strong>A PR is a gate: review catches bugs, CI proves it still works, and the discussion becomes a durable record of <em>why</em> the change was made. It also stops half-finished work from breaking everyone else.</div>
+
+    <h3>Code review &mdash; the highest-leverage habit</h3>
+    <div class="compare">
+      <div class="do">
+        <div class="head">Giving a review</div>
+        <div style="padding:.7rem .9rem; font-size:.88rem;">
+          Understand the intent first. Check correctness, readability, tests, edge cases, security. Comment <b>specifically and kindly</b>. Separate blockers from nits (&ldquo;nit:&rdquo;). <b>Suggest, don&rsquo;t command.</b> Approve when it&rsquo;s good enough, not perfect.
+        </div>
+      </div>
+      <div class="do">
+        <div class="head">Receiving a review</div>
+        <div style="padding:.7rem .9rem; font-size:.88rem;">
+          It&rsquo;s about the code, not you. Respond to <b>every</b> comment, push fixes, ask when unclear, then <b>re-request review</b>. New pushes after an approval dismiss it. <a href="#s7">[7]</a>
+        </div>
+      </div>
+    </div>
+    <div class="callout why"><strong>Why review is worth the time</strong>It catches bugs early (cheapest place to fix them), spreads knowledge so no one is a single point of failure, keeps the codebase consistent, and creates <em>collective ownership</em>. It&rsquo;s the single most effective quality practice a team has.</div>
+
+    <h3>Two collaboration models</h3>
+    <table>
+      <thead><tr><th>Model</th><th>How it works</th><th>Used when</th></tr></thead>
+      <tbody>
+        <tr><td><b>Shared repo (branch)</b></td><td>Everyone has write access, clones the same repo, works on branches, opens PRs.</td><td>Company/team repos. <b>This is what Nova Casa uses.</b></td></tr>
+        <tr><td><b>Fork &amp; PR</b></td><td>You <b>fork</b> (your own copy), clone your fork, push there, and open a PR to the original (<code>upstream</code>). Maintainers merge. <a href="#s12">[12]</a></td><td>Open source / no write access to the original.</td></tr>
+      </tbody>
+    </table>
+    <p>In the fork model, <code>origin</code> is your fork and <code>upstream</code> is the original; you periodically sync your fork with <code>upstream</code>. <a href="#s12">[12]</a></p>
+
+    <div class="quiz" data-quiz>
+      <p class="q">Why link a PR to an issue with &ldquo;Closes #42&rdquo;?</p>
+      <button class="opt" data-correct>Merging the PR automatically closes the issue &mdash; traceability with no manual step.</button>
+      <button class="opt">It makes the PR merge faster.</button>
+      <button class="opt">It hides the issue from other developers.</button>
+      <p class="explain">Keyword links tie code to the work it resolves and auto-close the issue on merge. <a href="#s16">[16]</a></p>
+    </div>
+  </section>
+
+  <!-- ============ 5 · MERGING & CONFLICTS ============ -->
+  <section class="panel" id="merge" role="tabpanel">
+    <h2>5 &middot; Merging, conflicts &amp; undoing things</h2>
+    <p class="section-intro">Where beginners get scared &mdash; unnecessarily. Conflicts are normal and safe once you understand them.</p>
+
+    <h3>Three merge methods on GitHub</h3>
+    <table>
+      <thead><tr><th>Method</th><th>What it does</th><th>Best when</th></tr></thead>
+      <tbody>
+        <tr><td><b>Merge commit</b></td><td>Keeps every commit and adds a merge commit (two parents).</td><td>You want the complete branch history.</td></tr>
+        <tr><td><b>Squash &amp; merge</b></td><td>Combines all the PR&rsquo;s commits into <b>one</b> commit on <code>main</code>.</td><td>A PR = one logical change with messy fixups. <b>Nova Casa uses this.</b></td></tr>
+        <tr><td><b>Rebase &amp; merge</b></td><td>Replays each commit onto <code>main</code> individually, no merge commit &rarr; linear history.</td><td>Commits are already clean and you want a straight line.</td></tr>
+      </tbody>
+    </table>
+    <p>All three are documented by GitHub. <a href="#s9">[9]</a> <b>Caveat:</b> after a squash-merge, don&rsquo;t keep working on the same branch &mdash; you&rsquo;ll re-introduce already-squashed commits and hit the same conflicts repeatedly. Start a fresh branch. <a href="#s10">[10]</a></p>
+
+    <h3>Merge conflicts: what &amp; how</h3>
+    <p>A conflict happens when two branches change the <b>same lines</b> of a file (or one edits a file the other deletes). Git can&rsquo;t guess your intent, so it asks you. <a href="#s11">[11]</a> It marks the spot:</p>
+    <pre><code><span class="k">&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD</span>
+timeout = 30;        <span class="c"># your branch's version</span>
+<span class="k">=======</span>
+timeout = 60;        <span class="c"># the other branch's version</span>
+<span class="k">&gt;&gt;&gt;&gt;&gt;&gt;&gt; main</span></code></pre>
+    <p>You <b>choose or blend</b>, delete the <code>&lt;&lt;&lt;</code> / <code>===</code> / <code>&gt;&gt;&gt;</code> markers, then <code>git add</code> and commit. Simple conflicts can be solved in GitHub&rsquo;s web editor; complex ones on the command line. <a href="#s11">[11]</a></p>
+    <div class="callout good"><strong>How to avoid most conflicts</strong>Keep PRs small, pull/merge <code>main</code> into your branch often, and coordinate when several people must touch the same file.</div>
+
+    <h3>Rebase vs merge (the philosophy)</h3>
+    <ul class="clean">
+      <li><b>Merge</b> preserves history exactly as it happened (with merge commits).</li>
+      <li><b>Rebase</b> rewrites your branch&rsquo;s commits to sit <em>on top of</em> the latest <code>main</code> &rarr; a clean, linear history. <a href="#s5">[5]</a></li>
+    </ul>
+    <div class="callout warn"><strong>The golden rule of rebasing</strong>Never rebase commits others have already pulled (shared/public history). Rebase only your <em>local</em>, un-pushed work. Rewriting shared history breaks everyone else&rsquo;s repo. <a href="#s5">[5]</a></div>
+
+    <h3>Undoing things (your safety net)</h3>
+    <table>
+      <thead><tr><th>Command</th><th>Use it to&hellip;</th><th>Safe on shared history?</th></tr></thead>
+      <tbody>
+        <tr><td><code>git restore &lt;file&gt;</code></td><td>Throw away un-committed changes in a file.</td><td>Local only</td></tr>
+        <tr><td><code>git revert &lt;commit&gt;</code></td><td>Make a <b>new</b> commit that undoes an old one.</td><td>&#9989; Yes</td></tr>
+        <tr><td><code>git reset</code></td><td>Move the branch pointer back; <code>--hard</code> can delete work.</td><td>&#9888; Careful, local</td></tr>
+        <tr><td><code>git stash</code></td><td>Shelve changes temporarily to switch tasks.</td><td>Local only</td></tr>
+      </tbody>
+    </table>
+    <p><code>git reset --hard</code> can lose work &mdash; understand it before using it. <a href="#s6">[6]</a> For anything already pushed, prefer <code>git revert</code>.</p>
+
+    <div class="quiz" data-quiz>
+      <p class="q">You need to undo a commit that&rsquo;s already on <code>main</code> and pulled by teammates. Best tool?</p>
+      <button class="opt" data-correct><code>git revert</code> &mdash; it adds a new commit that undoes it, keeping history intact.</button>
+      <button class="opt"><code>git reset --hard</code> to erase it from history.</button>
+      <button class="opt">Rebase <code>main</code> to drop the commit.</button>
+      <p class="explain"><code>revert</code> is safe on shared history; <code>reset --hard</code> and rebasing rewrite history others depend on. <a href="#s5">[5]</a><a href="#s6">[6]</a></p>
+    </div>
+  </section>
+
+  <!-- ============ 6 · PRO PRACTICES ============ -->
+  <section class="panel" id="pro" role="tabpanel">
+    <h2>6 &middot; What makes it professional</h2>
+    <p class="section-intro">The conventions and automation that separate a hobby repo from a team-grade one.</p>
+
+    <h3>Commit message conventions</h3>
+    <p>The de-facto standard is <a href="https://www.conventionalcommits.org/" target="_blank" rel="noopener">Conventional Commits</a> <a href="#s18">[18]</a>: <code>type(scope): subject</code> with types like <code>feat</code>, <code>fix</code>, <code>docs</code>, <code>refactor</code>, <code>test</code>, <code>chore</code>, <code>ci</code>.</p>
+    <div class="compare">
+      <div class="dont"><div class="head">&#10007; Don&rsquo;t</div><pre><code>update stuff
+fixed it.
+asdf</code></pre></div>
+      <div class="do"><div class="head">&#10003; Do</div><pre><code>feat(US-201): add SimuladorClient
+
+Why: subscriber needs paged ingestion.
+Refs: T4.1</code></pre></div>
+    </div>
+    <div class="callout why"><strong>Why a convention?</strong>Consistent prefixes make history scannable and enable <b>automatic changelogs and versioning</b>. Subject in the imperative, no trailing period; the body explains the <em>why</em>. (This repo&rsquo;s exact rules + the <code>commit-msg</code> hook live in <code>CONTRIBUTING.md</code>.)</div>
+
+    <h3><code>.gitignore</code> &amp; secrets</h3>
+    <ul class="clean">
+      <li>Keep build artifacts, dependencies, and IDE files out of git with <code>.gitignore</code>.</li>
+      <li><b>Never</b> commit tokens, passwords, keys, or production data. Use env vars / secret managers.</li>
+      <li>Turn on <b>secret scanning</b> + <b>push protection</b> so GitHub blocks accidental secret pushes. <a href="#s14">[14]</a></li>
+    </ul>
+
+    <h3>Tags, releases &amp; SemVer</h3>
+    <ul class="clean">
+      <li>A <b>tag</b> marks a point in history (e.g. <code>v1.2.0</code>); a <b>release</b> bundles notes and artifacts around it.</li>
+      <li><b>Semantic Versioning</b>: <code>MAJOR.MINOR.PATCH</code> &mdash; breaking / feature / fix. <a href="#s17">[17]</a></li>
+    </ul>
+
+    <h3>CI/CD with GitHub Actions</h3>
+    <p><b>Continuous Integration</b> = automatically build, test, and lint your code on every push/PR. <b>Continuous Delivery/Deployment</b> = automatically ship it when checks pass. GitHub Actions runs these workflows for you. <a href="#s15">[15]</a></p>
+    <div class="callout why"><strong>Why automate?</strong>Humans forget to run tests; machines don&rsquo;t. CI runs the same checks, the same way, for everyone, on every change &mdash; and blocks the merge if something breaks. It turns &ldquo;I think it works&rdquo; into &ldquo;the pipeline proves it works.&rdquo;</div>
+
+    <h3>Branch protection</h3>
+    <p>Rules on <code>main</code> that enforce the workflow: no direct pushes, require a PR, require approvals, require green status checks, block force-pushes. <a href="#s13">[13]</a></p>
+
+    <div class="quiz" data-quiz>
+      <p class="q">What&rsquo;s the point of running CI on every pull request?</p>
+      <button class="opt" data-correct>Automatically prove the change still builds and passes tests before it can merge.</button>
+      <button class="opt">To make PRs look more official.</button>
+      <button class="opt">To slow people down so they commit less.</button>
+      <p class="explain">CI runs the same checks for everyone on every change and blocks merges when they fail. <a href="#s15">[15]</a></p>
+    </div>
+  </section>
+
+  <!-- ============ 7 · SALESFORCE ============ -->
+  <section class="panel" id="salesforce" role="tabpanel">
+    <h2>7 &middot; Translating all this to Salesforce</h2>
+    <p class="section-intro">Everything above still applies &mdash; but Salesforce adds one twist that changes the whole game. Understand the twist and the rest follows.</p>
+
+    <div class="callout"><strong>The one big idea</strong>In &ldquo;normal&rdquo; software, <b>the repo IS the application</b> &mdash; running it just executes those files. In Salesforce, the running application lives in an <b>org</b>: a live, shared, mutable database + metadata in Salesforce&rsquo;s cloud, <b>separate from your files</b>. Git versions the files; the org has its own current state. Bridging that gap is the entire challenge.</div>
+
+    <h3>Metadata is your source</h3>
+    <p>Everything you build &mdash; Apex classes, LWC, objects, fields, flows, permission sets &mdash; is represented as <b>metadata</b>: XML + code files in a Salesforce DX project. <em>That</em> is what lives in git. <a href="#s19">[19]</a></p>
+
+    <h3>Two ways to change things &rarr; drift</h3>
+    <p>You can change the org by <b>clicking in Setup</b> (changes the org, not git) <em>or</em> by <b>editing files</b> (changes git, not the org until you deploy). If you only click, the next deploy doesn&rsquo;t know about it and can <b>erase</b> it.</p>
+    <div class="callout warn"><strong>Rule</strong>The repo is the source of truth. Anything you build by clicking must be <b>retrieved</b> into your branch the same day, or it&rsquo;s lost. <a href="#s21">[21]</a></div>
+
+    <h3>Deploy &amp; retrieve = the bridge</h3>
+    <div class="flow">
+      <div class="node"><b>Local files</b><small>force-app/ in git</small></div>
+      <div class="arrow"><span class="a">&rarr;</span><span>deploy</span></div>
+      <div class="node"><b>The org</b><small>live app</small></div>
+      <div class="arrow"><span class="a">&larr;</span><span>retrieve</span></div>
+      <div class="node"><b>Local files</b><small>capture Setup clicks</small></div>
+    </div>
+    <ul class="clean">
+      <li><b>Deploy</b> (<code>sf project deploy start</code>) pushes your metadata <em>into</em> an org &mdash; the SF equivalent of &ldquo;apply my code to this environment.&rdquo;</li>
+      <li><b>Retrieve</b> (<code>sf project retrieve start</code>) pulls metadata <em>from</em> an org into your files &mdash; use it to capture Setup clicks.</li>
+      <li><b>Validate first</b> with <code>--dry-run</code>: a check-only deploy that also runs tests but changes nothing.</li>
+    </ul>
+    <div class="callout why"><strong>Careful: &ldquo;deploy&rdquo; &ne; &ldquo;git push&rdquo;</strong><code>git push</code> uploads commits to GitHub. <code>deploy</code> pushes metadata into a live org. They&rsquo;re different actions to different places &mdash; you do both.</div>
+
+    <h3>Why the org makes teamwork harder: &ldquo;last deploy wins&rdquo;</h3>
+    <p>Git <em>merges</em> parallel work intelligently. An org does <b>not</b>: a deploy simply <b>overwrites</b> the component with your version. So even with perfect git history, two people deploying to the <b>same shared org</b> can clobber each other.</p>
+    <div class="callout warn"><strong>This is exactly why Nova Casa&rsquo;s deploy rules exist</strong>From a branch, deploy <b>only your story&rsquo;s files</b>; deploy the full <code>force-app</code> only from <code>main</code>; coordinate shared files (permission sets, layouts, <code>Case</code>) in Slack. Git protects history; <em>discipline</em> protects the shared org.</div>
+
+    <h3>Environments (map them to the git mindset)</h3>
+    <table>
+      <thead><tr><th>Environment</th><th>What it is</th><th>Use for</th></tr></thead>
+      <tbody>
+        <tr><td><b>Production</b></td><td>The real org: real users &amp; data.</td><td>Never develop here.</td></tr>
+        <tr><td><b>Sandbox</b></td><td>A long-lived copy of production (varying data). <a href="#s22">[22]</a></td><td>Org Development model; testing/UAT.</td></tr>
+        <tr><td><b>Scratch org</b></td><td>An empty, disposable org created from your project config via CLI; spun up per feature, thrown away. <a href="#s20">[20]</a></td><td>Source-driven dev &amp; CI &mdash; like a fresh clean environment per branch.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Two development models</h3>
+    <ul class="clean">
+      <li><b>Org Development Model</b> &mdash; work against sandboxes/DE/production <em>without</em> source tracking; retrieve/deploy metadata explicitly; align the repo to the org. Simpler; effectively what Nova Casa does with a shared dev org. <a href="#s19">[19]</a></li>
+      <li><b>Package Development Model</b> &mdash; organize metadata into versioned <em>packages</em>, develop against source-tracked scratch orgs, lean on CI/CD. More modular and scalable. <a href="#s20">[20]</a></li>
+    </ul>
+    <p><b>Source tracking:</b> in source-tracked orgs the CLI knows the diff between org and local, so you <code>push</code>/<code>pull</code>; in non-tracked orgs you <code>deploy</code>/<code>retrieve</code>. <a href="#s20">[20]</a></p>
+
+    <h3>The testing gate becomes deployment <em>law</em></h3>
+    <div class="callout"><strong>Green tests aren&rsquo;t just nice &mdash; they&rsquo;re the door to production.</strong>Salesforce <em>requires</em> at least <b>75% Apex coverage with all tests passing</b> to deploy to production. <a href="#s28">[28]</a> A validation deploy runs those tests without saving anything.</div>
+
+    <h3>CI/CD for Salesforce (GitHub Actions, translated)</h3>
+    <p>On each PR, a pipeline can: spin a <b>scratch org</b> (or run a check-only validation against a sandbox), <b>deploy</b> the metadata, run <b>Apex tests + LWC Jest + PMD/Code Analyzer</b>, and report status back to the PR. Merge only if green. On merge to <code>main</code>, deploy to the next environment. <b>DevOps Center</b> is Salesforce&rsquo;s own UI for this &mdash; it makes git the source of truth and manages the pipeline so admins (clicks) and devs (code) share one flow. <a href="#s19">[19]</a></p>
+
+    <h3>The full mapping: Git/GitHub &rarr; Salesforce</h3>
+    <table>
+      <thead><tr><th>Git / GitHub</th><th>Salesforce equivalent</th></tr></thead>
+      <tbody>
+        <tr><td>Working directory (your files)</td><td>Local <code>force-app/</code> metadata</td></tr>
+        <tr><td>Repository + commit history</td><td>Same &mdash; metadata versioned in git</td></tr>
+        <tr><td>Branch</td><td>Branch (unchanged) &mdash; but the <b>org</b> is shared state the branch doesn&rsquo;t cover</td></tr>
+        <tr><td>Clone</td><td>Clone + authorize an org (<code>sf org login</code>)</td></tr>
+        <tr><td><code>git push</code> (to GitHub)</td><td>Still <code>git push</code> &mdash; <b>not</b> the same as deploy</td></tr>
+        <tr><td>&ldquo;Run / deploy files to a server&rdquo;</td><td><code>sf project deploy start</code> (metadata &rarr; org)</td></tr>
+        <tr><td>Merge conflict (Git resolves with you)</td><td>&ldquo;Last deploy wins&rdquo; clobber &mdash; the org has <b>no</b> merge; humans coordinate</td></tr>
+        <tr><td>CI runs the test suite</td><td>CI spins a scratch org + runs Apex/Jest/PMD</td></tr>
+        <tr><td>Production server</td><td>Production org (75% test gate to deploy)</td></tr>
+      </tbody>
+    </table>
+
+    <h3>The Salesforce daily loop</h3>
+    <ol class="clean">
+      <li><code>git switch main &amp;&amp; git pull</code></li>
+      <li>Create a branch for the story.</li>
+      <li>Make changes in code and/or in a dev/scratch org.</li>
+      <li><b>Retrieve</b> any Setup clicks into the branch so they&rsquo;re versioned.</li>
+      <li><b>Validate</b> a deploy (<code>--dry-run</code>) of just your files; run tests.</li>
+      <li>Commit, push, open a PR.</li>
+      <li>CI validates + tests; a teammate reviews.</li>
+      <li>Squash-merge.</li>
+      <li>Author deploys the full <code>force-app</code> from <code>main</code> to the shared org; delete the branch.</li>
+    </ol>
+
+    <details class="acc">
+      <summary>Engineering standards inside the code (Apex / SOQL / triggers / security / LWC) <span class="pill info">deep dive</span></summary>
+      <div class="acc-body">
+        <h4>Apex &mdash; bulkification (non-negotiable)</h4>
+        <p>Apex runs multitenant with strict <b>governor limits</b>. Always process <b>collections</b>; triggers handle up to <b>200 records</b> per batch. Never put SOQL/DML in a loop &mdash; collect IDs in a <code>Set</code>, query once, DML once. <a href="#s24">[24]</a> Key sync limits: 100 SOQL, 50k rows, 150 DML, 10k ms CPU. <a href="#s23">[23]</a></p>
+        <h4>Triggers &mdash; one per object + handler</h4>
+        <p>One trigger per object (order isn&rsquo;t guaranteed otherwise); the trigger body delegates to a handler class with a method per context; add recursion guards. <a href="#s25">[25]</a></p>
+        <h4>Security &mdash; CRUD/FLS/sharing</h4>
+        <p>API 67.0 runs Apex in <b>user mode by default</b>. Declare <code>sharing</code> explicitly; use <code>WITH USER_MODE</code> on SOQL/DML and <code>Security.stripInaccessible()</code> for graceful degradation; never concatenate user input into SOQL. <a href="#s26">[26]</a><a href="#s27">[27]</a></p>
+        <h4>Testing</h4>
+        <p>Cover positive, negative, bulk (200) and exception paths with <code>Assert</code>; create data before <code>Test.startTest()</code>; isolate data (avoid <code>SeeAllData=true</code>); use <code>System.runAs()</code>. 75% is the floor, not the goal. <a href="#s28">[28]</a><a href="#s29">[29]</a><a href="#s30">[30]</a></p>
+        <h4>LWC</h4>
+        <p>Prefer <b>LDS / UI API</b> (caches + enforces security, no Apex); mark Apex <code>@AuraEnabled(cacheable=true)</code> only on reads; fetch only the fields you render; paginate; keep LWS on and lint. <a href="#s31">[31]</a></p>
+        <h4>Static analysis</h4>
+        <p>Run Salesforce Code Analyzer (PMD): <code>ApexCRUDViolation</code>, <code>ApexSOQLInjection</code>, <code>AvoidLogicInTrigger</code>, and more. <a href="#s32">[32]</a></p>
+      </div>
+    </details>
+
+    <div class="quiz" data-quiz>
+      <p class="q">You <code>git push</code> your branch. Is your change now live in the Salesforce org?</p>
+      <button class="opt" data-correct>No &mdash; push updates GitHub. You still have to <b>deploy</b> the metadata to the org.</button>
+      <button class="opt">Yes &mdash; pushing to GitHub deploys to the org automatically.</button>
+      <button class="opt">Only if the branch is named <code>main</code>.</button>
+      <p class="explain">The org is separate from git. <code>git push</code> shares code with the team; <code>sf project deploy start</code> applies it to an org. <a href="#s19">[19]</a></p>
+    </div>
+  </section>
+
+  <!-- ============ CHECKLIST ============ -->
+  <section class="panel" id="checklist" role="tabpanel">
+    <h2>Daily checklist (GitHub + Salesforce)</h2>
+    <p class="section-intro">Tick items off &mdash; progress is saved in your browser.</p>
+    <ul class="checklist" id="checklistItems">
+      <li><input type="checkbox"><span>Started from an up-to-date <code>main</code> (<code>git pull</code>) before branching.</span></li>
+      <li><input type="checkbox"><span>One short branch for this task; <code>type/scope-description</code> name.</span></li>
+      <li><input type="checkbox"><span>Small commits with Conventional-Commit messages that explain the <b>why</b>.</span></li>
+      <li><input type="checkbox"><span>Ran <code>git status</code>/<code>git diff</code> before committing; no secrets staged.</span></li>
+      <li><input type="checkbox"><span>Opened a focused PR with a clear description and how to test it.</span></li>
+      <li><input type="checkbox"><span>CI is green; a teammate reviewed and approved.</span></li>
+      <li><input type="checkbox"><span><b>SF:</b> retrieved any Setup clicks into the branch (nothing lives only in the org).</span></li>
+      <li><input type="checkbox"><span><b>SF:</b> validated with <code>--dry-run</code> and deployed only this story&rsquo;s files from the branch.</span></li>
+      <li><input type="checkbox"><span><b>SF:</b> Apex bulkified, one-trigger-per-object, <code>WITH USER_MODE</code>, tests &ge; 75% and passing.</span></li>
+      <li><input type="checkbox"><span>After merge: pulled <code>main</code>, deployed full <code>force-app</code> from <code>main</code>, deleted the branch.</span></li>
+    </ul>
+  </section>
+
+  <!-- ============ SOURCES ============ -->
+  <section class="card sources">
+    <h2>Sources</h2>
+    <p><strong>Git foundations (Pro Git &mdash; git-scm.com)</strong></p>
+    <ol>
+      <li id="s1"><a href="https://git-scm.com/book/en/v2/Getting-Started-About-Version-Control" target="_blank" rel="noopener">About Version Control</a></li>
+      <li id="s2"><a href="https://git-scm.com/book/en/v2/Getting-Started-What-is-Git%3F" target="_blank" rel="noopener">What is Git? (distributed, snapshots, three states)</a></li>
+      <li id="s3"><a href="https://git-scm.com/book/en/v2/Git-Basics-Recording-Changes-to-the-Repository" target="_blank" rel="noopener">Git Basics &mdash; Recording Changes (staging)</a></li>
+      <li id="s4"><a href="https://git-scm.com/book/en/v2/Git-Branching-Branches-in-a-Nutshell" target="_blank" rel="noopener">Git Branching &mdash; Branches in a Nutshell</a></li>
+      <li id="s5"><a href="https://git-scm.com/book/en/v2/Git-Branching-Rebasing" target="_blank" rel="noopener">Git Branching &mdash; Rebasing (golden rule)</a></li>
+      <li id="s6"><a href="https://git-scm.com/book/en/v2/Appendix-C%3A-Git-Commands-Basic-Snapshotting" target="_blank" rel="noopener">Git Commands &mdash; Basic Snapshotting (status/diff/reset)</a></li>
+    </ol>
+    <p><strong>GitHub platform (GitHub Docs)</strong></p>
+    <ol start="7">
+      <li id="s7"><a href="https://docs.github.com/en/get-started/using-github/github-flow" target="_blank" rel="noopener">GitHub flow</a></li>
+      <li id="s8"><a href="https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-pull-requests" target="_blank" rel="noopener">About pull requests</a></li>
+      <li id="s9"><a href="https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/about-merge-methods-on-github" target="_blank" rel="noopener">About merge methods on GitHub</a></li>
+      <li id="s10"><a href="https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/incorporating-changes-from-a-pull-request/about-pull-request-merges" target="_blank" rel="noopener">About pull request merges (squash caveat)</a></li>
+      <li id="s11"><a href="https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/addressing-merge-conflicts/resolving-a-merge-conflict-using-the-command-line" target="_blank" rel="noopener">Resolving a merge conflict</a></li>
+      <li id="s12"><a href="https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/about-forks" target="_blank" rel="noopener">About forks</a></li>
+      <li id="s13"><a href="https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches" target="_blank" rel="noopener">About protected branches</a></li>
+      <li id="s14"><a href="https://docs.github.com/en/code-security/secret-scanning/about-secret-scanning" target="_blank" rel="noopener">About secret scanning</a></li>
+      <li id="s15"><a href="https://docs.github.com/en/actions/about-github-actions/understanding-github-actions" target="_blank" rel="noopener">Understanding GitHub Actions (CI/CD)</a></li>
+      <li id="s16"><a href="https://docs.github.com/en/issues/tracking-your-work-with-issues/about-issues" target="_blank" rel="noopener">About issues</a></li>
+      <li id="s17"><a href="https://semver.org/" target="_blank" rel="noopener">Semantic Versioning</a></li>
+      <li id="s18"><a href="https://www.conventionalcommits.org/" target="_blank" rel="noopener">Conventional Commits</a></li>
+    </ol>
+    <p><strong>Salesforce environment &amp; models</strong></p>
+    <ol start="19">
+      <li id="s19"><a href="https://developer.salesforce.com/docs/platform/code-builder/guide/codebuilder-dev-models.html" target="_blank" rel="noopener">Salesforce Development Models (Org vs Package, CI/CD)</a></li>
+      <li id="s20"><a href="https://developer.salesforce.com/docs/platform/code-builder/guide/codebuilder-package-dev-model.html" target="_blank" rel="noopener">Package Development Model &amp; source tracking</a></li>
+      <li id="s21"><a href="https://trailhead.salesforce.com/content/learn/modules/sfdx_dev_model/sfdx_dev_model_sdd" target="_blank" rel="noopener">Explore Source-Driven Development (Trailhead)</a></li>
+      <li id="s22"><a href="https://www.salto.io/blog-posts/salesforce-scratch-orgs-versus-sandbox" target="_blank" rel="noopener">Sandboxes vs Scratch Orgs (practical reference)</a></li>
+    </ol>
+    <p><strong>Salesforce engineering standards</strong></p>
+    <ol start="23">
+      <li id="s23"><a href="https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_gov_limits.htm" target="_blank" rel="noopener">Execution Governors and Limits &mdash; Apex Developer Guide</a></li>
+      <li id="s24"><a href="https://trailhead.salesforce.com/content/learn/modules/apex_triggers/apex_triggers_bulk" target="_blank" rel="noopener">Effective Bulk Apex Trigger Design &mdash; Trailhead</a></li>
+      <li id="s25"><a href="https://architect.salesforce.com/docs/architect/decision-guides/guide/record-triggered" target="_blank" rel="noopener">Record-Triggered Automation &mdash; Salesforce Architect</a></li>
+      <li id="s26"><a href="https://developer.salesforce.com/docs/platform/lwc/guide/apex-security.html" target="_blank" rel="noopener">Secure Apex Classes &mdash; LWC Developer Guide</a></li>
+      <li id="s27"><a href="https://developer.salesforce.com/docs/atlas.en-us.secure_coding_guide.meta/secure_coding_guide/secure_coding_access_control_protect_from_crud_fls_vulnerabilities.htm" target="_blank" rel="noopener">Protect from CRUD/FLS Vulnerabilities &mdash; Secure Coding Guide</a></li>
+      <li id="s28"><a href="https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_testing_best_practices.htm" target="_blank" rel="noopener">Testing Best Practices &mdash; Apex Developer Guide</a></li>
+      <li id="s29"><a href="https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_testing_data_access.htm" target="_blank" rel="noopener">Isolation of Test Data &mdash; Apex Developer Guide</a></li>
+      <li id="s30"><a href="https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_testing_tools_start_stop_test.htm" target="_blank" rel="noopener">Using Limits, startTest, and stopTest &mdash; Apex Developer Guide</a></li>
+      <li id="s31"><a href="https://developer.salesforce.com/blogs/2020/06/lightning-web-components-performance-best-practices" target="_blank" rel="noopener">LWC Performance Best Practices &mdash; Salesforce Developers Blog</a></li>
+      <li id="s32"><a href="https://pmd.github.io/pmd/pmd_rules_apex.html" target="_blank" rel="noopener">Apex Rules &mdash; PMD Source Code Analyzer</a></li>
+    </ol>
+  </section>
+
+  <footer>
+    Nova Casa · Sprint 2 · Support material. Primary sources: Pro Git (git-scm), GitHub Docs, Salesforce Developers, Salesforce Architect, Trailhead, PMD. When in doubt, the repo&rsquo;s <code>CONTRIBUTING.md</code> and <code>AGENTS.md</code> win.
+  </footer>
+
+  <script>
+  (function () {
+    var root = document.documentElement;
+    var themeBtn = document.getElementById('themeBtn');
+    function applyTheme(t) {
+      root.setAttribute('data-theme', t);
+      themeBtn.innerHTML = t === 'dark' ? '&#9728;&#65039; Light' : '&#127769; Dark';
+      try { localStorage.setItem('bp-theme', t); } catch (e) {}
+    }
+    try { applyTheme(localStorage.getItem('bp-theme') || 'light'); } catch (e) { applyTheme('light'); }
+    themeBtn.addEventListener('click', function () {
+      applyTheme(root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+    });
+
+    var tabs = document.querySelectorAll('.tab');
+    var panels = document.querySelectorAll('.panel');
+    tabs.forEach(function (tab) {
+      tab.addEventListener('click', function () {
+        tabs.forEach(function (t) { t.setAttribute('aria-selected', 'false'); });
+        panels.forEach(function (p) { p.classList.remove('active'); });
+        tab.setAttribute('aria-selected', 'true');
+        var el = document.getElementById(tab.dataset.tab);
+        if (el) el.classList.add('active');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    });
+
+    document.querySelectorAll('[data-quiz]').forEach(function (quiz) {
+      var explain = quiz.querySelector('.explain');
+      quiz.querySelectorAll('.opt').forEach(function (opt) {
+        opt.addEventListener('click', function () {
+          quiz.querySelectorAll('.opt').forEach(function (o) { o.disabled = true; });
+          var correct = quiz.querySelector('.opt[data-correct]');
+          if (opt.hasAttribute('data-correct')) { opt.classList.add('correct'); }
+          else { opt.classList.add('wrong'); if (correct) correct.classList.add('correct'); }
+          if (explain) explain.classList.add('show');
+        });
+      });
+    });
+
+    var items = document.querySelectorAll('#checklistItems li');
+    var fill = document.getElementById('progFill');
+    var label = document.getElementById('progLabel');
+    var KEY = 'bp-checklist2';
+    var saved = {};
+    try { saved = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) {}
+    function update() {
+      var done = 0;
+      items.forEach(function (li) { if (li.querySelector('input').checked) { done++; li.classList.add('done'); } else { li.classList.remove('done'); } });
+      var pct = items.length ? Math.round((done / items.length) * 100) : 0;
+      fill.style.width = pct + '%';
+      label.textContent = 'Checklist: ' + done + ' / ' + items.length;
+    }
+    function persist() {
+      var state = {};
+      items.forEach(function (li, i) { state[i] = li.querySelector('input').checked; });
+      try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+    }
+    items.forEach(function (li, i) {
+      var cb = li.querySelector('input');
+      if (saved[i]) cb.checked = true;
+      li.addEventListener('click', function (e) { if (e.target.tagName !== 'INPUT') cb.checked = !cb.checked; update(); persist(); });
+      cb.addEventListener('change', function () { update(); persist(); });
+    });
+    update();
+    document.getElementById('resetBtn').addEventListener('click', function () {
+      items.forEach(function (li) { li.querySelector('input').checked = false; });
+      update(); persist();
+    });
+  })();
+  </script>
+</div>
+</body>
+</html>
