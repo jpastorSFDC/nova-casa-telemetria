@@ -38,3 +38,22 @@ The 4 questions already logged as pending in `docs/decisiones.md` (the `occurred
 - Building and Asset are new concepts for this org — no objects from earlier sprints model building maintenance (the previous sprint modeled unit sales, not assets).
 - The simulator can be pointed at our target org (token, endpoint) with no extra work on our side — MDSS provides that.
 - The 200-signal batch limit (BR-202) isn't arbitrary: it matches Salesforce's per-trigger-context limit, and the design should lean on that instead of fighting a different number.
+
+## Simulator connection notes (HP-01)
+
+Resolved:
+
+- **T1.4 — Named Credential auth**: the callout was failing auth because the External Credential's Authentication Parameter name has to be exactly `BearerToken` (case-sensitive) — it has to match the merge field `$Credential.Nova_Casa_Simulator.BearerToken` used in the Named Credential's Authorization header formula. Fixed; the connection authenticates correctly now.
+
+Contract detail not previously documented:
+
+- The simulator needs a session bootstrap before paging: `POST /session` returns a `cursor`. That value must be sent as the `X-Simulator-Cursor` header on every `GET /telemetry` call (likely `/catalog` too, unconfirmed). Each response's `pagination.nextCursor` is the cursor to send on the next page. This isn't in `Sprint 2 - Nova Casa.md`'s contract example — worth flagging to the MDSS facilitator as a gap, not just noting it here.
+
+In progress:
+
+- **T1.5/T1.6** (real `/telemetry` and `/catalog` samples into `docs/muestras/`): being captured now. File paths to be added here once confirmed.
+
+Open, for John to decide (not resolved here):
+
+- Whether to rename the deployed `Nova_Casa_Simulator` External Credential / Named Credential / Permission Set to `Nova_Casa_Simulator_Auth` to match the original spec, or keep the current name.
+- `docs/switch-team-language-to-english` looks superseded by `docs/humanize-tone-english` (`dfecb64`) — candidate to close without merging.
