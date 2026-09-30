@@ -47,11 +47,11 @@ Resolved:
 
 Contract detail not previously documented:
 
-- The simulator needs a session bootstrap before paging: `POST /session` returns a `cursor`. That value must be sent as the `X-Simulator-Cursor` header on every `GET /telemetry` call (likely `/catalog` too, unconfirmed). Each response's `pagination.nextCursor` is the cursor to send on the next page. This isn't in `Sprint 2 - Nova Casa.md`'s contract example — worth flagging to the MDSS facilitator as a gap, not just noting it here.
+- The simulator needs a session bootstrap before paging: `POST /session` returns a `cursor`. That value must be sent as the `X-Simulator-Cursor` header on every `GET /telemetry` call. Each response's `pagination.nextCursor` is the cursor to send on the next page. Confirmed `GET /catalog` does NOT need the cursor header — it works with just the Bearer token. This isn't in `Sprint 2 - Nova Casa.md`'s contract example — worth flagging to the MDSS facilitator as a gap, not just noting it here.
 
-In progress:
+Done:
 
-- **T1.5/T1.6** (real `/telemetry` and `/catalog` samples into `docs/muestras/`): being captured now. File paths to be added here once confirmed.
+- **T1.5/T1.6**: real samples captured and committed at `docs/muestras/telemetry.json` (200 measurement records via session bootstrap + cursor) and `docs/muestras/catalog.json` (asset/scenario catalog, no cursor needed).
 
 Open, for John to decide (not resolved here):
 
