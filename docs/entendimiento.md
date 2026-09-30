@@ -1,40 +1,59 @@
-# Entendimiento del problema (Entregable 1)
+# Understanding the problem (Deliverable 1)
 
-Personas, historia de referencia (Laura) y frontera formativa: ver `Sprint 2 - Nova Casa.md`, secciones "Problema y personas" e "Historia de referencia". No se repiten aquí para no duplicar la fuente verbatim.
+Personas, the reference story (Laura) and the formative frontier: see `Sprint 2 - Nova Casa.md`, sections "Problema y personas" and "Historia de referencia". Not repeated here so we don't duplicate the verbatim source.
 
-Lo que sigue es interpretación propia del par, no texto de MDSS.
+Everything below is the pair's own read on the problem, not MDSS text.
 
-## Problema prioritario
+## Priority problem
 
-**El operador de edificios no tiene una fuente única y confiable del estado actual de sus equipos, por lo que reacciona tarde o duplica intervenciones.**
+**The building operator has no single, trustworthy source for the current state of their equipment, so they react late or duplicate interventions.**
 
-Por qué este y no otro de los cuatro riesgos del brief:
+Why this one and not one of the brief's other three risks:
 
-- Es el riesgo de la persona que protagoniza la historia de referencia (Laura). El facilitador la eligió como recorrido obligatorio de la demo, no las otras tres.
-- Los otros tres riesgos son consecuencia de este, no problemas independientes:
-  - El coordinador duplica trabajo *porque* el operador (o el sistema) no reconoce que un aviso ya se atendió.
-  - El gerente compara tarde *porque* la señal no llegó a tiempo al operador en primer lugar.
-  - El administrador no puede explicar un fallo *porque* no hay evidencia de qué pasó con la señal cuando llegó.
-- Resolver la fuente única y confiable resuelve, como efecto secundario, la mayoría de BR-202 a BR-209.
+- It's the risk facing the person in the reference story (Laura). The facilitator picked her as the demo's required path, not the other three.
+- The other three risks are downstream of this one, not independent problems:
+  - The coordinator duplicates work *because* the operator (or the system) doesn't recognize an alert as already handled.
+  - The manager compares data too late *because* the signal never reached the operator in time in the first place.
+  - The administrator can't explain a failure *because* there's no evidence of what happened to the signal when it arrived.
+- Fixing the single trustworthy source also resolves most of BR-202 through BR-209 as a side effect.
 
-## Indicadores de éxito del prototipo
+## Prototype success signals
 
-No son resultados de producción (no hay producción todavía). Son lo que este prototipo de Discovery debe poder demostrar:
+These aren't production outcomes — there's no production yet. They're what this Discovery prototype needs to demonstrate:
 
-1. **Recepción real, no simulada**: la arquitectura documentada muestra cómo una señal publicada de verdad por el simulador llega a Salesforce y se refleja en el prototipo de UI, sin captura manual (evidencia de BR-201).
-2. **Severidad y antigüedad visibles sin ambigüedad**: el prototipo de baja fidelidad distingue, para los cuatro mensajes del ejemplo del contrato (MSG-000101 a MSG-000104), cuál es la lectura vigente de cada activo y cuál quedó atrasada.
-3. **Los dos comportamientos de la historia de Laura quedan explicados en el diseño**: cómo se evita una segunda intervención por reenvío, y cómo una lectura atrasada no pisa el estado actual — sin necesidad de código para verificarlo, solo con el modelo y la arquitectura.
+1. **Real reception, not simulated**: the documented architecture shows how a signal genuinely published by the simulator reaches Salesforce and shows up in the UI prototype, with no manual capture (evidence for BR-201).
+2. **Severity and staleness visible without ambiguity**: for the contract example's four messages (MSG-000101 through MSG-000104), the low-fidelity prototype distinguishes each asset's current reading from one that arrived late.
+3. **Both behaviors from Laura's story are explained in the design**: how a resend avoids opening a second intervention, and how a late reading doesn't overwrite current state — without needing code to prove it, just the model and the architecture.
 
-## Preguntas abiertas
+## Open questions
 
-Las 4 preguntas ya registradas como pendientes en `docs/decisiones.md` (regla de empate en `occurredAt`, valores de umbral, objeto de intervención, modelo de sharing) no se repiten aquí. Además de esas:
+The 4 questions already logged as pending in `docs/decisiones.md` (the `occurredAt` tie-break rule, threshold values, the intervention object, the sharing model) aren't repeated here. On top of those:
 
-- El contrato documentado es un `GET /api/v1/telemetry` (HTTP síncrono). El brief exige "Platform Events publicados realmente desde el simulador". ¿El simulador publica el PE directamente, o hace falta un puente (algo que consulte el endpoint y republique como PE)? Esto define media arquitectura y no está resuelto.
-- ¿Existen ya objetos de Edificio/Activo en esta org (de un sprint anterior), o se parte de una org limpia para este dominio?
-- ¿"Operador", "Coordinador", "Gerente" y "Administrador" son Profiles/Permission Sets ya provisionados por MDSS, o hay que definirlos nosotros?
+- The documented contract is a synchronous `GET /api/v1/telemetry`. The brief requires "Platform Events genuinely published by the simulator." Does the simulator publish the PE directly, or do we need a bridge (something that polls the endpoint and republishes it as a PE)? That decides half the architecture and it isn't settled yet.
+- Do Building/Asset objects already exist in this org from an earlier sprint, or are we starting from a clean org for this domain?
+- Are "Operator," "Coordinator," "Manager" and "Administrator" Profiles/Permission Sets MDSS already provisioned, or do we need to define them ourselves?
 
-## Supuestos
+## Assumptions
 
-- Edificio y Activo son conceptos nuevos para esta org; no hay objetos de sprints previos que representen mantenimiento de edificios (el sprint anterior modelaba venta de unidades, no activos).
-- El simulador se puede apuntar a nuestra org de destino (token, endpoint) sin trabajo adicional de nuestra parte; eso lo provee MDSS.
-- El límite de 200 señales por lote (BR-202) no es arbitrario: coincide con el límite de Salesforce por contexto de trigger, y el diseño debe apoyarse en eso, no pelear contra otro número.
+- Building and Asset are new concepts for this org — no objects from earlier sprints model building maintenance (the previous sprint modeled unit sales, not assets).
+- The simulator can be pointed at our target org (token, endpoint) with no extra work on our side — MDSS provides that.
+- The 200-signal batch limit (BR-202) isn't arbitrary: it matches Salesforce's per-trigger-context limit, and the design should lean on that instead of fighting a different number.
+
+## Simulator connection notes (HP-01)
+
+Resolved:
+
+- **T1.4 — Named Credential auth**: the callout was failing auth because the External Credential's Authentication Parameter name has to be exactly `BearerToken` (case-sensitive) — it has to match the merge field `$Credential.Nova_Casa_Simulator.BearerToken` used in the Named Credential's Authorization header formula. Fixed; the connection authenticates correctly now.
+
+Contract detail not previously documented:
+
+- The simulator needs a session bootstrap before paging: `POST /session` returns a `cursor`. That value must be sent as the `X-Simulator-Cursor` header on every `GET /telemetry` call. Each response's `pagination.nextCursor` is the cursor to send on the next page. Confirmed `GET /catalog` does NOT need the cursor header — it works with just the Bearer token. This isn't in `Sprint 2 - Nova Casa.md`'s contract example — worth flagging to the MDSS facilitator as a gap, not just noting it here.
+
+Done:
+
+- **T1.5/T1.6**: real samples captured and committed at `docs/muestras/telemetry.json` (200 measurement records via session bootstrap + cursor) and `docs/muestras/catalog.json` (asset/scenario catalog, no cursor needed).
+
+Open, for John to decide (not resolved here):
+
+- Whether to rename the deployed `Nova_Casa_Simulator` External Credential / Named Credential / Permission Set to `Nova_Casa_Simulator_Auth` to match the original spec, or keep the current name.
+- `docs/switch-team-language-to-english` looks superseded by `docs/humanize-tone-english` (`dfecb64`) — candidate to close without merging.

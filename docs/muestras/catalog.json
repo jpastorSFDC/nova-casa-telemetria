@@ -1,0 +1,300 @@
+{
+  "contractVersion": "1",
+  "scenarios": [
+    "MIXED",
+    "QA_200",
+    "BOUNDARIES",
+    "CRITICAL_BURST",
+    "LATE_MESSAGES",
+    "DUPLICATES",
+    "CONFLICT",
+    "INVALID_DATA",
+    "CAMERA_OUTAGE"
+  ],
+  "defaults": {
+    "scenario": "MIXED",
+    "batchSize": 5,
+    "maxBatchSize": 200,
+    "pollAfterMs": 10000,
+    "sessionTtlSeconds": 2592000
+  },
+  "catalog": {
+    "buildings": [
+      {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá",
+        "assets": [
+          {
+            "id": "AST-BOG-TEMP-001",
+            "name": "Sala técnica principal",
+            "type": "TECHNICAL_ROOM",
+            "sensorId": "SNS-BOG-TEMP-001",
+            "measurement": "TEMPERATURE",
+            "unit": "CELSIUS"
+          },
+          {
+            "id": "AST-BOG-WATER-001",
+            "name": "Medidor de agua torre A",
+            "type": "WATER_METER",
+            "sensorId": "SNS-BOG-WATER-001",
+            "measurement": "WATER_CONSUMPTION",
+            "unit": "LITER_PER_15_MIN"
+          },
+          {
+            "id": "AST-BOG-ENERGY-001",
+            "name": "Medidor de energía torre A",
+            "type": "ENERGY_METER",
+            "sensorId": "SNS-BOG-ENERGY-001",
+            "measurement": "ENERGY_CONSUMPTION",
+            "unit": "KWH_PER_15_MIN"
+          },
+          {
+            "id": "AST-BOG-PUMP-001",
+            "name": "Bomba de presión de agua",
+            "type": "WATER_PUMP",
+            "sensorId": "SNS-BOG-PUMP-001",
+            "measurement": "WATER_PRESSURE",
+            "unit": "BAR"
+          },
+          {
+            "id": "AST-BOG-CAM-001",
+            "name": "Cámara acceso vehicular",
+            "type": "SECURITY_CAMERA",
+            "sensorId": "SNS-BOG-CAM-001",
+            "measurement": "CAMERA_CONNECTIVITY",
+            "unit": "SECONDS"
+          }
+        ]
+      },
+      {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla",
+        "assets": [
+          {
+            "id": "AST-BAQ-TEMP-001",
+            "name": "Sala técnica principal",
+            "type": "TECHNICAL_ROOM",
+            "sensorId": "SNS-BAQ-TEMP-001",
+            "measurement": "TEMPERATURE",
+            "unit": "CELSIUS"
+          },
+          {
+            "id": "AST-BAQ-WATER-001",
+            "name": "Medidor de agua torre única",
+            "type": "WATER_METER",
+            "sensorId": "SNS-BAQ-WATER-001",
+            "measurement": "WATER_CONSUMPTION",
+            "unit": "LITER_PER_15_MIN"
+          },
+          {
+            "id": "AST-BAQ-ENERGY-001",
+            "name": "Medidor de energía torre única",
+            "type": "ENERGY_METER",
+            "sensorId": "SNS-BAQ-ENERGY-001",
+            "measurement": "ENERGY_CONSUMPTION",
+            "unit": "KWH_PER_15_MIN"
+          },
+          {
+            "id": "AST-BAQ-PUMP-001",
+            "name": "Bomba de presión de agua",
+            "type": "WATER_PUMP",
+            "sensorId": "SNS-BAQ-PUMP-001",
+            "measurement": "WATER_PRESSURE",
+            "unit": "BAR"
+          },
+          {
+            "id": "AST-BAQ-CAM-001",
+            "name": "Cámara azotea",
+            "type": "SECURITY_CAMERA",
+            "sensorId": "SNS-BAQ-CAM-001",
+            "measurement": "CAMERA_CONNECTIVITY",
+            "unit": "SECONDS"
+          }
+        ]
+      }
+    ],
+    "thresholdsReference": {
+      "note": "Rangos de referencia. La API entrega hechos; la clasificación de severidad se calcula en Salesforce.",
+      "measurements": {
+        "TEMPERATURE": {
+          "unit": "CELSIUS",
+          "altUnit": "FAHRENHEIT",
+          "decimals": 1,
+          "normal": {
+            "min": 18,
+            "max": 30
+          },
+          "warning": [
+            {
+              "min": 15,
+              "max": 17.9
+            },
+            {
+              "min": 30.1,
+              "max": 35
+            }
+          ],
+          "critical": [
+            {
+              "min": 5,
+              "max": 14.9
+            },
+            {
+              "min": 35.1,
+              "max": 55
+            }
+          ],
+          "invalid": [
+            {
+              "min": -40,
+              "max": -11
+            },
+            {
+              "min": 81,
+              "max": 140
+            }
+          ],
+          "boundaries": [
+            15,
+            18,
+            30,
+            35
+          ]
+        },
+        "WATER_CONSUMPTION": {
+          "unit": "LITER_PER_15_MIN",
+          "altUnit": "GALLON_PER_15_MIN",
+          "decimals": 0,
+          "normal": {
+            "min": 0,
+            "max": 400
+          },
+          "warning": [
+            {
+              "min": 401,
+              "max": 650
+            }
+          ],
+          "critical": [
+            {
+              "min": 651,
+              "max": 1800
+            }
+          ],
+          "invalid": [
+            {
+              "min": -500,
+              "max": -1
+            },
+            {
+              "min": 5001,
+              "max": 9000
+            }
+          ],
+          "boundaries": [
+            0,
+            400,
+            650
+          ]
+        },
+        "ENERGY_CONSUMPTION": {
+          "unit": "KWH_PER_15_MIN",
+          "altUnit": "WATT",
+          "decimals": 1,
+          "normal": {
+            "min": 0,
+            "max": 40
+          },
+          "warning": [
+            {
+              "min": 40.1,
+              "max": 65
+            }
+          ],
+          "critical": [
+            {
+              "min": 65.1,
+              "max": 220
+            }
+          ],
+          "invalid": [
+            {
+              "min": -80,
+              "max": -1
+            },
+            {
+              "min": 1001,
+              "max": 3000
+            }
+          ],
+          "boundaries": [
+            0,
+            40,
+            65
+          ]
+        },
+        "WATER_PRESSURE": {
+          "unit": "BAR",
+          "altUnit": "PSI",
+          "decimals": 2,
+          "normal": {
+            "min": 2.5,
+            "max": 4
+          },
+          "warning": [
+            {
+              "min": 1.5,
+              "max": 2.49
+            },
+            {
+              "min": 4.01,
+              "max": 5
+            }
+          ],
+          "critical": [
+            {
+              "min": 0,
+              "max": 1.49
+            },
+            {
+              "min": 5.01,
+              "max": 9
+            }
+          ],
+          "invalid": [
+            {
+              "min": 20.1,
+              "max": 60
+            }
+          ],
+          "boundaries": [
+            1.5,
+            2.5,
+            4,
+            5
+          ]
+        }
+      },
+      "cameraConnectivitySeconds": {
+        "healthy": {
+          "min": 45,
+          "max": 90
+        },
+        "warning": {
+          "min": 91,
+          "max": 180
+        },
+        "critical": {
+          "min": 181,
+          "max": 900
+        },
+        "boundaries": [
+          90,
+          180
+        ]
+      }
+    }
+  }
+}
