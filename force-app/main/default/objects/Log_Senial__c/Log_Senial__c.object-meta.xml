@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <deploymentStatus>Deployed</deploymentStatus>
+    <description>Bitácora de trazabilidad por mensaje: una fila por señal recibida con su resultado de ingesta/procesamiento, para que el Admin audite rechazos, duplicados, atrasos y reintentos (BR-209).</description>
+    <label>Registro de Señal</label>
+    <pluralLabel>Registros de Señal</pluralLabel>
+    <nameField>
+        <displayFormat>LOG-{00000000}</displayFormat>
+        <label>Número de Registro</label>
+        <type>AutoNumber</type>
+    </nameField>
+    <sharingModel>Private</sharingModel>
+</CustomObject>

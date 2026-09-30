@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Activo__c</fullName>
+    <label>Activo</label>
+    <description>Solo los umbrales activos se usan al clasificar. Desactivar en lugar de borrar conserva la historia del cambio.</description>
+    <type>Checkbox</type>
+    <defaultValue>true</defaultValue>
+</CustomField>

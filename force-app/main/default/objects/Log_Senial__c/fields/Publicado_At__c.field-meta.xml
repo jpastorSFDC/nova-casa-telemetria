@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Publicado_At__c</fullName>
+    <label>Publicado en</label>
+    <description>Momento en que se publicó el Platform Event de la señal.</description>
+    <type>DateTime</type>
+</CustomField>

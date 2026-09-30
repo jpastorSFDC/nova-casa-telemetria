@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Operador__c</fullName>
+    <label>Operador</label>
+    <description>Comparación entre el valor de la señal y Valor__c.</description>
+    <type>Picklist</type>
+    <required>true</required>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>LT</fullName>
+                <default>false</default>
+                <label>Menor que</label>
+            </value>
+            <value>
+                <fullName>LE</fullName>
+                <default>false</default>
+                <label>Menor o igual que</label>
+            </value>
+            <value>
+                <fullName>GT</fullName>
+                <default>false</default>
+                <label>Mayor que</label>
+            </value>
+            <value>
+                <fullName>GE</fullName>
+                <default>false</default>
+                <label>Mayor o igual que</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

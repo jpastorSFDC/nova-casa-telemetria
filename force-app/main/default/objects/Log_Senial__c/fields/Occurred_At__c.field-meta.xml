@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Occurred_At__c</fullName>
+    <label>Momento de origen</label>
+    <description>Timestamp de origen de la señal reportado por el proveedor (BR-201, BR-203).</description>
+    <type>DateTime</type>
+</CustomField>
