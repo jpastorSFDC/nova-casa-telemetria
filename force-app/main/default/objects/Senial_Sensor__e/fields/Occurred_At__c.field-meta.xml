@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Occurred_At__c</fullName>
+    <label>occurredAt</label>
+    <description>occurredAt en ISO 8601, como texto crudo: momento de origen que decide el orden temporal (BR-203).</description>
+    <type>Text</type>
+    <length>40</length>
+    <required>false</required>
+</CustomField>

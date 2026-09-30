@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Last_Seen_At__c</fullName>
+    <label>communication.lastSeenAt</label>
+    <description>communication.lastSeenAt en ISO 8601, como texto crudo.</description>
+    <type>Text</type>
+    <length>40</length>
+    <required>false</required>
+</CustomField>
