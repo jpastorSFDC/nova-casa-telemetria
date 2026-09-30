@@ -45,5 +45,6 @@ Code and metadata live in `force-app/` (Salesforce DX project, API 67.0). We sha
 
 - Everything deployed comes from the repo. From a branch, only that story's files; the full `force-app` deploys only from `main`, after merging. Nothing gets created by hand in the org without ending up versioned.
 - Validate with a dry run (`--dry-run`) before deploying, and say what you're about to push.
+- `nova-cdo` is a production org: every deploy with Apex needs tests covering 75% of each class or trigger. Each class ships with its test in the same PR and deploys with `--test-level RunSpecifiedTests`, never `RunLocalTests`.
 - Don't delete metadata or org data without explicit confirmation from John or Juan Diego.
 - The prototypes in `entregables/` guide the design, but they aren't the spec — if the code departs from them, log it in `docs/decisiones.md`.
