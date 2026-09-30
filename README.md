@@ -53,7 +53,7 @@ The full `force-app` deploys only from `main`, after merging. Full rules are in 
 Run the Apex tests:
 
 ```bash
-sf apex run test --test-level RunLocalTests --result-format human --wait 10
+sf apex run test --class-names <ClaseTest> --code-coverage --result-format human --wait 10
 ```
 
 Still to document once it exists: the connection to the Heroku simulator and how to watch Platform Event processing.
