@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Tipo_Medicion__c</fullName>
+    <label>Tipo de medición</label>
+    <description>Mismos valores que Lectura_Vigente__c.Tipo_Medicion__c (T2.12).</description>
+    <type>Picklist</type>
+    <required>true</required>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>TEMPERATURE</fullName>
+                <default>false</default>
+                <label>Temperatura</label>
+            </value>
+            <value>
+                <fullName>WATER_PRESSURE</fullName>
+                <default>false</default>
+                <label>Presión de agua</label>
+            </value>
+            <value>
+                <fullName>WATER_CONSUMPTION</fullName>
+                <default>false</default>
+                <label>Consumo de agua</label>
+            </value>
+            <value>
+                <fullName>ENERGY_CONSUMPTION</fullName>
+                <default>false</default>
+                <label>Consumo de energía</label>
+            </value>
+            <value>
+                <fullName>CAMERA_CONNECTIVITY</fullName>
+                <default>false</default>
+                <label>Conectividad de cámara</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

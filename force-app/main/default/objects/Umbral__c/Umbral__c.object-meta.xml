@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <deploymentStatus>Deployed</deploymentStatus>
+    <description>Límites de clasificación por tipo de activo y tipo de medición, administrables sin redesplegar código (BR-204). Una fila por límite: si el valor cumple Operador y Valor, la señal toma la Severidad de la fila.</description>
+    <enableActivities>false</enableActivities>
+    <enableHistory>true</enableHistory>
+    <enableReports>true</enableReports>
+    <enableSearch>true</enableSearch>
+    <label>Umbral</label>
+    <pluralLabel>Umbrales</pluralLabel>
+    <nameField>
+        <displayFormat>UMB-{0000}</displayFormat>
+        <label>Número de Umbral</label>
+        <type>AutoNumber</type>
+    </nameField>
+    <sharingModel>Read</sharingModel>
+</CustomObject>
