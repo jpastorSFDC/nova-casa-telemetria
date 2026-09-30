@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Severidad_Nivel__c</fullName>
+    <label>Severidad (nivel)</label>
+    <description>0 normal, 1 advertencia, 2 crítica. Numérico para que Asset tome el máximo.</description>
+    <type>Number</type>
+    <precision>1</precision>
+    <scale>0</scale>
+</CustomField>

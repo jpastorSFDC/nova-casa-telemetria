@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Caso__c</fullName>
+    <label>Caso</label>
+    <description>Caso de intervención asociado cuando la señal crítica generó uno (BR-205, BR-206).</description>
+    <type>Lookup</type>
+    <referenceTo>Case</referenceTo>
+    <relationshipLabel>Registros de Señal</relationshipLabel>
+    <relationshipName>Registros_Senal</relationshipName>
+    <required>false</required>
+</CustomField>

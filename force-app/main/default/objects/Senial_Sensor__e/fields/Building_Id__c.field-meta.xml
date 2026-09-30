@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Building_Id__c</fullName>
+    <label>building.id</label>
+    <description>building.id. El nombre y la ciudad vienen del catálogo (HP-02).</description>
+    <type>Text</type>
+    <length>50</length>
+    <required>false</required>
+</CustomField>

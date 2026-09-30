@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Severidad_Actual__c</fullName>
+    <label>Severidad actual</label>
+    <description>Etiqueta que ve el operador; distingue 'Sin lecturas' (roll-up vacío) de 'Normal'.</description>
+    <type>Text</type>
+    <formula>IF(ISBLANK(Ultima_Senal__c), "Sin lecturas", CASE(Severidad_Nivel__c, 2, "Crítica", 1, "Advertencia", 0, "Normal", "Sin dato"))</formula>
+</CustomField>

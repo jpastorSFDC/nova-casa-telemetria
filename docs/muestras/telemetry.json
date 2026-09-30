@@ -1,0 +1,4822 @@
+{
+  "schemaVersion": "1.0",
+  "generatedAt": "2026-09-30T16:44:24.108Z",
+  "data": [
+    {
+      "deliveryId": "dlv_000001",
+      "messageId": "msg_000001",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-ENERGY-001",
+        "name": "Medidor de energía torre única",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BAQ-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 182.7,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T16:45:21.262Z",
+      "publishedAt": "2026-09-30T16:45:24.826Z"
+    },
+    {
+      "deliveryId": "dlv_000002",
+      "messageId": "msg_000002",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BAQ-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 3.03,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T16:46:21.921Z",
+      "publishedAt": "2026-09-30T16:46:25.693Z"
+    },
+    {
+      "deliveryId": "dlv_000003",
+      "messageId": "msg_000003",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BOG-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 19.7,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T16:47:23.167Z",
+      "publishedAt": "2026-09-30T16:47:26.084Z"
+    },
+    {
+      "deliveryId": "dlv_000004",
+      "messageId": "msg_000004",
+      "messageType": "CONNECTIVITY",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-CAM-001",
+        "name": "Cámara azotea",
+        "type": "SECURITY_CAMERA"
+      },
+      "sensorId": "SNS-BAQ-CAM-001",
+      "communication": {
+        "status": "HEALTHY",
+        "gapSeconds": 78,
+        "lastSeenAt": "2026-09-30T16:47:09.163Z",
+        "episodeId": "EPI-BAQ-hb"
+      },
+      "occurredAt": "2026-09-30T16:48:26.037Z",
+      "publishedAt": "2026-09-30T16:48:27.163Z"
+    },
+    {
+      "deliveryId": "dlv_000005",
+      "messageId": "msg_000005",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BOG-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 19.2,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T16:49:22.504Z",
+      "publishedAt": "2026-09-30T16:49:24.750Z"
+    },
+    {
+      "deliveryId": "dlv_000006",
+      "messageId": "msg_000006",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-WATER-001",
+        "name": "Medidor de agua torre A",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BOG-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 286,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T16:50:22.071Z",
+      "publishedAt": "2026-09-30T16:50:24.183Z"
+    },
+    {
+      "deliveryId": "dlv_000007",
+      "messageId": "msg_000007",
+      "messageType": "CONNECTIVITY",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-CAM-001",
+        "name": "Cámara azotea",
+        "type": "SECURITY_CAMERA"
+      },
+      "sensorId": "SNS-BAQ-CAM-001",
+      "communication": {
+        "status": "LOST",
+        "gapSeconds": 355,
+        "lastSeenAt": "2026-09-30T16:45:33.809Z",
+        "episodeId": "EPI-BAQ-out-000007"
+      },
+      "occurredAt": "2026-09-30T16:51:25.789Z",
+      "publishedAt": "2026-09-30T16:51:28.809Z"
+    },
+    {
+      "deliveryId": "dlv_000008",
+      "messageId": "msg_000008",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BAQ-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 17.7,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T16:52:27.932Z",
+      "publishedAt": "2026-09-30T16:52:28.408Z"
+    },
+    {
+      "deliveryId": "dlv_000009",
+      "messageId": "msg_000009",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-WATER-001",
+        "name": "Medidor de agua torre única",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BAQ-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 7799,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T16:53:25.352Z",
+      "publishedAt": "2026-09-30T16:53:27.937Z"
+    },
+    {
+      "deliveryId": "dlv_000010",
+      "messageId": "msg_000010",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BAQ-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 2.06,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T16:54:24.053Z",
+      "publishedAt": "2026-09-30T16:54:26.982Z"
+    },
+    {
+      "deliveryId": "dlv_000011",
+      "messageId": "msg_000011",
+      "messageType": "CONNECTIVITY",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-CAM-001",
+        "name": "Cámara azotea",
+        "type": "SECURITY_CAMERA"
+      },
+      "sensorId": "SNS-BAQ-CAM-001",
+      "communication": {
+        "status": "HEALTHY",
+        "gapSeconds": 83,
+        "lastSeenAt": "2026-09-30T16:54:02.230Z",
+        "episodeId": "EPI-BAQ-hb"
+      },
+      "occurredAt": "2026-09-30T16:55:21.837Z",
+      "publishedAt": "2026-09-30T16:55:25.230Z"
+    },
+    {
+      "deliveryId": "dlv_000012",
+      "messageId": "msg_000011",
+      "messageType": "CONNECTIVITY",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-CAM-001",
+        "name": "Cámara azotea",
+        "type": "SECURITY_CAMERA"
+      },
+      "sensorId": "SNS-BAQ-CAM-001",
+      "communication": {
+        "status": "HEALTHY",
+        "gapSeconds": 83,
+        "lastSeenAt": "2026-09-30T16:54:02.230Z",
+        "episodeId": "EPI-BAQ-hb"
+      },
+      "occurredAt": "2026-09-30T16:55:21.837Z",
+      "publishedAt": "2026-09-30T16:56:27.202Z"
+    },
+    {
+      "deliveryId": "dlv_000013",
+      "messageId": "msg_000013",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-ENERGY-001",
+        "name": "Medidor de energía torre A",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BOG-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 12.1,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T16:57:23.265Z",
+      "publishedAt": "2026-09-30T16:57:26.879Z"
+    },
+    {
+      "deliveryId": "dlv_000014",
+      "messageId": "msg_000014",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-ENERGY-001",
+        "name": "Medidor de energía torre única",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BAQ-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 98.6,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T16:58:22.907Z",
+      "publishedAt": "2026-09-30T16:58:25.963Z"
+    },
+    {
+      "deliveryId": "dlv_000015",
+      "messageId": "msg_000015",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-ENERGY-001",
+        "name": "Medidor de energía torre única",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BAQ-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 39.4,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T16:59:23.156Z",
+      "publishedAt": "2026-09-30T16:59:25.123Z"
+    },
+    {
+      "deliveryId": "dlv_000016",
+      "messageId": "msg_000016",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BOG-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 18.5,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T17:00:22.755Z",
+      "publishedAt": "2026-09-30T17:00:26.624Z"
+    },
+    {
+      "deliveryId": "dlv_000017",
+      "messageId": "msg_000017",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-WATER-001",
+        "name": "Medidor de agua torre única",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BAQ-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 593,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T17:01:21.674Z",
+      "publishedAt": "2026-09-30T17:01:25.454Z"
+    },
+    {
+      "deliveryId": "dlv_000018",
+      "messageId": "msg_000018",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BAQ-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 1.86,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T17:02:26.095Z",
+      "publishedAt": "2026-09-30T17:02:27.234Z"
+    },
+    {
+      "deliveryId": "dlv_000019",
+      "messageId": "msg_000019",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-ENERGY-001",
+        "name": "Medidor de energía torre A",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BOG-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 5,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T17:03:23.964Z",
+      "publishedAt": "2026-09-30T17:03:26.829Z"
+    },
+    {
+      "deliveryId": "dlv_000020",
+      "messageId": "msg_000020",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-WATER-001",
+        "name": "Medidor de agua torre A",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BOG-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 6,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T17:04:25.954Z",
+      "publishedAt": "2026-09-30T17:04:28.818Z"
+    },
+    {
+      "deliveryId": "dlv_000021",
+      "messageId": "msg_000021",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-ENERGY-001",
+        "name": "Medidor de energía torre A",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BOG-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 31.7,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T17:05:24.556Z",
+      "publishedAt": "2026-09-30T17:05:25.669Z"
+    },
+    {
+      "deliveryId": "dlv_000022",
+      "messageId": "msg_000022",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-WATER-001",
+        "name": "Medidor de agua torre A",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BOG-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 301,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T17:06:27.529Z",
+      "publishedAt": "2026-09-30T17:06:28.557Z"
+    },
+    {
+      "deliveryId": "dlv_000023",
+      "messageId": "msg_000023",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-ENERGY-001",
+        "name": "Medidor de energía torre A",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BOG-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 27.6,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T17:07:24.189Z",
+      "publishedAt": "2026-09-30T17:07:27.150Z"
+    },
+    {
+      "deliveryId": "dlv_000024",
+      "messageId": "msg_000024",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BOG-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 26.1,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T16:26:27.602Z",
+      "publishedAt": "2026-09-30T17:08:27.602Z"
+    },
+    {
+      "deliveryId": "dlv_000025",
+      "messageId": "msg_000025",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BOG-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 29.9,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T17:09:25.204Z",
+      "publishedAt": "2026-09-30T17:09:26.673Z"
+    },
+    {
+      "deliveryId": "dlv_000026",
+      "messageId": "msg_000026",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BAQ-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 19.9,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T17:10:24.372Z",
+      "publishedAt": "2026-09-30T17:10:26.542Z"
+    },
+    {
+      "deliveryId": "dlv_000027",
+      "messageId": "msg_000027",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-ENERGY-001",
+        "name": "Medidor de energía torre A",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BOG-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 0.6,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T17:11:25.272Z",
+      "publishedAt": "2026-09-30T17:11:25.913Z"
+    },
+    {
+      "deliveryId": "dlv_000028",
+      "messageId": "msg_000028",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-ENERGY-001",
+        "name": "Medidor de energía torre A",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BOG-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 26.1,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T17:12:25.121Z",
+      "publishedAt": "2026-09-30T17:12:27.316Z"
+    },
+    {
+      "deliveryId": "dlv_000029",
+      "messageId": "msg_000029",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BAQ-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 2.92,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T17:13:25.418Z",
+      "publishedAt": "2026-09-30T17:13:26.781Z"
+    },
+    {
+      "deliveryId": "dlv_000030",
+      "messageId": "msg_000030",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BAQ-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 4.71,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T17:14:21.761Z",
+      "publishedAt": "2026-09-30T17:14:24.312Z"
+    },
+    {
+      "deliveryId": "dlv_000031",
+      "messageId": "msg_000031",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BAQ-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 24.6,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T17:15:26.025Z",
+      "publishedAt": "2026-09-30T17:15:27.810Z"
+    },
+    {
+      "deliveryId": "dlv_000032",
+      "messageId": "msg_000032",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BOG-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 21.4,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T17:00:27.980Z",
+      "publishedAt": "2026-09-30T17:16:27.980Z"
+    },
+    {
+      "deliveryId": "dlv_000033",
+      "messageId": "msg_000033",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-ENERGY-001",
+        "name": "Medidor de energía torre A",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BOG-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 34.4,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T17:17:26.120Z",
+      "publishedAt": "2026-09-30T17:17:27.870Z"
+    },
+    {
+      "deliveryId": "dlv_000034",
+      "messageId": "msg_000034",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-WATER-001",
+        "name": "Medidor de agua torre única",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BAQ-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 286,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T17:18:24.592Z",
+      "publishedAt": "2026-09-30T17:18:27.511Z"
+    },
+    {
+      "deliveryId": "dlv_000035",
+      "messageId": "msg_000035",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BOG-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 27.3,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T17:19:21.253Z",
+      "publishedAt": "2026-09-30T17:19:24.746Z"
+    },
+    {
+      "deliveryId": "dlv_000036",
+      "messageId": "msg_000036",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BOG-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 2.87,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T17:20:22.921Z",
+      "publishedAt": "2026-09-30T17:20:26.628Z"
+    },
+    {
+      "deliveryId": "dlv_000037",
+      "messageId": "msg_000037",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BAQ-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 30.8,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T17:21:25.294Z",
+      "publishedAt": "2026-09-30T17:21:28.396Z"
+    },
+    {
+      "deliveryId": "dlv_000038",
+      "messageId": "msg_000038",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-ENERGY-001",
+        "name": "Medidor de energía torre única",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BAQ-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 207.8,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T17:22:25.766Z",
+      "publishedAt": "2026-09-30T17:22:28.825Z"
+    },
+    {
+      "deliveryId": "dlv_000039",
+      "messageId": "msg_000039",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BAQ-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 31.1,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T17:23:26.592Z",
+      "publishedAt": "2026-09-30T17:23:27.510Z"
+    },
+    {
+      "deliveryId": "dlv_000040",
+      "messageId": "msg_000040",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BAQ-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 2.81,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T17:24:24.241Z",
+      "publishedAt": "2026-09-30T17:24:24.985Z"
+    },
+    {
+      "deliveryId": "dlv_000041",
+      "messageId": "msg_000041",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BOG-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 19,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T17:25:23.511Z",
+      "publishedAt": "2026-09-30T17:25:25.840Z"
+    },
+    {
+      "deliveryId": "dlv_000042",
+      "messageId": "msg_000042",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-WATER-001",
+        "name": "Medidor de agua torre única",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BAQ-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 147,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T17:26:25.309Z",
+      "publishedAt": "2026-09-30T17:26:28.256Z"
+    },
+    {
+      "deliveryId": "dlv_000043",
+      "messageId": "msg_000043",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BOG-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 3.03,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T17:27:26.793Z",
+      "publishedAt": "2026-09-30T17:27:28.459Z"
+    },
+    {
+      "deliveryId": "dlv_000044",
+      "messageId": "msg_000044",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-WATER-001",
+        "name": "Medidor de agua torre única",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BAQ-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 303,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T17:28:22.962Z",
+      "publishedAt": "2026-09-30T17:28:26.015Z"
+    },
+    {
+      "deliveryId": "dlv_000045",
+      "messageId": "msg_000045",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-ENERGY-001",
+        "name": "Medidor de energía torre A",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BOG-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 34,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T17:29:21.791Z",
+      "publishedAt": "2026-09-30T17:29:24.426Z"
+    },
+    {
+      "deliveryId": "dlv_000046",
+      "messageId": "msg_000046",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-WATER-001",
+        "name": "Medidor de agua torre A",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BOG-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 219,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T17:30:23.237Z",
+      "publishedAt": "2026-09-30T17:30:24.559Z"
+    },
+    {
+      "deliveryId": "dlv_000047",
+      "messageId": "msg_000047",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-ENERGY-001",
+        "name": "Medidor de energía torre única",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BAQ-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 55,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T17:31:21.862Z",
+      "publishedAt": "2026-09-30T17:31:24.325Z"
+    },
+    {
+      "deliveryId": "dlv_000048",
+      "messageId": "msg_000048",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-WATER-001",
+        "name": "Medidor de agua torre A",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BOG-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 393,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T17:32:26.253Z",
+      "publishedAt": "2026-09-30T17:32:27.424Z"
+    },
+    {
+      "deliveryId": "dlv_000049",
+      "messageId": "msg_000049",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BOG-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 3.44,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T17:33:26.097Z",
+      "publishedAt": "2026-09-30T17:33:28.487Z"
+    },
+    {
+      "deliveryId": "dlv_000050",
+      "messageId": "msg_000050",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BAQ-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 3.21,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T17:34:26.347Z",
+      "publishedAt": "2026-09-30T17:34:28.305Z"
+    },
+    {
+      "deliveryId": "dlv_000051",
+      "messageId": "msg_000051",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-UNKNOWN-0001",
+        "name": "Activo no catalogado",
+        "type": "UNKNOWN"
+      },
+      "sensorId": "SNS-UNKNOWN-0001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 3.85,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T17:35:24.638Z",
+      "publishedAt": "2026-09-30T17:35:26.419Z"
+    },
+    {
+      "deliveryId": "dlv_000052",
+      "messageId": "msg_000052",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-WATER-001",
+        "name": "Medidor de agua torre única",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BAQ-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 1122,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T17:36:21.150Z",
+      "publishedAt": "2026-09-30T17:36:24.990Z"
+    },
+    {
+      "deliveryId": "dlv_000053",
+      "messageId": "msg_000053",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BOG-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 3.04,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T17:37:25.133Z",
+      "publishedAt": "2026-09-30T17:37:26.396Z"
+    },
+    {
+      "deliveryId": "dlv_000054",
+      "messageId": "msg_000054",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-UNKNOWN-0001",
+        "name": "Activo no catalogado",
+        "type": "UNKNOWN"
+      },
+      "sensorId": "SNS-UNKNOWN-0001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 3.86,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T17:38:22.251Z",
+      "publishedAt": "2026-09-30T17:38:25.238Z"
+    },
+    {
+      "deliveryId": "dlv_000055",
+      "messageId": "msg_000055",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-ENERGY-001",
+        "name": "Medidor de energía torre A",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BOG-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 6.1,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T17:39:21.606Z",
+      "publishedAt": "2026-09-30T17:39:24.386Z"
+    },
+    {
+      "deliveryId": "dlv_000056",
+      "messageId": "msg_000056",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-WATER-001",
+        "name": "Medidor de agua torre única",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BAQ-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 626,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T17:40:25.172Z",
+      "publishedAt": "2026-09-30T17:40:27.257Z"
+    },
+    {
+      "deliveryId": "dlv_000057",
+      "messageId": "msg_000057",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-ENERGY-001",
+        "name": "Medidor de energía torre única",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BAQ-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 1.6,
+        "unit": "WATT"
+      },
+      "occurredAt": "2026-09-30T17:41:24.657Z",
+      "publishedAt": "2026-09-30T17:41:25.306Z"
+    },
+    {
+      "deliveryId": "dlv_000058",
+      "messageId": "msg_000058",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-WATER-001",
+        "name": "Medidor de agua torre única",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BAQ-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 8846,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T17:42:26.552Z",
+      "publishedAt": "2026-09-30T17:42:28.447Z"
+    },
+    {
+      "deliveryId": "dlv_000059",
+      "messageId": "msg_000059",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-WATER-001",
+        "name": "Medidor de agua torre A",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BOG-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 340,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T17:43:28.328Z",
+      "publishedAt": "2026-09-30T17:43:29.018Z"
+    },
+    {
+      "deliveryId": "dlv_000060",
+      "messageId": "msg_000060",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-ENERGY-001",
+        "name": "Medidor de energía torre única",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BAQ-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 41.3,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T17:44:20.427Z",
+      "publishedAt": "2026-09-30T17:44:24.095Z"
+    },
+    {
+      "deliveryId": "dlv_000061",
+      "messageId": "msg_000061",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BOG-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 2.93,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T17:45:23.889Z",
+      "publishedAt": "2026-09-30T17:45:27.265Z"
+    },
+    {
+      "deliveryId": "dlv_000062",
+      "messageId": "msg_000062",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-ENERGY-001",
+        "name": "Medidor de energía torre A",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BOG-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 5.2,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T17:46:25.138Z",
+      "publishedAt": "2026-09-30T17:46:25.760Z"
+    },
+    {
+      "deliveryId": "dlv_000063",
+      "messageId": "msg_000063",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BOG-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 21.7,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T17:47:22.758Z",
+      "publishedAt": "2026-09-30T17:47:24.819Z"
+    },
+    {
+      "deliveryId": "dlv_000064",
+      "messageId": "msg_000064",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BOG-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 2.53,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T17:48:26.690Z",
+      "publishedAt": "2026-09-30T17:48:27.626Z"
+    },
+    {
+      "deliveryId": "dlv_000065",
+      "messageId": "msg_000065",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BOG-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 2.76,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T17:49:23.348Z",
+      "publishedAt": "2026-09-30T17:49:24.142Z"
+    },
+    {
+      "deliveryId": "dlv_000066",
+      "messageId": "msg_000066",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-ENERGY-001",
+        "name": "Medidor de energía torre A",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BOG-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 26.4,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T17:50:25.976Z",
+      "publishedAt": "2026-09-30T17:50:27.781Z"
+    },
+    {
+      "deliveryId": "dlv_000067",
+      "messageId": "msg_000067",
+      "messageType": "CONNECTIVITY",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-CAM-001",
+        "name": "Cámara azotea",
+        "type": "SECURITY_CAMERA"
+      },
+      "sensorId": "SNS-BAQ-CAM-001",
+      "communication": {
+        "status": "HEALTHY",
+        "gapSeconds": 65,
+        "lastSeenAt": "2026-09-30T17:50:22.205Z",
+        "episodeId": "EPI-BAQ-hb"
+      },
+      "occurredAt": "2026-09-30T17:51:26.717Z",
+      "publishedAt": "2026-09-30T17:51:27.205Z"
+    },
+    {
+      "deliveryId": "dlv_000068",
+      "messageId": "msg_000068",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-WATER-001",
+        "name": "Medidor de agua torre única",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BAQ-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 121,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T17:52:21.493Z",
+      "publishedAt": "2026-09-30T17:52:25.289Z"
+    },
+    {
+      "deliveryId": "dlv_000069",
+      "messageId": "msg_000069",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BAQ-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 2.62,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T17:53:23.822Z",
+      "publishedAt": "2026-09-30T17:53:26.024Z"
+    },
+    {
+      "deliveryId": "dlv_000070",
+      "messageId": "msg_000070",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BOG-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 18.5,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T17:54:23.581Z",
+      "publishedAt": "2026-09-30T17:54:25.621Z"
+    },
+    {
+      "deliveryId": "dlv_000071",
+      "messageId": "msg_000071",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BAQ-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 3.46,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T17:55:21.690Z",
+      "publishedAt": "2026-09-30T17:55:25.418Z"
+    },
+    {
+      "deliveryId": "dlv_000072",
+      "messageId": "msg_000072",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BOG-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 3.19,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T17:56:25.315Z",
+      "publishedAt": "2026-09-30T17:56:27.299Z"
+    },
+    {
+      "deliveryId": "dlv_000073",
+      "messageId": "msg_000073",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-UNKNOWN-0001",
+        "name": "Activo no catalogado",
+        "type": "UNKNOWN"
+      },
+      "sensorId": "SNS-UNKNOWN-0001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 3.59,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T17:42:26.401Z",
+      "publishedAt": "2026-09-30T17:57:26.401Z"
+    },
+    {
+      "deliveryId": "dlv_000074",
+      "messageId": "msg_000074",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-WATER-001",
+        "name": "Medidor de agua torre A",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BOG-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 253,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T17:58:26.458Z",
+      "publishedAt": "2026-09-30T17:58:29.016Z"
+    },
+    {
+      "deliveryId": "dlv_000075",
+      "messageId": "msg_000075",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-ENERGY-001",
+        "name": "Medidor de energía torre A",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BOG-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 29.3,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T17:59:26.020Z",
+      "publishedAt": "2026-09-30T17:59:26.466Z"
+    },
+    {
+      "deliveryId": "dlv_000076",
+      "messageId": "msg_000076",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BOG-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 24.4,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T18:00:27.260Z",
+      "publishedAt": "2026-09-30T18:00:27.590Z"
+    },
+    {
+      "deliveryId": "dlv_000077",
+      "messageId": "msg_000072",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BOG-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 3.19,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T17:56:25.315Z",
+      "publishedAt": "2026-09-30T18:01:24.455Z"
+    },
+    {
+      "deliveryId": "dlv_000078",
+      "messageId": "msg_000078",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-WATER-001",
+        "name": "Medidor de agua torre única",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BAQ-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 569,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T18:02:23.141Z",
+      "publishedAt": "2026-09-30T18:02:25.327Z"
+    },
+    {
+      "deliveryId": "dlv_000079",
+      "messageId": "msg_000079",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-ENERGY-001",
+        "name": "Medidor de energía torre A",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BOG-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 35.3,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T18:03:25.987Z",
+      "publishedAt": "2026-09-30T18:03:28.169Z"
+    },
+    {
+      "deliveryId": "dlv_000080",
+      "messageId": "msg_000080",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BOG-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 2.72,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T18:04:22.949Z",
+      "publishedAt": "2026-09-30T18:04:26.891Z"
+    },
+    {
+      "deliveryId": "dlv_000081",
+      "messageId": "msg_000081",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-WATER-001",
+        "name": "Medidor de agua torre A",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BOG-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 248,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T18:05:26.979Z",
+      "publishedAt": "2026-09-30T18:05:28.168Z"
+    },
+    {
+      "deliveryId": "dlv_000082",
+      "messageId": "msg_000082",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-WATER-001",
+        "name": "Medidor de agua torre única",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BAQ-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 16,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T18:06:27.519Z",
+      "publishedAt": "2026-09-30T18:06:28.062Z"
+    },
+    {
+      "deliveryId": "dlv_000083",
+      "messageId": "msg_000083",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BAQ-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 3.68,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T18:07:23.736Z",
+      "publishedAt": "2026-09-30T18:07:24.856Z"
+    },
+    {
+      "deliveryId": "dlv_000084",
+      "messageId": "msg_000084",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BOG-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 22.1,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T18:08:21.766Z",
+      "publishedAt": "2026-09-30T18:08:24.889Z"
+    },
+    {
+      "deliveryId": "dlv_000085",
+      "messageId": "msg_000085",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-WATER-001",
+        "name": "Medidor de agua torre A",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BOG-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 296,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T18:09:28.337Z",
+      "publishedAt": "2026-09-30T18:09:28.908Z"
+    },
+    {
+      "deliveryId": "dlv_000086",
+      "messageId": "msg_000086",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BAQ-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 3.07,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T18:10:22.549Z",
+      "publishedAt": "2026-09-30T18:10:24.184Z"
+    },
+    {
+      "deliveryId": "dlv_000087",
+      "messageId": "msg_000087",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BOG-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 23.7,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T18:11:23.770Z",
+      "publishedAt": "2026-09-30T18:11:24.266Z"
+    },
+    {
+      "deliveryId": "dlv_000088",
+      "messageId": "msg_000088",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BAQ-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 34.3,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T18:12:24.862Z",
+      "publishedAt": "2026-09-30T18:12:27.968Z"
+    },
+    {
+      "deliveryId": "dlv_000089",
+      "messageId": "msg_000089",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-ENERGY-001",
+        "name": "Medidor de energía torre única",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BAQ-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 23.2,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T18:13:25.846Z",
+      "publishedAt": "2026-09-30T18:13:28.262Z"
+    },
+    {
+      "deliveryId": "dlv_000090",
+      "messageId": "msg_000090",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-ENERGY-001",
+        "name": "Medidor de energía torre única",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BAQ-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 31.2,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T18:14:26.519Z",
+      "publishedAt": "2026-09-30T18:14:28.687Z"
+    },
+    {
+      "deliveryId": "dlv_000091",
+      "messageId": "msg_000091",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BAQ-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 0.99,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T18:15:23.395Z",
+      "publishedAt": "2026-09-30T18:15:26.160Z"
+    },
+    {
+      "deliveryId": "dlv_000092",
+      "messageId": "msg_000092",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BOG-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 4,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T18:16:26.466Z",
+      "publishedAt": "2026-09-30T18:16:27.719Z"
+    },
+    {
+      "deliveryId": "dlv_000093",
+      "messageId": "msg_000093",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-ENERGY-001",
+        "name": "Medidor de energía torre A",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BOG-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 23.3,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T18:17:24.827Z",
+      "publishedAt": "2026-09-30T18:17:27.688Z"
+    },
+    {
+      "deliveryId": "dlv_000094",
+      "messageId": "msg_000094",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BAQ-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 19.5,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T18:18:21.953Z",
+      "publishedAt": "2026-09-30T18:18:24.451Z"
+    },
+    {
+      "deliveryId": "dlv_000095",
+      "messageId": "msg_000094",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BAQ-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 19.5,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T18:18:21.953Z",
+      "publishedAt": "2026-09-30T18:19:24.818Z"
+    },
+    {
+      "deliveryId": "dlv_000096",
+      "messageId": "msg_000096",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BAQ-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": null,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T18:20:23.189Z",
+      "publishedAt": "2026-09-30T18:20:25.042Z"
+    },
+    {
+      "deliveryId": "dlv_000097",
+      "messageId": "msg_000097",
+      "messageType": "CONNECTIVITY",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-CAM-001",
+        "name": "Cámara azotea",
+        "type": "SECURITY_CAMERA"
+      },
+      "sensorId": "SNS-BAQ-CAM-001",
+      "communication": {
+        "status": "LOST",
+        "gapSeconds": 726,
+        "lastSeenAt": "2026-09-30T18:09:19.412Z",
+        "episodeId": "EPI-BAQ-out-000097"
+      },
+      "occurredAt": "2026-09-30T18:21:24.501Z",
+      "publishedAt": "2026-09-30T18:21:25.412Z"
+    },
+    {
+      "deliveryId": "dlv_000098",
+      "messageId": "msg_000098",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-ENERGY-001",
+        "name": "Medidor de energía torre A",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BOG-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 1.6,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T18:22:25.008Z",
+      "publishedAt": "2026-09-30T18:22:28.780Z"
+    },
+    {
+      "deliveryId": "dlv_000099",
+      "messageId": "msg_000099",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BAQ-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 3.4,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T18:23:25.411Z",
+      "publishedAt": "2026-09-30T18:23:26.284Z"
+    },
+    {
+      "deliveryId": "dlv_000100",
+      "messageId": "msg_000100",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-ENERGY-001",
+        "name": "Medidor de energía torre única",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BAQ-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 36.3,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T18:24:24.178Z",
+      "publishedAt": "2026-09-30T18:24:24.602Z"
+    },
+    {
+      "deliveryId": "dlv_000101",
+      "messageId": "msg_000101",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BOG-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 29.2,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T18:25:23.716Z",
+      "publishedAt": "2026-09-30T18:25:24.708Z"
+    },
+    {
+      "deliveryId": "dlv_000102",
+      "messageId": "msg_000102",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BOG-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 27.2,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T18:26:27.006Z",
+      "publishedAt": "2026-09-30T18:26:28.920Z"
+    },
+    {
+      "deliveryId": "dlv_000103",
+      "messageId": "msg_000103",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BAQ-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 2,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T18:27:24.334Z",
+      "publishedAt": "2026-09-30T18:27:26.974Z"
+    },
+    {
+      "deliveryId": "dlv_000104",
+      "messageId": "msg_000104",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-ENERGY-001",
+        "name": "Medidor de energía torre única",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BAQ-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 11.2,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T18:28:25.236Z",
+      "publishedAt": "2026-09-30T18:28:26.566Z"
+    },
+    {
+      "deliveryId": "dlv_000105",
+      "messageId": "msg_000105",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-ENERGY-001",
+        "name": "Medidor de energía torre A",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BOG-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 4.7,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T18:29:21.926Z",
+      "publishedAt": "2026-09-30T18:29:25.149Z"
+    },
+    {
+      "deliveryId": "dlv_000106",
+      "messageId": "msg_000106",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-WATER-001",
+        "name": "Medidor de agua torre única",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BAQ-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 1741,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T18:30:22.017Z",
+      "publishedAt": "2026-09-30T18:30:24.735Z"
+    },
+    {
+      "deliveryId": "dlv_000107",
+      "messageId": "msg_000107",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-ENERGY-001",
+        "name": "Medidor de energía torre única",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BAQ-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 11.5,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T18:31:24.046Z",
+      "publishedAt": "2026-09-30T18:31:25.150Z"
+    },
+    {
+      "deliveryId": "dlv_000108",
+      "messageId": "msg_000108",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BAQ-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 16.6,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T18:32:23.941Z",
+      "publishedAt": "2026-09-30T18:32:27.667Z"
+    },
+    {
+      "deliveryId": "dlv_000109",
+      "messageId": "msg_000109",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BAQ-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 2.38,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T18:33:21.585Z",
+      "publishedAt": "2026-09-30T18:33:25.268Z"
+    },
+    {
+      "deliveryId": "dlv_000110",
+      "messageId": "msg_000110",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BAQ-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 2.03,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T18:34:26.673Z",
+      "publishedAt": "2026-09-30T18:34:27.155Z"
+    },
+    {
+      "deliveryId": "dlv_000111",
+      "messageId": "msg_000111",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BAQ-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 6.77,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T18:35:23.724Z",
+      "publishedAt": "2026-09-30T18:35:26.848Z"
+    },
+    {
+      "deliveryId": "dlv_000112",
+      "messageId": "msg_000112",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-WATER-001",
+        "name": "Medidor de agua torre única",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BAQ-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 668,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T18:36:25.444Z",
+      "publishedAt": "2026-09-30T18:36:28.483Z"
+    },
+    {
+      "deliveryId": "dlv_000113",
+      "messageId": "msg_000110",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BAQ-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 2.03,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T18:34:26.673Z",
+      "publishedAt": "2026-09-30T18:37:28.585Z"
+    },
+    {
+      "deliveryId": "dlv_000114",
+      "messageId": "msg_000114",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-ENERGY-001",
+        "name": "Medidor de energía torre única",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BAQ-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 56.6,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T18:38:23.076Z",
+      "publishedAt": "2026-09-30T18:38:26.420Z"
+    },
+    {
+      "deliveryId": "dlv_000115",
+      "messageId": "msg_000115",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BOG-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 2.58,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T18:39:23.385Z",
+      "publishedAt": "2026-09-30T18:39:27.370Z"
+    },
+    {
+      "deliveryId": "dlv_000116",
+      "messageId": "msg_000116",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-WATER-001",
+        "name": "Medidor de agua torre A",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BOG-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 105,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T18:40:21.956Z",
+      "publishedAt": "2026-09-30T18:40:25.144Z"
+    },
+    {
+      "deliveryId": "dlv_000117",
+      "messageId": "msg_000117",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BOG-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 3.15,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T18:41:23.552Z",
+      "publishedAt": "2026-09-30T18:41:26.598Z"
+    },
+    {
+      "deliveryId": "dlv_000118",
+      "messageId": "msg_000118",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-ENERGY-001",
+        "name": "Medidor de energía torre única",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BAQ-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 58.6,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T18:42:21.716Z",
+      "publishedAt": "2026-09-30T18:42:24.254Z"
+    },
+    {
+      "deliveryId": "dlv_000119",
+      "messageId": "msg_000119",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BAQ-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 3.15,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T18:43:24.454Z",
+      "publishedAt": "2026-09-30T18:43:28.363Z"
+    },
+    {
+      "deliveryId": "dlv_000120",
+      "messageId": "msg_000120",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-WATER-001",
+        "name": "Medidor de agua torre A",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BOG-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 298,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T18:44:24.921Z",
+      "publishedAt": "2026-09-30T18:44:26.123Z"
+    },
+    {
+      "deliveryId": "dlv_000121",
+      "messageId": "msg_000121",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BOG-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 3.8,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T18:45:27.800Z",
+      "publishedAt": "2026-09-30T18:45:28.398Z"
+    },
+    {
+      "deliveryId": "dlv_000122",
+      "messageId": "msg_000122",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BAQ-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 15.8,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T18:46:22.338Z",
+      "publishedAt": "2026-09-30T18:46:24.342Z"
+    },
+    {
+      "deliveryId": "dlv_000123",
+      "messageId": "msg_000123",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-WATER-001",
+        "name": "Medidor de agua torre A",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BOG-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 369,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T18:47:26.199Z",
+      "publishedAt": "2026-09-30T18:47:28.872Z"
+    },
+    {
+      "deliveryId": "dlv_000124",
+      "messageId": "msg_000124",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BOG-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 26.4,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T18:48:24.428Z",
+      "publishedAt": "2026-09-30T18:48:24.971Z"
+    },
+    {
+      "deliveryId": "dlv_000125",
+      "messageId": "msg_000125",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BAQ-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 28.6,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T18:49:26.537Z",
+      "publishedAt": "2026-09-30T18:49:28.448Z"
+    },
+    {
+      "deliveryId": "dlv_000126",
+      "messageId": "msg_000126",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BOG-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 3.76,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T18:50:23.942Z",
+      "publishedAt": "2026-09-30T18:50:26.280Z"
+    },
+    {
+      "deliveryId": "dlv_000127",
+      "messageId": "msg_000127",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BAQ-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 22.5,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T18:51:25.323Z",
+      "publishedAt": "2026-09-30T18:51:25.745Z"
+    },
+    {
+      "deliveryId": "dlv_000128",
+      "messageId": "msg_000128",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BOG-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 3.69,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T18:23:28.663Z",
+      "publishedAt": "2026-09-30T18:52:28.663Z"
+    },
+    {
+      "deliveryId": "dlv_000129",
+      "messageId": "msg_000129",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-ENERGY-001",
+        "name": "Medidor de energía torre única",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BAQ-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 12.5,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T18:53:23.109Z",
+      "publishedAt": "2026-09-30T18:53:26.930Z"
+    },
+    {
+      "deliveryId": "dlv_000130",
+      "messageId": "msg_000130",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BOG-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 3.85,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T18:54:21.784Z",
+      "publishedAt": "2026-09-30T18:54:24.372Z"
+    },
+    {
+      "deliveryId": "dlv_000131",
+      "messageId": "msg_000131",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BOG-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 25.8,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T18:55:23.926Z",
+      "publishedAt": "2026-09-30T18:55:25.115Z"
+    },
+    {
+      "deliveryId": "dlv_000132",
+      "messageId": "msg_000132",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-WATER-001",
+        "name": "Medidor de agua torre única",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BAQ-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 225,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T18:56:25.117Z",
+      "publishedAt": "2026-09-30T18:56:28.273Z"
+    },
+    {
+      "deliveryId": "dlv_000133",
+      "messageId": "msg_000133",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BAQ-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 3.62,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T18:57:25.683Z",
+      "publishedAt": "2026-09-30T18:57:26.224Z"
+    },
+    {
+      "deliveryId": "dlv_000134",
+      "messageId": "msg_000134",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-ENERGY-001",
+        "name": "Medidor de energía torre A",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BOG-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 22.7,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T18:58:22.553Z",
+      "publishedAt": "2026-09-30T18:58:26.131Z"
+    },
+    {
+      "deliveryId": "dlv_000135",
+      "messageId": "msg_000132",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-WATER-001",
+        "name": "Medidor de agua torre única",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BAQ-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 225,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T18:56:25.117Z",
+      "publishedAt": "2026-09-30T18:59:25.084Z"
+    },
+    {
+      "deliveryId": "dlv_000136",
+      "messageId": "msg_000136",
+      "messageType": "CONNECTIVITY",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-CAM-001",
+        "name": "Cámara azotea",
+        "type": "SECURITY_CAMERA"
+      },
+      "sensorId": "SNS-BAQ-CAM-001",
+      "communication": {
+        "status": "HEALTHY",
+        "gapSeconds": 61,
+        "lastSeenAt": "2026-09-30T18:59:23.112Z",
+        "episodeId": "EPI-BAQ-hb"
+      },
+      "occurredAt": "2026-09-30T19:00:22.059Z",
+      "publishedAt": "2026-09-30T19:00:24.112Z"
+    },
+    {
+      "deliveryId": "dlv_000137",
+      "messageId": "msg_000137",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BAQ-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 15.8,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T19:01:26.063Z",
+      "publishedAt": "2026-09-30T19:01:28.118Z"
+    },
+    {
+      "deliveryId": "dlv_000138",
+      "messageId": "msg_000138",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-WATER-001",
+        "name": "Medidor de agua torre única",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BAQ-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 1382,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T19:02:25.430Z",
+      "publishedAt": "2026-09-30T19:02:27.905Z"
+    },
+    {
+      "deliveryId": "dlv_000139",
+      "messageId": "msg_000139",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-ENERGY-001",
+        "name": "Medidor de energía torre A",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BOG-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 30.4,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T17:49:28.057Z",
+      "publishedAt": "2026-09-30T19:03:28.057Z"
+    },
+    {
+      "deliveryId": "dlv_000140",
+      "messageId": "msg_000140",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-ENERGY-001",
+        "name": "Medidor de energía torre A",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BOG-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 11.7,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T19:04:24.455Z",
+      "publishedAt": "2026-09-30T19:04:25.090Z"
+    },
+    {
+      "deliveryId": "dlv_000141",
+      "messageId": "msg_000141",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-ENERGY-001",
+        "name": "Medidor de energía torre A",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BOG-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 16.7,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T19:05:22.066Z",
+      "publishedAt": "2026-09-30T19:05:25.710Z"
+    },
+    {
+      "deliveryId": "dlv_000142",
+      "messageId": "msg_000142",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-ENERGY-001",
+        "name": "Medidor de energía torre única",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BAQ-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 55.8,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T19:06:21.383Z",
+      "publishedAt": "2026-09-30T19:06:24.906Z"
+    },
+    {
+      "deliveryId": "dlv_000143",
+      "messageId": "msg_000143",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BAQ-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 0.5,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T19:07:24.621Z",
+      "publishedAt": "2026-09-30T19:07:26.348Z"
+    },
+    {
+      "deliveryId": "dlv_000144",
+      "messageId": "msg_000144",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BAQ-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 6.29,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T19:08:25.302Z",
+      "publishedAt": "2026-09-30T19:08:27.061Z"
+    },
+    {
+      "deliveryId": "dlv_000145",
+      "messageId": "msg_000145",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BAQ-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 4.97,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T19:09:25.193Z",
+      "publishedAt": "2026-09-30T19:09:25.721Z"
+    },
+    {
+      "deliveryId": "dlv_000146",
+      "messageId": "msg_000146",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BOG-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 19.3,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T19:10:20.760Z",
+      "publishedAt": "2026-09-30T19:10:24.537Z"
+    },
+    {
+      "deliveryId": "dlv_000147",
+      "messageId": "msg_000147",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BAQ-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 34.1,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T19:11:25.930Z",
+      "publishedAt": "2026-09-30T19:11:27.691Z"
+    },
+    {
+      "deliveryId": "dlv_000148",
+      "messageId": "msg_000148",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-ENERGY-001",
+        "name": "Medidor de energía torre A",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BOG-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 39.5,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T19:12:25.795Z",
+      "publishedAt": "2026-09-30T19:12:28.845Z"
+    },
+    {
+      "deliveryId": "dlv_000149",
+      "messageId": "msg_000149",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-WATER-001",
+        "name": "Medidor de agua torre única",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BAQ-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 520,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T19:13:22.636Z",
+      "publishedAt": "2026-09-30T19:13:26.258Z"
+    },
+    {
+      "deliveryId": "dlv_000150",
+      "messageId": "msg_000150",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BOG-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 3.31,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T19:14:21.776Z",
+      "publishedAt": "2026-09-30T19:14:25.494Z"
+    },
+    {
+      "deliveryId": "dlv_000151",
+      "messageId": "msg_000151",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-WATER-001",
+        "name": "Medidor de agua torre A",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BOG-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 147,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T19:15:21.548Z",
+      "publishedAt": "2026-09-30T19:15:24.280Z"
+    },
+    {
+      "deliveryId": "dlv_000152",
+      "messageId": "msg_000152",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BAQ-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 5.19,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T19:16:23.745Z",
+      "publishedAt": "2026-09-30T19:16:27.711Z"
+    },
+    {
+      "deliveryId": "dlv_000153",
+      "messageId": "msg_000153",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-WATER-001",
+        "name": "Medidor de agua torre única",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BAQ-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 303,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T19:17:25.007Z",
+      "publishedAt": "2026-09-30T19:17:25.977Z"
+    },
+    {
+      "deliveryId": "dlv_000154",
+      "messageId": "msg_000154",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BOG-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 3.18,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T19:18:25.353Z",
+      "publishedAt": "2026-09-30T19:18:26.425Z"
+    },
+    {
+      "deliveryId": "dlv_000155",
+      "messageId": "msg_000155",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-WATER-001",
+        "name": "Medidor de agua torre única",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BAQ-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 480,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T19:19:23.183Z",
+      "publishedAt": "2026-09-30T19:19:24.045Z"
+    },
+    {
+      "deliveryId": "dlv_000156",
+      "messageId": "msg_000153",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-WATER-001",
+        "name": "Medidor de agua torre única",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BAQ-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 303,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T19:17:25.007Z",
+      "publishedAt": "2026-09-30T19:20:25.707Z"
+    },
+    {
+      "deliveryId": "dlv_000157",
+      "messageId": "msg_000157",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-WATER-001",
+        "name": "Medidor de agua torre única",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BAQ-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 181,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T19:21:25.719Z",
+      "publishedAt": "2026-09-30T19:21:27.267Z"
+    },
+    {
+      "deliveryId": "dlv_000158",
+      "messageId": "msg_000158",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BAQ-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 26.4,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T18:30:27.834Z",
+      "publishedAt": "2026-09-30T19:22:27.834Z"
+    },
+    {
+      "deliveryId": "dlv_000159",
+      "messageId": "msg_000159",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BOG-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 3.99,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T19:23:26.188Z",
+      "publishedAt": "2026-09-30T19:23:27.873Z"
+    },
+    {
+      "deliveryId": "dlv_000160",
+      "messageId": "msg_000160",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-ENERGY-001",
+        "name": "Medidor de energía torre A",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BOG-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 22.4,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T19:24:24.120Z",
+      "publishedAt": "2026-09-30T19:24:24.775Z"
+    },
+    {
+      "deliveryId": "dlv_000161",
+      "messageId": "msg_000161",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-ENERGY-001",
+        "name": "Medidor de energía torre única",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BAQ-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 26.3,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T19:25:24.389Z",
+      "publishedAt": "2026-09-30T19:25:26.885Z"
+    },
+    {
+      "deliveryId": "dlv_000162",
+      "messageId": "msg_000162",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-WATER-001",
+        "name": "Medidor de agua torre única",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BAQ-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 132,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T19:26:23.860Z",
+      "publishedAt": "2026-09-30T19:26:27.263Z"
+    },
+    {
+      "deliveryId": "dlv_000163",
+      "messageId": "msg_000163",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-ENERGY-001",
+        "name": "Medidor de energía torre A",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BOG-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 15.4,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T19:27:20.956Z",
+      "publishedAt": "2026-09-30T19:27:24.659Z"
+    },
+    {
+      "deliveryId": "dlv_000164",
+      "messageId": "msg_000164",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-ENERGY-001",
+        "name": "Medidor de energía torre A",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BOG-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 21.2,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T19:28:24.029Z",
+      "publishedAt": "2026-09-30T19:28:25.445Z"
+    },
+    {
+      "deliveryId": "dlv_000165",
+      "messageId": "msg_000165",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BOG-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 3.19,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T19:29:23.239Z",
+      "publishedAt": "2026-09-30T19:29:27.028Z"
+    },
+    {
+      "deliveryId": "dlv_000166",
+      "messageId": "msg_000166",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BOG-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 3.18,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T19:30:22.533Z",
+      "publishedAt": "2026-09-30T19:30:25.597Z"
+    },
+    {
+      "deliveryId": "dlv_000167",
+      "messageId": "msg_000167",
+      "messageType": "CONNECTIVITY",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-CAM-001",
+        "name": "Cámara azotea",
+        "type": "SECURITY_CAMERA"
+      },
+      "sensorId": "SNS-BAQ-CAM-001",
+      "communication": {
+        "status": "HEALTHY",
+        "gapSeconds": 90,
+        "lastSeenAt": "2026-09-30T19:29:55.037Z",
+        "episodeId": "EPI-BAQ-hb"
+      },
+      "occurredAt": "2026-09-30T19:31:23.618Z",
+      "publishedAt": "2026-09-30T19:31:25.037Z"
+    },
+    {
+      "deliveryId": "dlv_000168",
+      "messageId": "msg_000168",
+      "messageType": "CONNECTIVITY",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-CAM-001",
+        "name": "Cámara azotea",
+        "type": "SECURITY_CAMERA"
+      },
+      "sensorId": "SNS-BAQ-CAM-001",
+      "communication": {
+        "status": "HEALTHY",
+        "gapSeconds": 87,
+        "lastSeenAt": "2026-09-30T19:31:00.887Z",
+        "episodeId": "EPI-BAQ-hb"
+      },
+      "occurredAt": "2026-09-30T19:32:27.523Z",
+      "publishedAt": "2026-09-30T19:32:27.887Z"
+    },
+    {
+      "deliveryId": "dlv_000169",
+      "messageId": "msg_000169",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-WATER-001",
+        "name": "Medidor de agua torre única",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BAQ-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 12,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T19:33:23.367Z",
+      "publishedAt": "2026-09-30T19:33:26.947Z"
+    },
+    {
+      "deliveryId": "dlv_000170",
+      "messageId": "msg_000170",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BAQ-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 3.88,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T19:34:22.393Z",
+      "publishedAt": "2026-09-30T19:34:26.343Z"
+    },
+    {
+      "deliveryId": "dlv_000171",
+      "messageId": "msg_000171",
+      "messageType": "CONNECTIVITY",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-CAM-001",
+        "name": "Cámara azotea",
+        "type": "SECURITY_CAMERA"
+      },
+      "sensorId": "SNS-BAQ-CAM-001",
+      "communication": {
+        "status": "HEALTHY",
+        "gapSeconds": 72,
+        "lastSeenAt": "2026-09-30T19:34:15.939Z",
+        "episodeId": "EPI-BAQ-hb"
+      },
+      "occurredAt": "2026-09-30T19:35:24.459Z",
+      "publishedAt": "2026-09-30T19:35:27.939Z"
+    },
+    {
+      "deliveryId": "dlv_000172",
+      "messageId": "msg_000172",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-ENERGY-001",
+        "name": "Medidor de energía torre A",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BOG-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 33,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T19:36:23.821Z",
+      "publishedAt": "2026-09-30T19:36:24.436Z"
+    },
+    {
+      "deliveryId": "dlv_000173",
+      "messageId": "msg_000173",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-WATER-001",
+        "name": "Medidor de agua torre única",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BAQ-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 534,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T19:37:24.775Z",
+      "publishedAt": "2026-09-30T19:37:28.445Z"
+    },
+    {
+      "deliveryId": "dlv_000174",
+      "messageId": "msg_000174",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-WATER-001",
+        "name": "Medidor de agua torre única",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BAQ-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 110,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T19:38:21.689Z",
+      "publishedAt": "2026-09-30T19:38:24.143Z"
+    },
+    {
+      "deliveryId": "dlv_000175",
+      "messageId": "msg_000170",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BAQ-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 3.88,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T19:34:22.393Z",
+      "publishedAt": "2026-09-30T19:39:25.741Z"
+    },
+    {
+      "deliveryId": "dlv_000176",
+      "messageId": "msg_000176",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BAQ-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 0.24,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T19:40:23.438Z",
+      "publishedAt": "2026-09-30T19:40:24.796Z"
+    },
+    {
+      "deliveryId": "dlv_000177",
+      "messageId": "msg_000177",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-ENERGY-001",
+        "name": "Medidor de energía torre A",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BOG-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 31.4,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T19:41:24.581Z",
+      "publishedAt": "2026-09-30T19:41:28.081Z"
+    },
+    {
+      "deliveryId": "dlv_000178",
+      "messageId": "msg_000178",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BOG-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 26.7,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T19:42:24.431Z",
+      "publishedAt": "2026-09-30T19:42:28.107Z"
+    },
+    {
+      "deliveryId": "dlv_000179",
+      "messageId": "msg_000179",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-WATER-001",
+        "name": "Medidor de agua torre A",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BOG-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 295,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T19:43:25.733Z",
+      "publishedAt": "2026-09-30T19:43:27.331Z"
+    },
+    {
+      "deliveryId": "dlv_000180",
+      "messageId": "msg_000180",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-ENERGY-001",
+        "name": "Medidor de energía torre A",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BOG-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 27.3,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T19:44:21.048Z",
+      "publishedAt": "2026-09-30T19:44:24.809Z"
+    },
+    {
+      "deliveryId": "dlv_000181",
+      "messageId": "msg_000181",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BAQ-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 2.69,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T19:45:24.852Z",
+      "publishedAt": "2026-09-30T19:45:25.323Z"
+    },
+    {
+      "deliveryId": "dlv_000182",
+      "messageId": "msg_000182",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-WATER-001",
+        "name": "Medidor de agua torre A",
+        "type": "WATER_METER"
+      },
+      "sensorId": "SNS-BOG-WATER-001",
+      "measurement": {
+        "type": "WATER_CONSUMPTION",
+        "value": 54,
+        "unit": "LITER_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T19:46:26.930Z",
+      "publishedAt": "2026-09-30T19:46:27.565Z"
+    },
+    {
+      "deliveryId": "dlv_000183",
+      "messageId": "msg_000183",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BOG-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 2.5,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T19:47:25.166Z",
+      "publishedAt": "2026-09-30T19:47:25.763Z"
+    },
+    {
+      "deliveryId": "dlv_000184",
+      "messageId": "msg_000184",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BOG-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 18.2,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T19:48:27.526Z",
+      "publishedAt": "2026-09-30T19:48:28.266Z"
+    },
+    {
+      "deliveryId": "dlv_000185",
+      "messageId": "msg_000185",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BOG-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 2.81,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T19:49:23.495Z",
+      "publishedAt": "2026-09-30T19:49:27.314Z"
+    },
+    {
+      "deliveryId": "dlv_000186",
+      "messageId": "msg_000186",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-ENERGY-001",
+        "name": "Medidor de energía torre única",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BAQ-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 58.8,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T19:50:25.662Z",
+      "publishedAt": "2026-09-30T19:50:26.016Z"
+    },
+    {
+      "deliveryId": "dlv_000187",
+      "messageId": "msg_000187",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-ENERGY-001",
+        "name": "Medidor de energía torre única",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BAQ-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 24.8,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T19:51:26.068Z",
+      "publishedAt": "2026-09-30T19:51:28.547Z"
+    },
+    {
+      "deliveryId": "dlv_000188",
+      "messageId": "msg_000188",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BAQ-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 88.8,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T19:52:23.170Z",
+      "publishedAt": "2026-09-30T19:52:24.325Z"
+    },
+    {
+      "deliveryId": "dlv_000189",
+      "messageId": "msg_000189",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BAQ-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 2.55,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T19:53:27.219Z",
+      "publishedAt": "2026-09-30T19:53:28.076Z"
+    },
+    {
+      "deliveryId": "dlv_000190",
+      "messageId": "msg_000190",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BOG-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 3.9,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T19:54:24.665Z",
+      "publishedAt": "2026-09-30T19:54:25.819Z"
+    },
+    {
+      "deliveryId": "dlv_000191",
+      "messageId": "msg_000191",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BAQ-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 16.8,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T19:55:25.465Z",
+      "publishedAt": "2026-09-30T19:55:28.946Z"
+    },
+    {
+      "deliveryId": "dlv_000192",
+      "messageId": "msg_000192",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BAQ-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 4.96,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T19:56:25.760Z",
+      "publishedAt": "2026-09-30T19:56:28.590Z"
+    },
+    {
+      "deliveryId": "dlv_000193",
+      "messageId": "msg_000193",
+      "messageType": "CONNECTIVITY",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-CAM-001",
+        "name": "Cámara azotea",
+        "type": "SECURITY_CAMERA"
+      },
+      "sensorId": "SNS-BAQ-CAM-001",
+      "communication": {
+        "status": "HEALTHY",
+        "gapSeconds": 58,
+        "lastSeenAt": "2026-09-30T19:56:29.434Z",
+        "episodeId": "EPI-BAQ-hb"
+      },
+      "occurredAt": "2026-09-30T19:57:23.566Z",
+      "publishedAt": "2026-09-30T19:57:27.434Z"
+    },
+    {
+      "deliveryId": "dlv_000194",
+      "messageId": "msg_000194",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-ENERGY-001",
+        "name": "Medidor de energía torre única",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BAQ-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 63.5,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T19:58:22.965Z",
+      "publishedAt": "2026-09-30T19:58:24.399Z"
+    },
+    {
+      "deliveryId": "dlv_000195",
+      "messageId": "msg_000195",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-ENERGY-001",
+        "name": "Medidor de energía torre A",
+        "type": "ENERGY_METER"
+      },
+      "sensorId": "SNS-BOG-ENERGY-001",
+      "measurement": {
+        "type": "ENERGY_CONSUMPTION",
+        "value": 6.8,
+        "unit": "KWH_PER_15_MIN"
+      },
+      "occurredAt": "2026-09-30T19:59:25.991Z",
+      "publishedAt": "2026-09-30T19:59:28.666Z"
+    },
+    {
+      "deliveryId": "dlv_000196",
+      "messageId": "msg_000196",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BAQ-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 26.8,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T20:00:22.435Z",
+      "publishedAt": "2026-09-30T20:00:26.244Z"
+    },
+    {
+      "deliveryId": "dlv_000197",
+      "messageId": "msg_000197",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BOG-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 3.71,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T20:01:25.251Z",
+      "publishedAt": "2026-09-30T20:01:28.116Z"
+    },
+    {
+      "deliveryId": "dlv_000198",
+      "messageId": "msg_000198",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BAQ-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 1.95,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T20:02:21.730Z",
+      "publishedAt": "2026-09-30T20:02:25.527Z"
+    },
+    {
+      "deliveryId": "dlv_000199",
+      "messageId": "msg_000199",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BOG-001",
+        "name": "Edificio Nova Alameda",
+        "city": "Bogotá"
+      },
+      "asset": {
+        "id": "AST-BOG-PUMP-001",
+        "name": "Bomba de presión de agua",
+        "type": "WATER_PUMP"
+      },
+      "sensorId": "SNS-BOG-PUMP-001",
+      "measurement": {
+        "type": "WATER_PRESSURE",
+        "value": 3.16,
+        "unit": "BAR"
+      },
+      "occurredAt": "2026-09-30T19:43:25.166Z",
+      "publishedAt": "2026-09-30T20:03:25.166Z"
+    },
+    {
+      "deliveryId": "dlv_000200",
+      "messageId": "msg_000200",
+      "messageType": "MEASUREMENT",
+      "source": "nova-casa-simulator",
+      "building": {
+        "id": "BLD-BAQ-001",
+        "name": "Edificio Nova Caribe",
+        "city": "Barranquilla"
+      },
+      "asset": {
+        "id": "AST-BAQ-TEMP-001",
+        "name": "Sala técnica principal",
+        "type": "TECHNICAL_ROOM"
+      },
+      "sensorId": "SNS-BAQ-TEMP-001",
+      "measurement": {
+        "type": "TEMPERATURE",
+        "value": 33.4,
+        "unit": "CELSIUS"
+      },
+      "occurredAt": "2026-09-30T20:04:21.618Z",
+      "publishedAt": "2026-09-30T20:04:25.438Z"
+    }
+  ],
+  "pagination": {
+    "nextCursor": "<redacted-session-cursor>",
+    "hasMore": true,
+    "pollAfterMs": 10000
+  }
+}

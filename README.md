@@ -1,65 +1,63 @@
-# Sprint 2 — Nova Casa Telemetría
+# Sprint 2 — Nova Casa Telemetry
 
-Development · desde el 25 sep 2026 · Path `onboarding-csg` (MDSS)
+Development · since Sep 25, 2026 · Path `onboarding-csg` (MDSS)
 
-Equipo: John Alejandro Pastor + Juan Diego Velásquez.
+Team: John Alejandro Pastor + Juan Diego Velásquez.
 
-## Qué es este repo ahora
+## What this repo is right now
 
-Estamos en **Development**. El repo es un proyecto Salesforce DX: el código y la metadata viven en `force-app/`. Los prototipos de Discovery (15–26 sep) están en `entregables/` y guían el diseño.
+We're in **Development**. The repo is a Salesforce DX project: code and metadata live in `force-app/`. The Discovery prototypes (Sep 15–26) are in `entregables/` and guide the design.
 
-## Cómo navegar el repo
+## Finding your way around
 
-| Archivo | Qué es | ¿Se edita a mano? |
+| File | What it is | Edited by hand? |
 |---|---|---|
-| `Sprint 2 - Nova Casa.md` | **Fuente de verdad**, verbatim de MDSS: brief, personas, Laura, frontera formativa, BR-201 a 210, acuerdos, entregables, contrato del simulador. | Solo para pegar contenido nuevo tal cual llega de MDSS. No parafrasear. |
-| `AGENTS.md` | Instrucciones para agentes de IA: reglas que no se pueden contradecir, frontera formativa, flujo de ramas. | Sí |
-| `CONTRIBUTING.md` | Cómo contribuir: ramas, commits, PRs y despliegues a la org compartida. | Sí |
-| `docs/br-201-210.md` | Los 10 BR, texto idéntico al de `Sprint 2 - Nova Casa.md`, para referencia rápida. | Solo si el texto fuente cambia |
-| `docs/decisiones.md` | Decisiones propias del par (ADR-lite): alternativa descartada, trade-off, riesgos. Esto sí lo escribimos nosotros. | Sí |
-| `docs/entendimiento.md` | Entregable 1 en formato de notas de trabajo del par: problema prioritario, indicadores, preguntas y supuestos. | Sí |
-| `entregables/` | Versiones presentables al facilitador: `01` entendimiento (PDF), `02` prototipo, `03` arquitectura (guía interactiva y diagrama), `04` modelo de datos. Los HTML son autocontenidos y se abren sin servidor. | Sí |
-| `force-app/` | Código y metadata de Salesforce: objetos, Apex, LWC, permission sets. | Sí |
-| `sfdx-project.json` · `.forceignore` · `config/` | Configuración del proyecto Salesforce DX. | Rara vez |
-| `.githooks/` | Hook que revisa el formato de los commits. Se activa una vez con `git config core.hooksPath .githooks`. | Rara vez |
+| `Sprint 2 - Nova Casa.md` | **Source of truth**, verbatim from MDSS: brief, personas, Laura, formative frontier, BR-201 through 210, agreements, deliverables, the simulator contract. | Only to paste new content exactly as it arrives from MDSS. Never paraphrased. |
+| `AGENTS.md` | Instructions for AI agents: rules they can't contradict, the formative frontier, branch flow. | Yes |
+| `CONTRIBUTING.md` | How to contribute: branches, commits, PRs and deploys to the shared org. | Yes |
+| `docs/br-201-210.md` | The 10 BRs, text identical to `Sprint 2 - Nova Casa.md`, split out for quick reference. | Only if the source text changes |
+| `docs/decisiones.md` | Decisions the pair made ourselves (ADR-lite): the alternative we dropped, the trade-off, the risks. This one's genuinely ours. | Yes |
+| `docs/entendimiento.md` | Deliverable 1, written as the pair's own working notes: priority problem, success signals, open questions, assumptions. | Yes |
+| `entregables/` | Facilitator-facing versions: `01` understanding (PDF), `02` prototype, `03` architecture (interactive guide and diagram), `04` data model. The HTML files are self-contained and open without a server. | Yes |
+| `force-app/` | Salesforce code and metadata: objects, Apex, LWC, permission sets. | Yes |
+| `sfdx-project.json` · `.forceignore` · `config/` | Salesforce DX project configuration. | Rarely |
+| `.githooks/` | Hook that checks commit format. Turn it on once with `git config core.hooksPath .githooks`. | Rarely |
 
-Si un doc nuevo repite contenido de MDSS con otras palabras, no se agrega: se cita el verbatim.
+If a new doc would repeat MDSS content in different words, it doesn't get added — quote the verbatim instead.
 
-## Flujo de trabajo
+## How we work
 
-- **Cómo contribuir**: ramas, commits, PRs y despliegues siguen [CONTRIBUTING.md](CONTRIBUTING.md), igual para nosotros y para los agentes. En corto: una rama por historia (`feat/us-201-receive-signals`), commits con Conventional Commits en inglés y PR aprobado por el otro, mergeado con squash.
-- **`main` no recibe commits directos**, ni nuestros ni de un agente: todo entra por PR.
-- **Aprobación de entregables**: el facilitador de MDSS aprueba cada uno de los 6 entregables; el acuerdo interno del par no lo cierra por sí solo.
-- **GitHub**: [jpastorSFDC/nova-casa-telemetria](https://github.com/jpastorSFDC/nova-casa-telemetria), público. No asumir que algo se subió hasta confirmarlo en el remoto.
+- **Contributing**: branches, commits, PRs and deploys follow [CONTRIBUTING.md](CONTRIBUTING.md), the same rules for us and for agents. Short version: one branch per story (`feat/us-201-receive-signals`), Conventional Commits in English, a PR approved by the other person, merged with squash.
+- **`main` takes no direct commits**, ours or an agent's — everything comes in through a PR.
+- **Deliverable approval**: the MDSS facilitator approves each of the 6 deliverables; an agreement between the two of us doesn't close it on its own.
+- **GitHub**: [jpastorSFDC/nova-casa-telemetria](https://github.com/jpastorSFDC/nova-casa-telemetria), public. Don't assume something's pushed until you've checked the remote.
 
-## Cómo trabajar con la org
+## Working with the org
 
-Requiere la [Salesforce CLI](https://developer.salesforce.com/tools/salesforcecli) (`sf`). Los dos trabajamos en la misma org, cada uno con su usuario:
+Needs the [Salesforce CLI](https://developer.salesforce.com/tools/salesforcecli) (`sf`). We both work in the same org, each with our own user:
 
 ```bash
-sf org login web -a nova-cdo --instance-url https://<dominio-de-la-org>.my.salesforce.com
+sf org login web -a nova-cdo --instance-url https://<org-domain>.my.salesforce.com
 sf config set target-org nova-cdo
 ```
 
-Desde una rama se despliegan solo los archivos de la historia, siempre ensayando primero:
+From a branch, deploy only that story's files, always validating first:
 
 ```bash
-sf project deploy start --source-dir <archivos-de-la-historia> --dry-run
-sf project deploy start --source-dir <archivos-de-la-historia>
+sf project deploy start --source-dir <story-files> --dry-run
+sf project deploy start --source-dir <story-files>
 ```
 
-`force-app` completo se despliega solo desde `main`, después de mergear. Las reglas completas están en [CONTRIBUTING.md](CONTRIBUTING.md#deploying-to-the-shared-org).
+The full `force-app` deploys only from `main`, after merging. Full rules are in [CONTRIBUTING.md](CONTRIBUTING.md#deploying-to-the-shared-org).
 
-La org es de producción (Enterprise Edition, no sandbox): Apex no se edita en el navegador y cada despliegue con Apex corre pruebas que cubran al menos el 75 % de cada clase. Cada clase va con su prueba en el mismo PR y se despliega corriendo solo nuestras pruebas, con `--test-level RunSpecifiedTests --tests <ClaseTest>`, nunca con `RunLocalTests`, que también corre las pruebas de las clases de la demo. Detalle en [CONTRIBUTING.md](CONTRIBUTING.md#apex-needs-tests).
-
-Correr las pruebas de una clase sin desplegar:
+Run the Apex tests:
 
 ```bash
 sf apex run test --class-names <ClaseTest> --code-coverage --result-format human --wait 10
 ```
 
-Pendiente de documentar cuando exista: la conexión con el simulador de Heroku y cómo ver el procesamiento de los Platform Events.
+Still to document once it exists: the connection to the Heroku simulator and how to watch Platform Event processing.
 
-## Definition of Done de Discovery
+## Discovery Definition of Done
 
-Los prototipos de `entregables/`, según la sección "Entregables" de `Sprint 2 - Nova Casa.md`, aprobados por el facilitador.
+The `entregables/` prototypes, per the "Entregables" section of `Sprint 2 - Nova Casa.md`, approved by the facilitator.

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Message_Type__c</fullName>
+    <label>messageType</label>
+    <description>messageType: MEASUREMENT o CONNECTIVITY.</description>
+    <type>Text</type>
+    <length>20</length>
+    <required>false</required>
+</CustomField>
