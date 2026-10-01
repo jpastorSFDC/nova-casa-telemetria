@@ -69,9 +69,10 @@ Copiar esta plantilla, numerar secuencialmente, y mantener el estado actualizado
 
 ## Pendientes heredados de la sección "Acuerdos" (abiertos desde Discovery, sin cerrar en Development)
 
-Estos puntos necesitaban una entrada D00X cada uno antes de cerrar el entregable 6 de Discovery. El entregable se aprobó y ya estamos en Development (ver `AGENTS.md`), pero solo el objeto de intervención (D001), el empate de `occurredAt` (D003 arriba) y el edificio (D005 arriba, parcial) tienen entrada; el único que sigue sin ella es:
+Estos puntos necesitaban una entrada D00X cada uno antes de cerrar el entregable 6 de Discovery. El entregable se aprobó y ya estamos en Development (ver `AGENTS.md`), pero solo el objeto de intervención (D001) y el empate de `occurredAt` (D003 arriba) están cerrados del todo; el edificio (D005 arriba) tiene entrada pero solo resuelve el campo de identidad, no el modelo de sharing. Siguen sin cerrar:
 
 1. Operadores y valores exactos de umbral por `asset.type` + `measurement.type` (van en metadata, no en código).
+2. Modelo de sharing de edificios/activos para el operador (BR-208) — parcial: D005 define el edificio como `Account`, pero el OWD, el permission set `Nova_Casa_Operator`, las reglas de sharing y el `with sharing`/FLS en Apex siguen pendientes y sin aprobar (ver D005, "Riesgo / dependencia").
 
 ## Riesgos generales del sprint
 
