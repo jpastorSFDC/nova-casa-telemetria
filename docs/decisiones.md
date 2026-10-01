@@ -56,6 +56,17 @@ Copiar esta plantilla, numerar secuencialmente, y mantener el estado actualizado
 - **Riesgo / dependencia**: depende de que los umbrales (`Umbral__c`, ver pendiente abajo) tengan valores reales antes de poder implementar y probar esta regla con casos concretos.
 - **Siguiente acción**: implementar en la lógica de clasificación (Apex, aún sin empezar) y cubrir con un test que falle si el empate se resuelve por orden de llegada en lugar de severidad.
 
+## D004 — `Umbral__c` es objeto custom, no Custom Metadata Type
+
+- **Estado**: Aceptada
+- **Fecha**: 2026-10-01
+- **Contexto**: BR-204 pide que los límites de clasificación sean administrables sin redesplegar código. Custom Metadata Type (`__mdt`) es la opción por defecto para ese tipo de dato de configuración, pero sus registros solo se editan desde Setup y requieren el permiso de sistema "Customize Application" — exclusivo de administrador. El acuerdo del sprint es que un perfil no-admin (operador/coordinador) pueda ajustar los umbrales sin que se le dé acceso de administrador.
+- **Decisión**: `Umbral__c` se modela como objeto custom estándar (`__c`), no como Custom Metadata Type. El acceso de edición se controla con FLS/permission set sobre el objeto, igual que cualquier otro dato operativo.
+- **Alternativa descartada**: `Umbral__mdt` (Custom Metadata Type).
+- **Trade-off**: se gana poder darle edición a un perfil no-admin sin tocar "Customize Application"; se sacrifica lo que CMDT da gratis (los registros viajan como metadata y se despliegan solos entre entornos, sin Data Loader ni scripts de datos).
+- **Riesgo / dependencia**: ninguno funcional. Falta que el permission set que dé acceso a `Umbral__c` quede definido (ver D005/BR-208) para que la edición no-admin sea real y no solo teórica.
+- **Siguiente acción**: al definir el permission set del operador/coordinador (D005), incluir CRUD/FLS de `Umbral__c` para el perfil que deba poder ajustar los límites.
+
 ## Pendientes heredados de la sección "Acuerdos" (abiertos desde Discovery, sin cerrar en Development)
 
 Estos puntos necesitaban una entrada D00X cada uno antes de cerrar el entregable 6 de Discovery. El entregable se aprobó y ya estamos en Development (ver `AGENTS.md`), pero solo el objeto de intervención (D001) y el empate de `occurredAt` (D003 arriba) tienen entrada; los otros dos siguen sin ella:
