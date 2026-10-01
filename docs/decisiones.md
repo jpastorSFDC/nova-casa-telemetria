@@ -56,12 +56,6 @@ Copiar esta plantilla, numerar secuencialmente, y mantener el estado actualizado
 - **Riesgo / dependencia**: **fuera de alcance de este commit, todavía pendiente y sin aprobar**: el lookup `Asset.Account`, el cambio de OWD (Account = Private, Asset/Lectura_Vigente__c = Controlled by Parent), el permission set `Nova_Casa_Operator`, las reglas de sharing a nivel de registro, y el cumplimiento `with sharing`/FLS en Apex. El cambio de OWD es difícil de revertir — necesita PR propio, acuerdo de John y Juan Diego, deploy solo desde `main` (regla de `CONTRIBUTING.md`), y aprobación del facilitador MDSS por tocar BR-208. Solo se adelanta aquí el campo de identidad porque es de bajo riesgo y reversible por sí solo.
 - **Siguiente acción**: aprobar el resto del modelo de sharing (OWD, permission set, reglas de sharing, Apex `with sharing`) antes de implementar US-208; documentar y probar con dos usuarios de permisos distintos cuando se implemente.
 
-## Pendientes heredados de la sección "Acuerdos" (abiertos desde Discovery, sin cerrar en Development)
-
-Estos puntos necesitaban una entrada D00X cada uno antes de cerrar el entregable 6 de Discovery. El entregable se aprobó y ya estamos en Development (ver `AGENTS.md`), pero solo el objeto de intervención (ver D001 arriba) y el edificio (ver D005 arriba, parcial) tienen entrada; los otros dos siguen sin ella:
-
-1. Regla determinista cuando dos señales válidas del mismo `asset`+`measurement.type` tienen el mismo `occurredAt`.
-2. Operadores y valores exactos de umbral por `asset.type` + `measurement.type` (van en metadata, no en código).
 ## D003 — Empate de `occurredAt`: gana la mayor severidad, luego `messageId`
 
 - **Estado**: Aceptada
@@ -75,10 +69,9 @@ Estos puntos necesitaban una entrada D00X cada uno antes de cerrar el entregable
 
 ## Pendientes heredados de la sección "Acuerdos" (abiertos desde Discovery, sin cerrar en Development)
 
-Estos puntos necesitaban una entrada D00X cada uno antes de cerrar el entregable 6 de Discovery. El entregable se aprobó y ya estamos en Development (ver `AGENTS.md`), pero solo el objeto de intervención (D001) y el empate de `occurredAt` (D003 arriba) tienen entrada; los otros dos siguen sin ella:
+Estos puntos necesitaban una entrada D00X cada uno antes de cerrar el entregable 6 de Discovery. El entregable se aprobó y ya estamos en Development (ver `AGENTS.md`), pero solo el objeto de intervención (D001), el empate de `occurredAt` (D003 arriba) y el edificio (D005 arriba, parcial) tienen entrada; el único que sigue sin ella es:
 
 1. Operadores y valores exactos de umbral por `asset.type` + `measurement.type` (van en metadata, no en código).
-2. Modelo de sharing de edificios/activos para el operador (BR-208).
 
 ## Riesgos generales del sprint
 
