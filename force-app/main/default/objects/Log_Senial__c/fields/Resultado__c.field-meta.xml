@@ -6,7 +6,7 @@
     <type>Picklist</type>
     <required>true</required>
     <valueSet>
-        <restricted>false</restricted>
+        <restricted>true</restricted>
         <valueSetDefinition>
             <sorted>false</sorted>
             <value>
