@@ -45,13 +45,23 @@ Copiar esta plantilla, numerar secuencialmente, y mantener el estado actualizado
 - **Riesgo / dependencia**: ninguno funcional. Cualquier doc o tarea que siga refiriéndose a `Nova_Casa_Simulator_Auth` queda desactualizada.
 - **Siguiente acción**: corregir la referencia a `Nova_Casa_Simulator_Auth` en la lista de backlog de Slack (tarea T1.1) para que apunte al nombre real. `docs/entendimiento.md` debe actualizarse para cerrar la pregunta abierta referenciando esta entrada, en la rama donde vive ese archivo.
 
+## D005 — El edificio es `Account`; `External_Id__c` para upsert del catálogo
+
+- **Estado**: Propuesta (parcial — ver alcance abajo)
+- **Fecha**: 2026-10-01
+- **Contexto**: BR-208/US-208 exigen que el operador acceda solo a edificios/activos autorizados. Hoy no existe un objeto de edificio en el modelo (`Asset` modela el activo/equipo, no el edificio que lo contiene), y Juan Diego necesita identificarlo para su trabajo en curso. Una propuesta anterior sobre este mismo tema (sharing completo: OWD, permission set de operador, reglas de sharing) se registró y se perdió al mergear `main` dentro de esa rama (PR #9, cerrada sin mergear) — no llegó a quedar en este archivo.
+- **Decisión** (alcance de este commit, bajo riesgo y reversible): el edificio se modela con **`Account`** estándar. Se agrega `Account.External_Id__c` (Text(50), external ID, unique), espejando `Asset.External_Id__c`, para upsert del catálogo de edificios (p.ej. `BLD-BOG-01`).
+- **Alternativa descartada**: objeto custom `Edificio__c` — un objeto custom debe ganarse su lugar (ver "formativa" en `AGENTS.md`); `Account` estándar es suficiente para representar un edificio.
+- **Trade-off**: reutiliza sharing y metadata estándar de Salesforce, a cambio de estirar la semántica habitual de `Account`.
+- **Riesgo / dependencia**: **fuera de alcance de este commit, todavía pendiente y sin aprobar**: el lookup `Asset.Account`, el cambio de OWD (Account = Private, Asset/Lectura_Vigente__c = Controlled by Parent), el permission set `Nova_Casa_Operator`, las reglas de sharing a nivel de registro, y el cumplimiento `with sharing`/FLS en Apex. El cambio de OWD es difícil de revertir — necesita PR propio, acuerdo de John y Juan Diego, deploy solo desde `main` (regla de `CONTRIBUTING.md`), y aprobación del facilitador MDSS por tocar BR-208. Solo se adelanta aquí el campo de identidad porque es de bajo riesgo y reversible por sí solo.
+- **Siguiente acción**: aprobar el resto del modelo de sharing (OWD, permission set, reglas de sharing, Apex `with sharing`) antes de implementar US-208; documentar y probar con dos usuarios de permisos distintos cuando se implemente.
+
 ## Pendientes heredados de la sección "Acuerdos" (abiertos desde Discovery, sin cerrar en Development)
 
-Estos puntos necesitaban una entrada D00X cada uno antes de cerrar el entregable 6 de Discovery. El entregable se aprobó y ya estamos en Development (ver `AGENTS.md`), pero solo el objeto de intervención (ver D001 arriba) tiene su entrada; los otros tres siguen sin ella:
+Estos puntos necesitaban una entrada D00X cada uno antes de cerrar el entregable 6 de Discovery. El entregable se aprobó y ya estamos en Development (ver `AGENTS.md`), pero solo el objeto de intervención (ver D001 arriba) y el edificio (ver D005 arriba, parcial) tienen entrada; los otros dos siguen sin ella:
 
 1. Regla determinista cuando dos señales válidas del mismo `asset`+`measurement.type` tienen el mismo `occurredAt`.
 2. Operadores y valores exactos de umbral por `asset.type` + `measurement.type` (van en metadata, no en código).
-3. Modelo de sharing de edificios/activos para el operador (BR-208).
 
 ## Riesgos generales del sprint
 
