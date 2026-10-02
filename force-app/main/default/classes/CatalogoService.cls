@@ -93,6 +93,8 @@ public with sharing class CatalogoService {
             Database.upsert(buildingAccounts, Account.External_Id__c, AccessLevel.USER_MODE);
         } catch (DmlException e) {
             throw new CatalogoServiceException('Failed to upsert building Accounts: ' + e.getMessage(), e);
+        } catch (System.NoAccessException e) {
+            throw new CatalogoServiceException('Failed to upsert building Accounts: ' + e.getMessage(), e);
         }
 
         Map<String, Id> buildingIdByExternalId = new Map<String, Id>();
@@ -131,6 +133,8 @@ public with sharing class CatalogoService {
         try {
             Database.upsert(assets, Asset.External_Id__c, AccessLevel.USER_MODE);
         } catch (DmlException e) {
+            throw new CatalogoServiceException('Failed to upsert Assets: ' + e.getMessage(), e);
+        } catch (System.NoAccessException e) {
             throw new CatalogoServiceException('Failed to upsert Assets: ' + e.getMessage(), e);
         }
     }

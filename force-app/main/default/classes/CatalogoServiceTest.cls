@@ -45,20 +45,43 @@ private class CatalogoServiceTest {
 
     @isTest
     static void shouldNotDuplicateRecords_WhenLoadedTwice() {
-        // Given
+        // Given: seed the state as if a first loadCatalog() already ran (same External_Id__c
+        // values and fields as ONE_BUILDING_CATALOG_JSON would upsert). A real second call to
+        // loadCatalog() can't be made in this same test method -- Apex forbids a callout after
+        // uncommitted DML in one transaction, and test methods never commit mid-method -- so this
+        // seeds the "already loaded" state directly instead.
+        Account existingBuilding = new Account(
+            External_Id__c = 'BLD-TEST-001',
+            Name = 'Edificio Test'
+        );
+        insert existingBuilding;
+        Asset existingAsset = new Asset(
+            External_Id__c = 'AST-TEST-001',
+            Name = 'Sala tecnica test',
+            Tipo_Activo__c = 'TECHNICAL_ROOM',
+            AccountId = existingBuilding.Id
+        );
+        insert existingAsset;
+
         Test.setMock(HttpCalloutMock.class, new CatalogSimulatorMock(200, ONE_BUILDING_CATALOG_JSON));
 
-        // When
+        // When: reload the same catalog once more
         Test.startTest();
-        CatalogoService.loadCatalog();
         CatalogoService.loadCatalog();
         Test.stopTest();
 
         // Then
         Assert.areEqual(1, [SELECT COUNT() FROM Account WHERE External_Id__c = 'BLD-TEST-001'],
-            'A second run should not create a second building');
+            'A reload should not create a second building');
         Assert.areEqual(1, [SELECT COUNT() FROM Asset WHERE External_Id__c = 'AST-TEST-001'],
-            'A second run should not create a second asset');
+            'A reload should not create a second asset');
+
+        Account reloadedBuilding = [SELECT Id FROM Account WHERE External_Id__c = 'BLD-TEST-001'];
+        Asset reloadedAsset = [SELECT Id FROM Asset WHERE External_Id__c = 'AST-TEST-001'];
+        Assert.areEqual(existingBuilding.Id, reloadedBuilding.Id,
+            'A reload should update the existing building in place, not delete and recreate it');
+        Assert.areEqual(existingAsset.Id, reloadedAsset.Id,
+            'A reload should update the existing asset in place, not delete and recreate it');
     }
 
     @isTest
