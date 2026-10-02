@@ -13,6 +13,11 @@ public with sharing class CatalogoService {
 
     /**
      * Fetches the catalog from the simulator and upserts buildings and assets.
+     *              Currently an operator/admin-triggered bootstrap action, invoked manually via
+     *              Execute Anonymous per README's "Loading the building/asset catalog" section —
+     *              not part of the automated signal-ingestion pipeline. If this is ever wired into
+     *              an automated/scheduled path, revisit the AccessLevel/permission-set scoping
+     *              against BR-208 and the ingestion-permissions agreement in AGENTS.md.
      * @throws CatalogoServiceException if the callout fails or the response can't be parsed
      * @example
      * CatalogoService.loadCatalog();

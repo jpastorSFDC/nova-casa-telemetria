@@ -129,6 +129,59 @@ private class CatalogoServiceTest {
         Test.stopTest();
     }
 
+    // ─── Security Tests ───────────────────────────────────────────────────
+
+    /**
+     * Proves that upsertBuildings' USER_MODE Database.upsert actually enforces CRUD/FLS
+     * for the running user. A user with no Nova_Casa_Admin permission set (and the
+     * standard "Minimum Access - Salesforce" profile, which grants no object/field
+     * access at all) must not be able to create the building Account. If USER_MODE
+     * were ever reverted to SYSTEM_MODE (or "with sharing" dropped in a way that
+     * stops enforcing CRUD/FLS), this DML would silently succeed and this test would fail.
+     */
+    @isTest
+    static void shouldThrowException_WhenRunningAsUserWithoutCatalogAccess() {
+        // Given
+        Profile minimumAccessProfile = [SELECT Id FROM Profile WHERE Name = 'Minimum Access - Salesforce' LIMIT 1];
+        User restrictedUser = new User(
+            FirstName = 'Restricted',
+            LastName = 'CatalogUser',
+            Alias = 'rcatlg',
+            Email = 'restricted.catalog.test@novacasatelemetria.invalid',
+            Username = 'restricted.catalog.test' + DateTime.now().getTime() + '@novacasatelemetria.invalid',
+            ProfileId = minimumAccessProfile.Id,
+            TimeZoneSidKey = 'America/Bogota',
+            LocaleSidKey = 'en_US',
+            EmailEncodingKey = 'UTF-8',
+            LanguageLocaleKey = 'en_US'
+        );
+        insert restrictedUser;
+        // Deliberately not assigning the Nova_Casa_Admin permission set: this user has
+        // no CRUD/FLS on Account/Asset, so USER_MODE should block the upsert.
+
+        Test.setMock(HttpCalloutMock.class, new CatalogSimulatorMock(200, ONE_BUILDING_CATALOG_JSON));
+
+        // When/Then
+        System.runAs(restrictedUser) {
+            Test.startTest();
+            try {
+                CatalogoService.loadCatalog();
+                Assert.fail('Expected CatalogoServiceException: a user without Nova_Casa_Admin ' +
+                    'should not be able to upsert building Accounts under USER_MODE');
+            } catch (CatalogoService.CatalogoServiceException e) {
+                Assert.isTrue(
+                    e.getMessage().contains('Failed to upsert building Accounts'),
+                    'Exception should surface the USER_MODE CRUD/FLS failure on Account, got: ' + e.getMessage()
+                );
+            }
+            Test.stopTest();
+        }
+
+        // Then
+        Assert.areEqual(0, [SELECT COUNT() FROM Account WHERE External_Id__c = 'BLD-TEST-001'],
+            'A restricted user must not be able to create the building Account under USER_MODE');
+    }
+
     // ─── Mock ──────────────────────────────────────────────────────────────
 
     private class CatalogSimulatorMock implements HttpCalloutMock {
