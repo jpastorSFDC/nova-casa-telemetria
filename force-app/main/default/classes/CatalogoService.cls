@@ -89,11 +89,15 @@ public with sharing class CatalogoService {
             ));
         }
 
+        // Explicit CRUD pre-check: with no object access, the USER_MODE upsert below failed with a raw
+        // "Access to entity denied" that the catch block did not wrap into CatalogoServiceException.
+        if (!Schema.sObjectType.Account.isCreateable() || !Schema.sObjectType.Account.isUpdateable()) {
+            throw new CatalogoServiceException('Failed to upsert building Accounts: running user lacks create/edit access on Account');
+        }
+
         try {
             Database.upsert(buildingAccounts, Account.External_Id__c, AccessLevel.USER_MODE);
-        } catch (DmlException e) {
-            throw new CatalogoServiceException('Failed to upsert building Accounts: ' + e.getMessage(), e);
-        } catch (System.NoAccessException e) {
+        } catch (Exception e) {
             throw new CatalogoServiceException('Failed to upsert building Accounts: ' + e.getMessage(), e);
         }
 
@@ -130,11 +134,13 @@ public with sharing class CatalogoService {
             return;
         }
 
+        if (!Schema.sObjectType.Asset.isCreateable() || !Schema.sObjectType.Asset.isUpdateable()) {
+            throw new CatalogoServiceException('Failed to upsert Assets: running user lacks create/edit access on Asset');
+        }
+
         try {
             Database.upsert(assets, Asset.External_Id__c, AccessLevel.USER_MODE);
-        } catch (DmlException e) {
-            throw new CatalogoServiceException('Failed to upsert Assets: ' + e.getMessage(), e);
-        } catch (System.NoAccessException e) {
+        } catch (Exception e) {
             throw new CatalogoServiceException('Failed to upsert Assets: ' + e.getMessage(), e);
         }
     }

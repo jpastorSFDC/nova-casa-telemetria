@@ -21,6 +21,33 @@ private class CatalogoServiceTest {
 
     private static final String NO_BUILDINGS_CATALOG_JSON = '{"catalog":{"buildings":[]}}';
 
+    // ─── Test Setup ───────────────────────────────────────────────────────
+
+    /**
+     * Creates the restricted-permission user once for shouldThrowException_WhenRunningAsUserWithoutCatalogAccess.
+     * The test re-queries it by Username pattern because static state set in @testSetup does not
+     * carry over into a test method's execution context.
+     */
+    @testSetup
+    static void setup() {
+        Profile minimumAccessProfile = [SELECT Id FROM Profile WHERE Name = 'Minimum Access - Salesforce' LIMIT 1];
+        User restrictedUser = new User(
+            FirstName = 'Restricted',
+            LastName = 'CatalogUser',
+            Alias = 'rcatlg',
+            Email = 'restricted.catalog.test@novacasatelemetria.invalid',
+            Username = 'restricted.catalog.test' + DateTime.now().getTime() + '@novacasatelemetria.invalid',
+            ProfileId = minimumAccessProfile.Id,
+            TimeZoneSidKey = 'America/Bogota',
+            LocaleSidKey = 'en_US',
+            EmailEncodingKey = 'UTF-8',
+            LanguageLocaleKey = 'en_US'
+        );
+        insert restrictedUser;
+        // Deliberately not assigning the Nova_Casa_Admin permission set: this user has
+        // no CRUD/FLS on Account/Asset, so USER_MODE should block the upsert.
+    }
+
     // ─── Positive Tests ───────────────────────────────────────────────────
 
     @isTest
@@ -86,12 +113,12 @@ private class CatalogoServiceTest {
 
     @isTest
     static void shouldUpdateBuilding_WhenNameChangesOnReload() {
-        // Given
-        Test.setMock(HttpCalloutMock.class, new CatalogSimulatorMock(200, ONE_BUILDING_CATALOG_JSON));
-        CatalogoService.loadCatalog();
+        // Given: seed the state as if a first loadCatalog() already ran (a second real call
+        // would hit "uncommitted work pending" -- callout after DML in one transaction).
+        insert new Account(External_Id__c = 'BLD-TEST-001', Name = 'Edificio Test');
+        Test.setMock(HttpCalloutMock.class, new CatalogSimulatorMock(200, RENAMED_BUILDING_CATALOG_JSON));
 
         // When
-        Test.setMock(HttpCalloutMock.class, new CatalogSimulatorMock(200, RENAMED_BUILDING_CATALOG_JSON));
         Test.startTest();
         CatalogoService.loadCatalog();
         Test.stopTest();
@@ -164,23 +191,13 @@ private class CatalogoServiceTest {
      */
     @isTest
     static void shouldThrowException_WhenRunningAsUserWithoutCatalogAccess() {
-        // Given
-        Profile minimumAccessProfile = [SELECT Id FROM Profile WHERE Name = 'Minimum Access - Salesforce' LIMIT 1];
-        User restrictedUser = new User(
-            FirstName = 'Restricted',
-            LastName = 'CatalogUser',
-            Alias = 'rcatlg',
-            Email = 'restricted.catalog.test@novacasatelemetria.invalid',
-            Username = 'restricted.catalog.test' + DateTime.now().getTime() + '@novacasatelemetria.invalid',
-            ProfileId = minimumAccessProfile.Id,
-            TimeZoneSidKey = 'America/Bogota',
-            LocaleSidKey = 'en_US',
-            EmailEncodingKey = 'UTF-8',
-            LanguageLocaleKey = 'en_US'
-        );
-        insert restrictedUser;
-        // Deliberately not assigning the Nova_Casa_Admin permission set: this user has
-        // no CRUD/FLS on Account/Asset, so USER_MODE should block the upsert.
+        // Given: the restricted user comes from setup(); look it up by Username pattern.
+        User restrictedUser = [
+            SELECT Id
+            FROM User
+            WHERE Username LIKE 'restricted.catalog.test%@novacasatelemetria.invalid'
+            LIMIT 1
+        ];
 
         Test.setMock(HttpCalloutMock.class, new CatalogSimulatorMock(200, ONE_BUILDING_CATALOG_JSON));
 
