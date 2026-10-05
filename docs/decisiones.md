@@ -46,7 +46,7 @@ Copy this template, number it sequentially, and keep the status up to date.
 - **Trade-off**: renaming an External Credential or Named Credential that is already deployed and connected (BR-201, HP-01 already merged) means recreating the connection and re-resolving the `$Credential.<name>.BearerToken` merge field in the Named Credential — a risk of breaking the authentication already validated, for a purely cosmetic change. Keeping the current name avoids that risk; the cost is that the original backlog (T1.1) stays out of line with reality until it is corrected there.
 - **Risk / dependency**: none functional. Any doc or task that still refers to `Nova_Casa_Simulator_Auth` is out of date.
 - **Test criteria**: the callout to the simulator authenticates through the `Nova_Casa_Simulator` Named Credential (verified live in T1.4).
-- **Next action**: correct the reference to `Nova_Casa_Simulator_Auth` in the Slack backlog list (task T1.1) so it points to the real name.
+- **Next action**: none. The Slack backlog row for T1.1 already records the real name (note dated 2026-09-30).
 
 ## D003 — `occurredAt` tie: highest severity wins, then `messageId`
 
