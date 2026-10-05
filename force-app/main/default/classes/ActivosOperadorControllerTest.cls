@@ -29,6 +29,8 @@ private class ActivosOperadorControllerTest {
             List<FieldPermissions> fieldPerms = new List<FieldPermissions>{
                 new FieldPermissions(ParentId = fullPs.Id, SobjectType = 'Asset',
                     Field = 'Asset.Tipo_Activo__c', PermissionsRead = true, PermissionsEdit = false),
+                new FieldPermissions(ParentId = fullPs.Id, SobjectType = 'Asset',
+                    Field = 'Asset.External_Id__c', PermissionsRead = true, PermissionsEdit = false),
                 new FieldPermissions(ParentId = fullPs.Id, SobjectType = 'Lectura_Vigente__c',
                     Field = 'Lectura_Vigente__c.Severidad_Nivel__c', PermissionsRead = true, PermissionsEdit = false),
                 new FieldPermissions(ParentId = fullPs.Id, SobjectType = 'Lectura_Vigente__c',
@@ -213,8 +215,8 @@ private class ActivosOperadorControllerTest {
         // When the severity is out of range or the building is not an Id
         // Then the user gets a safe AuraHandledException, not a raw error
         for (List<Object> args : new List<List<Object>>{
-            new List<Object>{ null, 7 },
-            new List<Object>{ 'not-an-id', null }
+            new List<Object>{ null, 7, ActivosOperadorController.SEVERITY_FILTER_MESSAGE },
+            new List<Object>{ 'not-an-id', null, ActivosOperadorController.BUILDING_FILTER_MESSAGE }
         }) {
             Boolean rejected = false;
             System.runAs(operator) {
@@ -222,7 +224,7 @@ private class ActivosOperadorControllerTest {
                     ActivosOperadorController.getAssets((String) args[0], (Integer) args[1], null);
                 } catch (AuraHandledException e) {
                     rejected = true;
-                    Assert.isTrue(e.getMessage().contains('not valid'), 'Unexpected message: ' + e.getMessage());
+                    Assert.areEqual((String) args[2], e.getMessage(), 'Unexpected message');
                 }
             }
             Assert.isTrue(rejected, 'Invalid filter should be rejected');
@@ -447,11 +449,32 @@ private class ActivosOperadorControllerTest {
     }
 
     @isTest
+    static void catalogExternalIdIsReturnedAndBlankWhenTheAssetHasNone() {
+        // Given one asset with a catalog code and one without
+        Account building = newAccount('Edificio ID');
+        Asset withCode = newAsset('AST-WITH-CODE', building, 'WATER_PUMP');
+        setExternalId(withCode, 'AST-TST-001');
+        newAsset('AST-NO-CODE', building, 'WATER_PUMP');
+
+        // When the operator loads the list
+        List<ActivosOperadorController.AssetView> result = load(userLike('nc207operator'), null, null, null);
+
+        // Then the code reaches the view, and a missing code is null (never invented)
+        Assert.areEqual(2, result.size());
+        // (equal severity, so they sort by name)
+        Assert.areEqual('AST-NO-CODE', result[0].name);
+        Assert.isNull(result[0].externalId);
+        Assert.areEqual('AST-WITH-CODE', result[1].name);
+        Assert.areEqual('AST-TST-001', result[1].externalId);
+    }
+
+    @isTest
     static void realOperatorPermissionSetCanReadTheListButNotThresholds() {
         // Given a user holding only the shipped Nova_Casa_Operator permission set
         User realOperator = newUserWithPermissionSet('nc207realop', 'Nova_Casa_Operator');
         Account building = newAccount('Edificio Operador Real');
         Asset asset = newAsset('AST-REAL-OP', building, 'WATER_PUMP');
+        setExternalId(asset, 'AST-TST-OP');
         newReading(asset, 'TEMPERATURE', 'CELSIUS', 95, baseTime(), 2);
         newCase(asset, 'New', 'Real operator case');
 
@@ -472,6 +495,7 @@ private class ActivosOperadorControllerTest {
         Assert.areEqual('AST-REAL-OP', page.assets[0].name);
         Assert.areEqual('Edificio Operador Real', page.assets[0].accountName);
         Assert.areEqual('WATER_PUMP', page.assets[0].assetType);
+        Assert.areEqual('AST-TST-OP', page.assets[0].externalId, 'Nova_Casa_Operator must grant Asset.External_Id__c');
         Assert.areEqual(2, page.assets[0].severityLevel);
         Assert.areEqual(1, page.assets[0].openInterventionCount);
         Assert.areEqual(1, buildings.options.size());
@@ -487,6 +511,7 @@ private class ActivosOperadorControllerTest {
         User realCoordinator = newUserWithPermissionSet('nc207realcoord', 'Nova_Casa_Coordinator');
         Account building = newAccount('Edificio Coordinador Real');
         Asset asset = newAsset('AST-REAL-CO', building, 'ENERGY_METER');
+        setExternalId(asset, 'AST-TST-CO');
         newReading(asset, 'TEMPERATURE', 'CELSIUS', 60, baseTime(), 1);
 
         // When that user loads assets and buildings
@@ -502,6 +527,7 @@ private class ActivosOperadorControllerTest {
         // Then the screen works with the expected data, and thresholds are readable for the coordinator
         Assert.areEqual(1, page.assets.size());
         Assert.areEqual('AST-REAL-CO', page.assets[0].name);
+        Assert.areEqual('AST-TST-CO', page.assets[0].externalId, 'Nova_Casa_Coordinator must grant Asset.External_Id__c');
         Assert.areEqual(1, page.assets[0].severityLevel);
         Assert.areEqual('Advertencia', page.assets[0].severityLabel);
         Assert.areEqual(1, buildings.options.size());
@@ -602,6 +628,11 @@ private class ActivosOperadorControllerTest {
         Asset asset = new Asset(Name = name, AccountId = building.Id, Tipo_Activo__c = type);
         insert asset;
         return asset;
+    }
+
+    private static void setExternalId(Asset asset, String code) {
+        asset.External_Id__c = code;
+        update asset;
     }
 
     private static Lectura_Vigente__c newReading(Asset asset, String type, String unit, Decimal value, Datetime at, Integer level) {

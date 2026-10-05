@@ -11,8 +11,10 @@ public with sharing class ActivosOperadorController {
     @TestVisible private static Integer maxBuildings = 2000;
     private static final Integer READING_TYPES = 5;
     private static final Integer MAX_CASE_ROWS = 2000;
-    @TestVisible private static final String ACCESS_MESSAGE = 'You do not have access to all the information needed for this list.';
-    @TestVisible private static final String LOAD_MESSAGE = 'The information could not be loaded. Try again later.';
+    @TestVisible private static final String ACCESS_MESSAGE = 'No tienes acceso a toda la información necesaria para esta lista.';
+    @TestVisible private static final String SEVERITY_FILTER_MESSAGE = 'El filtro de severidad no es válido.';
+    @TestVisible private static final String BUILDING_FILTER_MESSAGE = 'El filtro de edificio no es válido.';
+    @TestVisible private static final String LOAD_MESSAGE = 'No se pudo cargar la información. Inténtalo de nuevo más tarde.';
 
     public class Option {
         @AuraEnabled public String value { get; private set; }
@@ -110,6 +112,8 @@ public with sharing class ActivosOperadorController {
     public class AssetView implements Comparable {
         @AuraEnabled public Id assetId { get; private set; }
         @AuraEnabled public String name { get; private set; }
+        // Catalog code (Asset.External_Id__c), e.g. AST-BOG-002; shown as the ID chip.
+        @AuraEnabled public String externalId { get; private set; }
         @AuraEnabled public String assetType { get; private set; }
         @AuraEnabled public Id accountId { get; private set; }
         @AuraEnabled public String accountName { get; private set; }
@@ -124,6 +128,7 @@ public with sharing class ActivosOperadorController {
         public AssetView(Asset a, List<ReadingView> readings, List<Case> openCases) {
             this.assetId = a.Id;
             this.name = a.Name;
+            this.externalId = a.External_Id__c;
             this.assetType = a.Tipo_Activo__c;
             this.accountId = a.AccountId;
             this.accountName = a.Account?.Name;
@@ -167,7 +172,7 @@ public with sharing class ActivosOperadorController {
         try {
             Id buildingId = parseId(accountId);
             if (severityLevel != null && (severityLevel < 0 || severityLevel > 2)) {
-                throw safeError('The severity filter is not valid.');
+                throw safeError(SEVERITY_FILTER_MESSAGE);
             }
 
             List<String> conditions = new List<String>();
@@ -180,7 +185,7 @@ public with sharing class ActivosOperadorController {
                 conditions.add('Tipo_Activo__c = :assetType');
                 binds.put('assetType', assetType);
             }
-            String soql = 'SELECT Id, Name, AccountId, Account.Name, Tipo_Activo__c FROM Asset'
+            String soql = 'SELECT Id, Name, AccountId, Account.Name, Tipo_Activo__c, External_Id__c FROM Asset'
                 + (conditions.isEmpty() ? '' : ' WHERE ' + String.join(conditions, ' AND '))
                 + ' ORDER BY Name, Id LIMIT ' + (maxScan + 1);
             List<Asset> assets = Database.queryWithBinds(soql, binds, AccessLevel.USER_MODE);
@@ -363,7 +368,7 @@ public with sharing class ActivosOperadorController {
         try {
             return Id.valueOf(value);
         } catch (Exception e) {
-            throw safeError('The building filter is not valid.');
+            throw safeError(BUILDING_FILTER_MESSAGE);
         }
     }
 

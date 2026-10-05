@@ -14,20 +14,40 @@ const DEFAULT_STALE_MINUTES = 15;
 const GENERIC_ERROR = 'No se pudo cargar la información. Intenta de nuevo o contacta a tu administrador.';
 const RECORD_ID_PATTERN = /^[a-zA-Z0-9]{15,18}$/;
 
+// Severity filter labels follow the prototype (Crítico / Precaución / Estable). Values are the controller's levels.
 const SEVERITY_OPTIONS = [
     { label: 'Todas', value: '' },
-    { label: 'Crítica', value: '2' },
-    { label: 'Advertencia', value: '1' },
-    { label: 'Normal', value: '0' }
+    { label: 'Crítico', value: '2' },
+    { label: 'Precaución', value: '1' },
+    { label: 'Estable', value: '0' }
 ];
 
-// Visual treatment per severity level. Icon + text always accompany the color.
+// Severity treatment per level. The glyph (filled circle / triangle / empty circle) and the text always accompany
+// the color, so color is never the only cue. A missing level is never mapped to Estable.
 const SEVERITY_UI = {
-    2: { badge: 'slds-theme_error', icon: 'utility:error', card: 'nc-card_critical', chip: 'nc-chip_critical' },
-    1: { badge: 'slds-theme_warning', icon: 'utility:warning', card: 'nc-card_warning', chip: 'nc-chip_warning' },
-    0: { badge: 'slds-theme_success', icon: 'utility:success', card: 'nc-card_normal', chip: 'nc-chip_normal' }
+    2: { key: 'critico', label: 'Crítico', glyph: '\u25CF' },
+    1: { key: 'advertencia', label: 'Precaución', glyph: '\u25B2' },
+    0: { key: 'normal', label: 'Estable', glyph: '\u25CB' }
 };
-const SEVERITY_NONE_UI = { badge: '', icon: 'utility:question', card: '', chip: 'nc-chip_none' };
+const SEVERITY_NO_LEVEL_UI = { key: 'nivel', label: 'Sin dato', glyph: '?' };
+const SEVERITY_NO_READING_UI = { key: 'nivel', label: 'Sin lecturas', glyph: '?' };
+
+// Labels of measurement.type (Lectura_Vigente__c.Tipo_Medicion__c). Unknown values fall back to the raw value.
+const MEASUREMENT_LABELS = {
+    TEMPERATURE: 'Temperatura',
+    WATER_PRESSURE: 'Presión de agua',
+    WATER_CONSUMPTION: 'Consumo de agua',
+    ENERGY_CONSUMPTION: 'Consumo de energía',
+    CAMERA_CONNECTIVITY: 'Conectividad de cámara'
+};
+// Active measurement types: the detail table lists the ones an asset has no reading for as "Sin lecturas".
+const MEASUREMENT_TYPES = Object.keys(MEASUREMENT_LABELS);
+
+// Asset.Tipo_Activo__c values that have their own icon; any other type gets the neutral icon.
+const ICON_PUMP = 'WATER_PUMP';
+const ICON_VENTILATION = 'VENTILATION';
+
+const NUMBER_FORMAT = new Intl.NumberFormat('es', { maximumFractionDigits: 3 });
 
 // Only the controller's AuraHandledException message (body.message) is shown; anything else is generic.
 function reduceError(error) {
@@ -84,6 +104,34 @@ function relativeTime(value, nowMs) {
     return `hace ${Math.floor(hours / 24)} d`;
 }
 
+function formatUtcTime(value) {
+    const ms = toMillis(value);
+    return ms === null ? '' : `${new Date(ms).toISOString().slice(11, 19)} UTC`;
+}
+
+function formatValue(value, unit) {
+    const number = value === null || value === undefined ? '—' : NUMBER_FORMAT.format(value);
+    return unit ? `${number} ${unit}` : number;
+}
+
+function severityUi(level, hasReadings) {
+    if (!hasReadings) {
+        return SEVERITY_NO_READING_UI;
+    }
+    if (level === null || level === undefined) {
+        return SEVERITY_NO_LEVEL_UI;
+    }
+    return SEVERITY_UI[level] || SEVERITY_NO_LEVEL_UI;
+}
+
+function rankOf(reading) {
+    return reading.severityLevel === null || reading.severityLevel === undefined ? -1 : reading.severityLevel;
+}
+
+function plural(count, one, many) {
+    return `${count} ${count === 1 ? one : many}`;
+}
+
 export default class NovaCasaActivosOperador extends NavigationMixin(LightningElement) {
     /** Minutes without a signal before the asset is flagged as stale. */
     @api staleMinutes = DEFAULT_STALE_MINUTES;
@@ -91,6 +139,9 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     buildingId = '';
     severity = '';
     assetType = '';
+
+    // Detail view is client-side state: the selected asset comes from the already-loaded getAssets payload.
+    selectedAssetId = null;
 
     assets;
     truncated = false;
@@ -112,6 +163,7 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
 
     _assetsResult;
     _timer;
+    _focusTarget; // 'detail' or an asset Id whose "Ver activo" button should regain focus
 
     connectedCallback() {
         // Re-render relative times without hitting the server.
@@ -123,6 +175,23 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
 
     disconnectedCallback() {
         clearInterval(this._timer);
+    }
+
+    renderedCallback() {
+        if (!this._focusTarget) {
+            return;
+        }
+        const target = this._focusTarget;
+        let element = null;
+        if (target === 'detail') {
+            element = this.template.querySelector('[data-focus="detail"]');
+        } else if (RECORD_ID_PATTERN.test(target)) {
+            element = this.template.querySelector(`button[data-id="${target}"]`);
+        }
+        if (element) {
+            element.focus();
+            this._focusTarget = undefined;
+        }
     }
 
     // ---- data ----
@@ -145,11 +214,16 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             this.assetsLoaded = true;
             this.updatedAtMs = Date.now();
             this.nowMs = this.updatedAtMs;
+            // The selected asset left the payload (filters or data changed): fall back to the list.
+            if (this.selectedAssetId && !page.assets.some((a) => a.assetId === this.selectedAssetId)) {
+                this.selectedAssetId = null;
+            }
         } else if (error) {
             this.assets = undefined;
             this.truncated = false;
             this.assetsError = error;
             this.assetsLoaded = true;
+            this.selectedAssetId = null;
         }
         if (data || error) {
             this.isRefreshing = false;
@@ -206,19 +280,22 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         return this.assetType || null;
     }
 
-    // ---- filters ----
+    // ---- filters (native selects styled as pills; `selected` is precomputed, templates cannot compare) ----
 
+    markSelected(options, current) {
+        return options.map((o) => ({ label: o.label, value: o.value, selected: o.value === current }));
+    }
     get buildingOptions() {
-        return [{ label: 'Todos', value: '' }, ...this.buildings];
+        return this.markSelected([{ label: 'Todos', value: '' }, ...this.buildings], this.buildingId);
     }
     get buildingsDisabled() {
         return !this.buildingsLoaded || this.buildings.length === 0;
     }
     get severityOptions() {
-        return SEVERITY_OPTIONS;
+        return this.markSelected(SEVERITY_OPTIONS, this.severity);
     }
     get typeOptions() {
-        return [{ label: 'Todos', value: '' }, ...this.typeOptionsRaw];
+        return this.markSelected([{ label: 'Todos', value: '' }, ...this.typeOptionsRaw], this.assetType);
     }
     get hasTypeOptions() {
         return this.typeOptionsRaw.length > 0;
@@ -228,8 +305,10 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     }
 
     handleFilterChange(event) {
-        const { name } = event.target;
-        const value = event.detail.value;
+        const { name, value } = event.target;
+        if (name !== 'buildingId' && name !== 'severity' && name !== 'assetType') {
+            return;
+        }
         if (this[name] === value) {
             return;
         }
@@ -274,8 +353,14 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     get showEmptyNoMatch() {
         return !this.isBusy && !this.assetsError && this.assets && !this.hasAssets && this.filtersActive;
     }
+    get showDetail() {
+        return !this.isBusy && !this.assetsError && Boolean(this.selectedRow);
+    }
     get showList() {
-        return !this.isBusy && !this.assetsError && this.hasAssets;
+        return !this.isBusy && !this.assetsError && this.hasAssets && !this.showDetail;
+    }
+    get showFilters() {
+        return !this.showDetail;
     }
     get showTruncated() {
         return this.showList && this.truncated;
@@ -294,8 +379,19 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     get updatedText() {
         return this.updatedAtMs ? relativeTime(this.updatedAtMs, this.nowMs) : '';
     }
+    get countText() {
+        if (this.isBusy) {
+            return 'Cargando activos…';
+        }
+        if (this.assetsError) {
+            return 'No disponible';
+        }
+        const list = this.assets || [];
+        const buildingKeys = new Set(list.map((a) => a.accountId || a.accountName).filter(Boolean));
+        return `${plural(list.length, 'activo', 'activos')} · ${plural(buildingKeys.size, 'edificio', 'edificios')}`;
+    }
 
-    // ---- summary (over the rows returned for the current filters) ----
+    // ---- banner (counts cover the rows returned for the current filtered view, and say so) ----
 
     countWhere(predicate) {
         return (this.assets || []).filter(predicate).length;
@@ -312,95 +408,217 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     get noReadingCount() {
         return this.countWhere((a) => a.severityLevel == null);
     }
+    get knownCount() {
+        return this.countWhere((a) => a.severityLevel != null);
+    }
     get criticalChip() {
-        return `${this.criticalCount} crítico(s) en esta vista`;
+        return plural(this.criticalCount, 'crítico', 'críticos');
     }
     get warningChip() {
-        return `${this.warningCount} advertencia(s) en esta vista`;
+        return `${this.warningCount} precaución`;
     }
     get normalChip() {
-        return `${this.normalCount} normal(es) en esta vista`;
+        return plural(this.normalCount, 'estable', 'estables');
     }
     get noReadingChip() {
-        return `${this.noReadingCount} sin dato en esta vista`;
+        return `${this.noReadingCount} sin dato`;
     }
-    get summaryLead() {
-        const total = this.assets ? this.assets.length : 0;
+    get bannerClass() {
+        if (this.criticalCount > 0) {
+            return 'situacion situacion-critico';
+        }
+        // Without any asset of known severity nothing can be called stable: neutral look.
+        if (this.knownCount === 0) {
+            return 'situacion situacion-neutro';
+        }
+        // A cut result never gets the all-clear look: there may be critical assets we did not see.
+        return this.warningCount > 0 || this.truncated ? 'situacion situacion-advertencia' : 'situacion situacion-normal';
+    }
+    // When the result is cut (page, scan ceiling or readings cap; the payload does not say which) the banner
+    // never claims "none critical": it says "al menos" / that it could not verify everything.
+    get leadStrong() {
         const crit = this.criticalCount;
         if (crit > 0) {
-            return `${crit} de ${total} activos de esta vista en estado crítico necesitan atención ahora`;
+            const text = crit === 1 ? '1 crítico' : `${crit} críticos`;
+            return this.truncated ? `Al menos ${text}` : text;
         }
-        if (this.warningCount > 0) {
-            return `Sin activos críticos en esta vista; ${this.warningCount} en advertencia`;
+        if (this.knownCount === 0) {
+            return 'Severidad no determinada';
         }
-        return `${total} activos en esta vista, ninguno en estado crítico`;
+        return this.truncated ? 'Ningún crítico verificado' : 'Ningún crítico';
+    }
+    get leadRest() {
+        const crit = this.criticalCount;
+        if (crit > 0) {
+            const rest = `de ${plural(this.assets.length, 'activo', 'activos')} en esta vista ${crit === 1 ? 'necesita' : 'necesitan'} atención ahora`;
+            return this.truncated ? `${rest}; no se pudo verificar todo` : rest;
+        }
+        if (this.knownCount === 0) {
+            const none = 'ningún activo de esta vista tiene lecturas con nivel conocido; no se pudo determinar la severidad';
+            return this.truncated ? `${none}; puede haber críticos sin mostrar` : none;
+        }
+        let base = this.warningCount > 0 ? `en esta vista; ${this.warningCount} en precaución` : 'en esta vista';
+        if (this.noReadingCount > 0) {
+            base += `; ${this.noReadingCount} sin dato`;
+        }
+        return this.truncated ? `${base}; no se pudo verificar todo, puede haber críticos sin mostrar` : base;
     }
 
-    // ---- rows ----
+    // ---- view models ----
+
+    get staleMs() {
+        return (Number(this.staleMinutes) > 0 ? Number(this.staleMinutes) : DEFAULT_STALE_MINUTES) * 60000;
+    }
+
+    buildReading(a, r) {
+        const ui = severityUi(r.severityLevel, true);
+        return {
+            key: `${a.assetId}-${r.measurementType}`,
+            measurementType: r.measurementType,
+            measurementLabel: MEASUREMENT_LABELS[r.measurementType] || r.measurementType,
+            valueText: formatValue(r.value, r.unit),
+            ageText: relativeTime(r.occurredAt, this.nowMs),
+            timeText: formatUtcTime(r.occurredAt),
+            occurredMs: toMillis(r.occurredAt),
+            rank: rankOf(r),
+            sevClass: `sev sev-${ui.key}`,
+            sevGlyph: ui.glyph,
+            sevLabel: ui.label,
+            hasReading: true
+        };
+    }
+
+    buildRow(a) {
+        const readings = (a.readings || []).map((r) => this.buildReading(a, r));
+        const hasReadings = readings.length > 0;
+        const level = a.severityLevel;
+        const ui = severityUi(level, hasReadings);
+
+        // Headline reading on the card: the one that sets the severity (highest level, then the newest).
+        let headline = null;
+        let latest = null;
+        readings.forEach((r) => {
+            if (!headline || r.rank > headline.rank || (r.rank === headline.rank && (r.occurredMs || 0) > (headline.occurredMs || 0))) {
+                headline = r;
+            }
+            if (!latest || (r.occurredMs || 0) > (latest.occurredMs || 0)) {
+                latest = r;
+            }
+        });
+
+        // Table: readings most severe first, then the measurement types this asset has no reading for.
+        const sorted = [...readings].sort((x, y) => y.rank - x.rank || x.measurementLabel.localeCompare(y.measurementLabel));
+        const present = new Set(readings.map((r) => r.measurementType));
+        const missing = MEASUREMENT_TYPES.filter((t) => !present.has(t)).map((t) => ({
+            key: `${a.assetId}-${t}-none`,
+            measurementLabel: MEASUREMENT_LABELS[t],
+            hasReading: false
+        }));
+
+        const lastMs = toMillis(a.lastSignalAt);
+        let signalText;
+        let signalClass = 'senal';
+        if (!hasReadings || lastMs === null) {
+            signalText = 'Sin señal recibida todavía';
+        } else if (this.nowMs - lastMs > this.staleMs) {
+            signalText = `Última señal ${relativeTime(a.lastSignalAt, this.nowMs)} (desactualizada)`;
+            signalClass = 'senal senal-vieja';
+        } else {
+            signalText = `Última señal ${relativeTime(a.lastSignalAt, this.nowMs)}`;
+        }
+
+        const typeLabel = this.typeLabels[a.assetType] || a.assetType || '';
+        const metaParts = [typeLabel, a.externalId].filter(Boolean);
+        const count = a.openInterventionCount || 0;
+        const inv = a.openIntervention;
+        const unreadable = !hasReadings;
+        return {
+            key: a.assetId,
+            assetId: a.assetId,
+            name: a.name,
+            buildingName: a.accountName || '',
+            hasBuilding: Boolean(a.accountName),
+            externalId: a.externalId || '',
+            hasExternalId: Boolean(a.externalId),
+            typeLabel,
+            hasTypeLabel: Boolean(typeLabel),
+            metaText: metaParts.join(' · '),
+            isPump: a.assetType === ICON_PUMP,
+            isVentilation: a.assetType === ICON_VENTILATION,
+            isOtherType: a.assetType !== ICON_PUMP && a.assetType !== ICON_VENTILATION,
+            cardClass: `tarjeta-activo ${ui.key}`,
+            heroClass: `hero-activo ${ui.key}`,
+            viewButtonClass: level === 2 ? 'boton urgente' : 'boton secundario',
+            sevClass: `sev sev-${ui.key}`,
+            sevGlyph: ui.glyph,
+            sevLabel: ui.label,
+            sevValueClass: `val val-${ui.key}`,
+            sevSub: this.severitySub(level, hasReadings),
+            viewLabel: `Ver activo ${a.name || ''}`.trim(),
+            signalText,
+            signalClass,
+            hasReadings,
+            hasHeadline: Boolean(headline),
+            headValue: headline ? headline.valueText : '',
+            headMeasure: headline ? `${headline.measurementLabel} · ${headline.ageText}` : '',
+            noReadingsText: unreadable ? 'Sin lecturas todavía' : '',
+            hasMoreReadings: readings.length > 1,
+            moreReadingsText: `+${readings.length - 1} medición(es) más en el detalle`,
+            lastValue: latest ? latest.valueText : '',
+            lastSub: latest ? `${latest.measurementLabel} · ${latest.ageText} · ${latest.timeText}` : 'Sin lecturas todavía',
+            hasLast: Boolean(latest),
+            tableRows: [...sorted, ...missing],
+            hasIntervention: Boolean(inv),
+            caseId: inv ? inv.caseId : null,
+            caseNumber: inv ? inv.caseNumber : '',
+            caseStatus: inv ? inv.status : '',
+            caseSubject: inv && inv.subject ? inv.subject : '',
+            hasCaseSubject: Boolean(inv && inv.subject),
+            caseAgeText: inv ? `Abierta ${relativeTime(inv.createdDate, this.nowMs)}` : '',
+            hasMoreInterventions: count > 1,
+            moreInterventionsText: `y ${count - 1} intervención(es) abierta(s) más`,
+            noInterventionText: this.noInterventionText(level, hasReadings)
+        };
+    }
+
+    // Sub-line under the detail severity (wording from the prototype, without promising an intervention).
+    severitySub(level, hasReadings) {
+        if (!hasReadings || level == null) {
+            return 'Sin nivel de severidad conocido';
+        }
+        if (level === 1) {
+            return 'Vigilar';
+        }
+        if (level === 0) {
+            return 'Sin acción requerida';
+        }
+        return 'La mayor de sus mediciones vigentes';
+    }
+
+    // Wording of the "Ninguna abierta" card. Never claims a case exists or will be created.
+    noInterventionText(level, hasReadings) {
+        if (!hasReadings || level == null) {
+            return 'Sin severidad conocida: no hay lecturas con nivel para evaluar este activo.';
+        }
+        if (level === 2) {
+            return 'El activo está en estado crítico y no hay una intervención abierta visible para ti. Revisa el estado del procesamiento o consulta con tu administrador.';
+        }
+        if (level === 1) {
+            return 'No es crítica: el sistema no la abre de forma automática.';
+        }
+        return 'El equipo está en rango.';
+    }
 
     get rows() {
-        const staleMs = (Number(this.staleMinutes) > 0 ? Number(this.staleMinutes) : DEFAULT_STALE_MINUTES) * 60000;
-        return (this.assets || []).map((a) => {
-            const readings = a.readings || [];
-            const hasReadings = readings.length > 0;
-            const level = a.severityLevel;
-            const ui = level == null ? SEVERITY_NONE_UI : SEVERITY_UI[level] || SEVERITY_NONE_UI;
+        return (this.assets || []).map((a) => this.buildRow(a));
+    }
 
-            const lastMs = toMillis(a.lastSignalAt);
-            let signalText;
-            let signalIcon = 'utility:clock';
-            let signalClass = '';
-            let signalAlt = 'Última señal';
-            if (!hasReadings || lastMs === null) {
-                signalText = 'Sin señal recibida todavía';
-                signalIcon = 'utility:dash';
-                signalClass = 'slds-text-color_weak';
-            } else if (this.nowMs - lastMs > staleMs) {
-                signalText = `Última señal ${relativeTime(a.lastSignalAt, this.nowMs)} (desactualizada)`;
-                signalIcon = 'utility:warning';
-                signalClass = 'slds-text-color_error';
-                signalAlt = 'Información desactualizada';
-            } else {
-                signalText = `Última señal ${relativeTime(a.lastSignalAt, this.nowMs)}`;
-            }
-
-            const count = a.openInterventionCount || 0;
-            const inv = a.openIntervention;
-            return {
-                key: a.assetId,
-                assetId: a.assetId,
-                name: a.name,
-                accountName: a.accountName || '',
-                typeLabel: this.typeLabels[a.assetType] || a.assetType || '',
-                cardClass: `slds-item nc-card ${ui.card}`,
-                severityClass: ui.badge,
-                severityIcon: ui.icon,
-                severityText: hasReadings ? a.severityLabel || 'Sin dato' : 'Sin lecturas',
-                signalText,
-                signalIcon,
-                signalClass,
-                signalAlt,
-                hasReadings,
-                readings: readings.map((r) => {
-                    const rUi = r.severityLevel == null ? SEVERITY_NONE_UI : SEVERITY_UI[r.severityLevel] || SEVERITY_NONE_UI;
-                    return {
-                        key: `${a.assetId}-${r.measurementType}`,
-                        measurementType: r.measurementType,
-                        valueText: `${r.value ?? '—'}${r.unit ? ' ' + r.unit : ''}`,
-                        ageText: relativeTime(r.occurredAt, this.nowMs),
-                        severityLabel: r.severityLabel,
-                        chipClass: `nc-chip ${rUi.chip}`
-                    };
-                }),
-                hasIntervention: Boolean(inv),
-                caseId: inv ? inv.caseId : null,
-                caseNumber: inv ? inv.caseNumber : '',
-                caseStatus: inv ? inv.status : '',
-                caseAgeText: inv ? `abierta ${relativeTime(inv.createdDate, this.nowMs)}` : '',
-                hasMoreInterventions: count > 1,
-                moreInterventionsText: `y ${count - 1} intervención(es) abierta(s) más`
-            };
-        });
+    get selectedRow() {
+        if (!this.selectedAssetId || !this.assets) {
+            return null;
+        }
+        const asset = this.assets.find((a) => a.assetId === this.selectedAssetId);
+        return asset ? this.buildRow(asset) : null;
     }
 
     // ---- navigation (record access is enforced by the platform and the controller) ----
@@ -421,5 +639,31 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     }
     handleOpenCase(event) {
         this.navigateToRecord(event, 'Case');
+    }
+
+    // ---- in-component detail ----
+
+    openDetail(assetId) {
+        if (!assetId || !RECORD_ID_PATTERN.test(assetId)) {
+            return;
+        }
+        this.selectedAssetId = assetId;
+        this._focusTarget = 'detail';
+    }
+
+    // Click anywhere on the card (pointer users).
+    handleViewAsset(event) {
+        this.openDetail(event.currentTarget.dataset.id);
+    }
+
+    // The "Ver activo" button is the keyboard path; it stops the click so the card handler does not run twice.
+    handleViewAssetButton(event) {
+        event.stopPropagation();
+        this.openDetail(event.currentTarget.dataset.id);
+    }
+
+    handleBackToList() {
+        this._focusTarget = this.selectedAssetId || undefined;
+        this.selectedAssetId = null;
     }
 }
