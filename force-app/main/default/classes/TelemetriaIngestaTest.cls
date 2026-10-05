@@ -497,6 +497,21 @@ private class TelemetriaIngestaTest {
     }
 
     @isTest
+    static void laProfundidadLocalMaximaDetieneLaCadenaSinSenalDePlataforma() {
+        preparar(mensajes(2, 'msg_o'), 'fake-cursor-3', true);
+        // pagina == PROFUNDIDAD_LOCAL_MAXIMA (27), maxPaginas well above it, profundidadForzada left at its
+        // default (null): only the local backstop can stop this chain, not topeDePaginas and not the platform seam.
+        TelemetriaIngesta trabajo = new TelemetriaIngesta(null, 'fake-cursor-2', 27, 60, new TelemetriaIngesta.Resumen());
+
+        Test.startTest(); // no stopTest: see the class note on event delivery
+        trabajo.execute(null);
+
+        Assert.isTrue(TelemetriaIngesta.encolados.isEmpty(),
+            'At the local depth backstop the next job must not be enqueued, even without a platform signal');
+        Assert.areEqual(2, [SELECT COUNT() FROM Log_Senial__c WHERE Message_Id__c LIKE 'msg_o%'], 'The current page is still ingested');
+    }
+
+    @isTest
     static void unaPaginaDe200SeProcesaEnUnSoloExecute() {
         preparar(mensajes(200, 'msg_p'), 'fake-cursor-3', true);
         TelemetriaIngesta trabajo = new TelemetriaIngesta(null, 'fake-cursor-2', 1, 5, new TelemetriaIngesta.Resumen());
