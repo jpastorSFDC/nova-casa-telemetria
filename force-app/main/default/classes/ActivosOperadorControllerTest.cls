@@ -1,0 +1,398 @@
+@isTest
+private class ActivosOperadorControllerTest {
+
+    private static Integer keyCounter = 0;
+
+    @testSetup
+    static void setup() {
+        // Setup objects (users, permission sets) in their own runAs block to avoid mixed DML.
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            Profile p = [SELECT Id FROM Profile WHERE Name = 'Minimum Access - Salesforce' LIMIT 1];
+            String suffix = String.valueOf(Crypto.getRandomInteger()).replace('-', 'n');
+
+            PermissionSet fullPs = newPermissionSet('NC207_Operator_Full');
+            PermissionSet noFlsPs = newPermissionSet('NC207_Operator_NoFls');
+            insert new List<PermissionSet>{ fullPs, noFlsPs };
+
+            List<ObjectPermissions> objectPerms = new List<ObjectPermissions>();
+            for (PermissionSet ps : new List<PermissionSet>{ fullPs, noFlsPs }) {
+                for (String obj : new List<String>{ 'Asset', 'Account', 'Case', 'Lectura_Vigente__c' }) {
+                    objectPerms.add(new ObjectPermissions(
+                        ParentId = ps.Id, SobjectType = obj, PermissionsRead = true));
+                }
+            }
+            insert objectPerms;
+
+            List<FieldPermissions> fieldPerms = new List<FieldPermissions>{
+                new FieldPermissions(ParentId = fullPs.Id, SobjectType = 'Asset',
+                    Field = 'Asset.Tipo_Activo__c', PermissionsRead = true, PermissionsEdit = false),
+                new FieldPermissions(ParentId = fullPs.Id, SobjectType = 'Lectura_Vigente__c',
+                    Field = 'Lectura_Vigente__c.Severidad_Nivel__c', PermissionsRead = true, PermissionsEdit = false),
+                new FieldPermissions(ParentId = fullPs.Id, SobjectType = 'Lectura_Vigente__c',
+                    Field = 'Lectura_Vigente__c.Sensor_Id__c', PermissionsRead = true, PermissionsEdit = false),
+                // noFlsPs deliberately lacks Asset.Tipo_Activo__c
+                new FieldPermissions(ParentId = noFlsPs.Id, SobjectType = 'Lectura_Vigente__c',
+                    Field = 'Lectura_Vigente__c.Severidad_Nivel__c', PermissionsRead = true, PermissionsEdit = false),
+                new FieldPermissions(ParentId = noFlsPs.Id, SobjectType = 'Lectura_Vigente__c',
+                    Field = 'Lectura_Vigente__c.Sensor_Id__c', PermissionsRead = true, PermissionsEdit = false)
+            };
+            insert fieldPerms;
+
+            User restricted = newUser(p.Id, 'nc207restricted', suffix);
+            User operator = newUser(p.Id, 'nc207operator', suffix);
+            User noFls = newUser(p.Id, 'nc207nofls', suffix);
+            insert new List<User>{ restricted, operator, noFls };
+
+            insert new List<PermissionSetAssignment>{
+                new PermissionSetAssignment(AssigneeId = operator.Id, PermissionSetId = fullPs.Id),
+                new PermissionSetAssignment(AssigneeId = noFls.Id, PermissionSetId = noFlsPs.Id)
+            };
+        }
+    }
+
+    @isTest
+    static void assetWithoutReadingsHasNoSeverityAndNoIntervention() {
+        // Given an asset that never received a signal
+        Account building = newAccount('Edificio Sin Datos');
+        Asset asset = newAsset('AST-SIN-DATO', building, 'WATER_PUMP');
+
+        // When the operator loads the list
+        List<ActivosOperadorController.AssetView> result = load(userLike('nc207operator'), null, null, null);
+
+        // Then it shows as 'Sin lecturas' instead of 'Normal'
+        Assert.areEqual(1, result.size());
+        ActivosOperadorController.AssetView view = result[0];
+        Assert.areEqual(asset.Id, view.assetId);
+        Assert.areEqual('Edificio Sin Datos', view.accountName);
+        Assert.areEqual('WATER_PUMP', view.assetType);
+        Assert.isNull(view.severityLevel);
+        Assert.areEqual('Sin lecturas', view.severityLabel);
+        Assert.isTrue(view.readings.isEmpty());
+        Assert.isNull(view.lastSignalAt);
+        Assert.isNull(view.openIntervention);
+        Assert.areEqual(0, view.openInterventionCount);
+    }
+
+    @isTest
+    static void assetSeverityIsHighestLatestReadingAndTypesDoNotOverwriteEachOther() {
+        // Given one asset whose critical temperature is OLDER than a normal pressure reading
+        Account building = newAccount('Edificio A');
+        Datetime now = baseTime();
+        Asset critical = newAsset('AST-CRIT', building, 'TECHNICAL_ROOM');
+        newReading(critical, 'TEMPERATURE', 'CELSIUS', 95, now.addMinutes(-30), 2);
+        newReading(critical, 'WATER_PRESSURE', 'BAR', 3, now, 0);
+        // and another asset with warning + normal
+        Asset warning = newAsset('AST-WARN', building, 'WATER_PUMP');
+        newReading(warning, 'TEMPERATURE', 'CELSIUS', 60, now, 1);
+        newReading(warning, 'WATER_PRESSURE', 'BAR', 3, now, 0);
+
+        // When the operator loads the list
+        List<ActivosOperadorController.AssetView> result = load(userLike('nc207operator'), null, null, null);
+
+        // Then each asset shows the highest severity, both readings survive, and the critical one sorts first
+        Assert.areEqual(2, result.size());
+        Assert.areEqual('AST-CRIT', result[0].name);
+        Assert.areEqual(2, result[0].severityLevel);
+        Assert.areEqual('Crítica', result[0].severityLabel);
+        Assert.areEqual(2, result[0].readings.size());
+        Assert.areEqual(now, result[0].lastSignalAt);
+        Assert.areEqual('AST-WARN', result[1].name);
+        Assert.areEqual(1, result[1].severityLevel);
+        Assert.areEqual('Advertencia', result[1].severityLabel);
+        ActivosOperadorController.ReadingView temperature = readingOf(result[0], 'TEMPERATURE');
+        ActivosOperadorController.ReadingView pressure = readingOf(result[0], 'WATER_PRESSURE');
+        Assert.areEqual(95, temperature.value);
+        Assert.areEqual(2, temperature.severityLevel);
+        Assert.areEqual(0, pressure.severityLevel);
+    }
+
+    @isTest
+    static void newestReadingOfTheSameTypeReplacesAnOlderCriticalOne() {
+        // Given a critical temperature followed by a normal temperature, and a tie at the same instant
+        Account building = newAccount('Edificio B');
+        Datetime now = baseTime();
+        Asset recovered = newAsset('AST-RECOVERED', building, 'WATER_PUMP');
+        newReading(recovered, 'TEMPERATURE', 'CELSIUS', 95, now.addMinutes(-10), 2);
+        newReading(recovered, 'TEMPERATURE', 'CELSIUS', 20, now, 0);
+        Asset tie = newAsset('AST-TIE', building, 'WATER_PUMP');
+        newReading(tie, 'TEMPERATURE', 'CELSIUS', 20, now, 0);
+        newReading(tie, 'TEMPERATURE', 'CELSIUS', 95, now, 2);
+
+        // When the operator loads the list
+        List<ActivosOperadorController.AssetView> result = load(userLike('nc207operator'), null, null, null);
+
+        // Then the newest wins, and on a tie the higher severity wins regardless of arrival order
+        Map<String, ActivosOperadorController.AssetView> byName = byName(result);
+        Assert.areEqual(1, byName.get('AST-RECOVERED').readings.size());
+        Assert.areEqual(0, byName.get('AST-RECOVERED').severityLevel);
+        Assert.areEqual(1, byName.get('AST-TIE').readings.size());
+        Assert.areEqual(2, byName.get('AST-TIE').severityLevel);
+    }
+
+    @isTest
+    static void onlyOpenCasesCountAsOpenIntervention() {
+        // Given an asset with an open case, one with a closed case, and one with both
+        Account building = newAccount('Edificio C');
+        Asset open = newAsset('AST-OPEN', building, 'WATER_PUMP');
+        Asset closed = newAsset('AST-CLOSED', building, 'WATER_PUMP');
+        Asset both = newAsset('AST-BOTH', building, 'WATER_PUMP');
+        newCase(open, 'New', 'Open one');
+        newCase(closed, 'Closed', 'Closed one');
+        newCase(both, 'Closed', 'Old closed');
+        Case current = newCase(both, 'Working', 'Current open');
+
+        // When the operator loads the list
+        List<ActivosOperadorController.AssetView> result = load(userLike('nc207operator'), null, null, null);
+
+        // Then only non-closed cases are reported, and the open one is the one returned
+        Map<String, ActivosOperadorController.AssetView> byName = byName(result);
+        Assert.isNotNull(byName.get('AST-OPEN').openIntervention);
+        Assert.areEqual('New', byName.get('AST-OPEN').openIntervention.status);
+        Assert.areEqual(1, byName.get('AST-OPEN').openInterventionCount);
+        Assert.isNull(byName.get('AST-CLOSED').openIntervention);
+        Assert.areEqual(0, byName.get('AST-CLOSED').openInterventionCount);
+        Assert.areEqual(current.Id, byName.get('AST-BOTH').openIntervention.caseId);
+        Assert.areEqual(1, byName.get('AST-BOTH').openInterventionCount);
+    }
+
+    @isTest
+    static void filtersNarrowByBuildingSeverityAndType() {
+        // Given assets across two buildings, two severities and two types
+        Account north = newAccount('Edificio Norte');
+        Account south = newAccount('Edificio Sur');
+        Datetime now = baseTime();
+        Asset a1 = newAsset('AST-N-CRIT', north, 'WATER_PUMP');
+        newReading(a1, 'TEMPERATURE', 'CELSIUS', 95, now, 2);
+        Asset a2 = newAsset('AST-N-OK', north, 'ENERGY_METER');
+        newReading(a2, 'TEMPERATURE', 'CELSIUS', 20, now, 0);
+        Asset a3 = newAsset('AST-S-CRIT', south, 'ENERGY_METER');
+        newReading(a3, 'TEMPERATURE', 'CELSIUS', 95, now, 2);
+        User operator = userLike('nc207operator');
+
+        // When filtering by building
+        List<ActivosOperadorController.AssetView> byBuilding = load(operator, north.Id, null, null);
+        // Then only that building's assets come back
+        Assert.areEqual(new List<String>{ 'AST-N-CRIT', 'AST-N-OK' }, names(byBuilding));
+
+        // When filtering by severity
+        List<ActivosOperadorController.AssetView> bySeverity = load(operator, null, 2, null);
+        // Then only critical assets come back
+        Assert.areEqual(new List<String>{ 'AST-N-CRIT', 'AST-S-CRIT' }, names(bySeverity));
+        Assert.areEqual(1, names(load(operator, null, 0, null)).size());
+
+        // When filtering by type
+        List<ActivosOperadorController.AssetView> byType = load(operator, null, null, 'ENERGY_METER');
+        // Then only that type comes back
+        Assert.areEqual(new List<String>{ 'AST-N-OK', 'AST-S-CRIT' }, names(byType));
+
+        // When combining all three, and when passing blank strings
+        List<ActivosOperadorController.AssetView> combined = load(operator, south.Id, 2, 'ENERGY_METER');
+        List<ActivosOperadorController.AssetView> blanks = load(operator, '', null, '');
+        // Then filters intersect, and blanks mean "no filter"
+        Assert.areEqual(new List<String>{ 'AST-S-CRIT' }, names(combined));
+        Assert.areEqual(3, blanks.size());
+        Assert.areEqual(0, load(operator, north.Id, 2, 'ENERGY_METER').size());
+    }
+
+    @isTest
+    static void invalidFiltersAreRejectedWithASafeMessage() {
+        // Given a valid operator
+        User operator = userLike('nc207operator');
+
+        // When the severity is out of range or the building is not an Id
+        // Then the user gets a safe AuraHandledException, not a raw error
+        for (List<Object> args : new List<List<Object>>{
+            new List<Object>{ null, 7 },
+            new List<Object>{ 'not-an-id', null }
+        }) {
+            Boolean rejected = false;
+            System.runAs(operator) {
+                try {
+                    ActivosOperadorController.getAssets((String) args[0], (Integer) args[1], null);
+                } catch (AuraHandledException e) {
+                    rejected = true;
+                    Assert.isTrue(e.getMessage().contains('not valid'), 'Unexpected message: ' + e.getMessage());
+                }
+            }
+            Assert.isTrue(rejected, 'Invalid filter should be rejected');
+        }
+    }
+
+    @isTest
+    static void buildingsListsOnlyBuildingsWithAssets() {
+        // Given one building with an asset and one without
+        Account withAsset = newAccount('Edificio Con Activo');
+        newAccount('Edificio Vacio');
+        newAsset('AST-B', withAsset, 'WATER_PUMP');
+
+        // When the operator loads the building options
+        List<ActivosOperadorController.Option> options;
+        System.runAs(userLike('nc207operator')) {
+            options = ActivosOperadorController.getBuildings();
+        }
+
+        // Then only the building that has an asset is offered
+        Assert.areEqual(1, options.size());
+        Assert.areEqual(withAsset.Id, options[0].value);
+        Assert.areEqual('Edificio Con Activo', options[0].label);
+    }
+
+    @isTest
+    static void userWithoutObjectAccessGetsNoData() {
+        // Given data that exists and that an admin can see
+        Account building = newAccount('Edificio Privado');
+        Asset asset = newAsset('AST-PRIV', building, 'WATER_PUMP');
+        newReading(asset, 'TEMPERATURE', 'CELSIUS', 95, baseTime(), 2);
+        newCase(asset, 'New', 'Secret case');
+        Assert.areEqual(1, ActivosOperadorController.getAssets(null, null, null).size());
+
+        // When a user with no object access asks the server directly
+        List<ActivosOperadorController.AssetView> assets;
+        List<ActivosOperadorController.Option> buildings;
+        Boolean assetsDenied = false;
+        Boolean buildingsDenied = false;
+        System.runAs(userLike('nc207restricted')) {
+            try {
+                assets = ActivosOperadorController.getAssets(null, null, null);
+            } catch (AuraHandledException e) {
+                assetsDenied = true;
+                Assert.isFalse(e.getMessage().contains('Access to entity'), 'Raw platform error leaked');
+            }
+            try {
+                buildings = ActivosOperadorController.getBuildings();
+            } catch (AuraHandledException e) {
+                buildingsDenied = true;
+            }
+        }
+
+        // Then nothing comes back: either a safe error or an empty result
+        Assert.isTrue(assetsDenied || assets.isEmpty(), 'Restricted user must not receive assets');
+        Assert.isTrue(buildingsDenied || buildings.isEmpty(), 'Restricted user must not receive buildings');
+    }
+
+    @isTest
+    static void userMissingFieldAccessGetsAnErrorInsteadOfPartialData() {
+        // Given data and a user who can read the objects but not Asset.Tipo_Activo__c
+        Account building = newAccount('Edificio FLS');
+        Asset asset = newAsset('AST-FLS', building, 'WATER_PUMP');
+        newReading(asset, 'TEMPERATURE', 'CELSIUS', 95, baseTime(), 2);
+
+        // When that user asks for the list
+        List<ActivosOperadorController.AssetView> result;
+        Boolean denied = false;
+        System.runAs(userLike('nc207nofls')) {
+            try {
+                result = ActivosOperadorController.getAssets(null, null, null);
+            } catch (AuraHandledException e) {
+                denied = true;
+                Assert.isFalse(e.getMessage().contains('Tipo_Activo__c'), 'Field names should not leak');
+            }
+        }
+
+        // Then the field is never returned: the call fails safely instead of handing back the asset
+        Assert.isTrue(denied || result.isEmpty(), 'Hidden field must not come back');
+        if (!denied) {
+            for (ActivosOperadorController.AssetView v : result) {
+                Assert.isNull(v.assetType, 'Hidden field leaked');
+            }
+        }
+    }
+
+    // ---------- helpers ----------
+
+    private static List<ActivosOperadorController.AssetView> load(User runAs, String accountId, Integer severity, String type) {
+        List<ActivosOperadorController.AssetView> result;
+        System.runAs(runAs) {
+            result = ActivosOperadorController.getAssets(accountId, severity, type);
+        }
+        return result;
+    }
+
+    private static List<String> names(List<ActivosOperadorController.AssetView> views) {
+        List<String> names = new List<String>();
+        for (ActivosOperadorController.AssetView v : views) {
+            names.add(v.name);
+        }
+        names.sort();
+        return names;
+    }
+
+    private static Map<String, ActivosOperadorController.AssetView> byName(List<ActivosOperadorController.AssetView> views) {
+        Map<String, ActivosOperadorController.AssetView> result = new Map<String, ActivosOperadorController.AssetView>();
+        for (ActivosOperadorController.AssetView v : views) {
+            result.put(v.name, v);
+        }
+        return result;
+    }
+
+    private static ActivosOperadorController.ReadingView readingOf(ActivosOperadorController.AssetView view, String type) {
+        for (ActivosOperadorController.ReadingView r : view.readings) {
+            if (r.measurementType == type) {
+                return r;
+            }
+        }
+        Assert.fail('No reading of type ' + type);
+        return null;
+    }
+
+    // Whole seconds: DateTime fields do not keep milliseconds.
+    private static Datetime baseTime() {
+        return Datetime.newInstanceGmt(2026, 10, 1, 12, 0, 0);
+    }
+
+    private static User userLike(String prefix) {
+        String pattern = prefix + '%';
+        return [SELECT Id FROM User WHERE Username LIKE :pattern LIMIT 1];
+    }
+
+    private static PermissionSet newPermissionSet(String name) {
+        return new PermissionSet(Name = name, Label = name);
+    }
+
+    private static User newUser(Id profileId, String prefix, String suffix) {
+        return new User(
+            Username = prefix + '.' + suffix + '@novacasa-test.example.com',
+            Alias = prefix.right(8),
+            Email = prefix + '@novacasa-test.example.com',
+            LastName = prefix,
+            ProfileId = profileId,
+            TimeZoneSidKey = 'America/Bogota',
+            LocaleSidKey = 'en_US',
+            EmailEncodingKey = 'UTF-8',
+            LanguageLocaleKey = 'en_US'
+        );
+    }
+
+    private static Account newAccount(String name) {
+        Account acc = new Account(Name = name);
+        insert acc;
+        return acc;
+    }
+
+    private static Asset newAsset(String name, Account building, String type) {
+        Asset asset = new Asset(Name = name, AccountId = building.Id, Tipo_Activo__c = type);
+        insert asset;
+        return asset;
+    }
+
+    private static Lectura_Vigente__c newReading(Asset asset, String type, String unit, Decimal value, Datetime at, Integer level) {
+        keyCounter++;
+        Lectura_Vigente__c r = new Lectura_Vigente__c(
+            Asset__c = asset.Id,
+            Clave__c = 'TEST-' + keyCounter,
+            Tipo_Medicion__c = type,
+            Unidad__c = unit,
+            Valor__c = value,
+            Occurred_At__c = at,
+            Severidad_Nivel__c = level
+        );
+        insert r;
+        return r;
+    }
+
+    private static Case newCase(Asset asset, String status, String subject) {
+        Case c = new Case(AssetId = asset.Id, Status = status, Subject = subject, Origin = 'Web');
+        insert c;
+        return c;
+    }
+}
