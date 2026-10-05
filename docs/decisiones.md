@@ -166,6 +166,7 @@ Copiar esta plantilla, numerar secuencialmente, y mantener el estado actualizado
 - **Siguiente acción**: criterios de prueba: reenvío igual no cambia lectura ni Case y suma `Reenvios__c`; misma identidad con otro valor queda `Conflicto` sin cambios; señal más antigua queda `Atrasada` sin tocar la lectura ni abrir Case; empate de `occurredAt` lo decide D003 sin importar el orden y el perdedor queda `Superada` (no `Atrasada`); un Case que falla deja `Fallida` y sin lectura mientras otra identidad del lote sí se procesa; 200 eventos usan un número fijo de SOQL/DML.
 
 
+
 ## D012 — La pantalla del operador vuelve al prototipo de baja fidelidad
 
 - **Estado**: Propuesta
@@ -179,6 +180,8 @@ Copiar esta plantilla, numerar secuencialmente, y mantener el estado actualizado
 
 ## D014 — Page layouts mínimos para los objetos de Nova Casa (HP-07)
 
+## D015 — Page layouts mínimos para los objetos de Nova Casa (HP-07)
+
 - **Estado**: Propuesta
 - **Fecha**: 2026-10-05
 - **Contexto**: los layouts estándar de `Asset`, `Account` y `Case` muestran decenas de campos sin relación con el proyecto, y los layouts de los objetos custom eran los generados por defecto (con `CurrencyIsoCode` y `OwnerId` visibles, campos de sistema editables). El org tiene un solo layout por objeto, así que se modifican esos mismos en lugar de crear layouts "Nova Casa ..." que exigirían asignación por perfil.
@@ -189,7 +192,7 @@ Copiar esta plantilla, numerar secuencialmente, y mantener el estado actualizado
 - **Nota (FLS de lectura, T2.11)**: para que los layouts no salgan en blanco, `Nova_Casa_Operator` y `Nova_Casa_Coordinator` reciben FLS de solo lectura (`readable=true`, `editable=false`) sobre los campos custom que muestran los layouts de `Account`, `Asset`, `Case` y `Lectura_Vigente__c` (`Account.External_Id__c`, `Asset.External_Id__c`, `Severidad_Actual__c`, `Severidad_Nivel__c`, `Ultima_Senal__c`, `Case.Identidad_Senal__c`, `Lectura_Vigente__c.Clave__c`, `Identidad_Senal__c`, `Severidad__c`). Se omiten los campos obligatorios y el master-detail, que la plataforma concede implícitamente. Confirmado por John: el operador y el coordinador ven lo mismo que la pantalla ya les muestra, sin crear, editar ni borrar; no se amplía el acceso a `Umbral__c` ni a `Log_Senial__c`. Toca permission sets compartidos.
 - **Siguiente acción**: dry-run de solo layouts y compact layouts, revisar en el org Asset, Account y Case, y decidir si se separan las cuentas personales. Criterio de prueba: cada página muestra solo los campos listados y las listas relacionadas cargan sin error.
 
-## D015 — Pestaña de Account y list views propias en la app Nova Casa (HP-07)
+## D016 — Pestaña de Account y list views propias en la app Nova Casa (HP-07)
 
 - **Estado**: Propuesta
 - **Fecha**: 2026-10-05

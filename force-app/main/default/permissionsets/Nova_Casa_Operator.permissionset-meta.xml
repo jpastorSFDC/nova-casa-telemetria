@@ -26,8 +26,6 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>false</editable>
-<<<<<<< HEAD
-=======
         <field>Asset.Severidad_Actual__c</field>
         <readable>true</readable>
     </fieldPermissions>
@@ -38,7 +36,6 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>false</editable>
->>>>>>> d08af2c (feat(HP-07): grant read-only field access on the new layouts to Operator and Coordinator)
         <field>Asset.Tipo_Activo__c</field>
         <readable>true</readable>
     </fieldPermissions>
