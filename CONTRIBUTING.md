@@ -176,6 +176,18 @@ To run tests without deploying:
 sf apex run test --class-names CatalogoServiceTest --code-coverage --result-format human --wait 10
 ```
 
+### Why a deploy shows 0 passed, 0 failed
+
+In `nova-cdo` a deploy or `--dry-run` reports `Running Tests - Skipped` and `Passing: 0, Failing: 0, Total: 0`, even with `--test-level RunSpecifiedTests --tests ...` and even when an Apex class changed. We checked this with a dry-run that changed `CatalogoService`: still 0 tests. The org was created in the Solutions workspace as a trial Enterprise Edition org (`IsSandbox=false`), and we believe it does not run tests on deploy, but Salesforce has not confirmed that.
+
+So the deploy result proves only that the metadata compiles and is valid. It says nothing about the tests or the 75% coverage. After every real deploy with Apex, run the tests yourself and put that result in the PR:
+
+```bash
+sf apex run test --class-names ActivosOperadorControllerTest --code-coverage --result-format human --wait 10
+```
+
+The test summary (`Tests Ran`, `Pass Rate`) and the per-class coverage from that command are the evidence. Keep passing `--test-level RunSpecifiedTests --tests ...` on deploys anyway: if the org ever starts enforcing tests, the deploy will then run only ours.
+
 ## Decisions and secrets
 
 - A change that departs from a sprint agreement or from the Discovery prototypes is recorded in `docs/decisiones.md` before it is merged.
