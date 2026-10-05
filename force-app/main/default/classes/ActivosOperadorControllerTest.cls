@@ -39,6 +39,14 @@ private class ActivosOperadorControllerTest {
                 new FieldPermissions(ParentId = noFlsPs.Id, SobjectType = 'Lectura_Vigente__c',
                     Field = 'Lectura_Vigente__c.Sensor_Id__c', PermissionsRead = true, PermissionsEdit = false)
             };
+            // Standard fields flagged permissionable in the describe need explicit FLS too (object Read is not enough):
+            // Asset.AccountId, Case.AssetId, Case.Subject. CaseNumber, Status, IsClosed, Name, CreatedDate do not.
+            for (PermissionSet ps : new List<PermissionSet>{ fullPs, noFlsPs }) {
+                for (String f : new List<String>{ 'Asset.AccountId', 'Case.AssetId', 'Case.Subject' }) {
+                    fieldPerms.add(new FieldPermissions(ParentId = ps.Id, SobjectType = f.substringBefore('.'),
+                        Field = f, PermissionsRead = true, PermissionsEdit = false));
+                }
+            }
             insert fieldPerms;
 
             User restricted = newUser(p.Id, 'nc207restricted', suffix);

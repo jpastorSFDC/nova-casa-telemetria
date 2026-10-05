@@ -369,6 +369,8 @@ public with sharing class ActivosOperadorController {
 
     // Static messages only: access-type failures vs anything else; never echo the platform message.
     private static AuraHandledException failure(Exception e) {
+        // Debug log only; the user-facing message stays static.
+        System.debug(LoggingLevel.ERROR, 'ActivosOperador failure: ' + e.getTypeName() + ': ' + e.getMessage());
         if (e instanceof QueryException || e instanceof NoAccessException) {
             return safeError(ACCESS_MESSAGE);
         }
