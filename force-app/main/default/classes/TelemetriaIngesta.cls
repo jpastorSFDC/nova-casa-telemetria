@@ -15,7 +15,12 @@
  * cursor yet, then GET /telemetry), then DML (log insert, event publish, log update), then enqueue of the next job.
  * Salesforce forbids a callout after uncommitted DML in the same transaction, so a job never callouts after DML;
  * the next page is a new transaction. The chain stops when the simulator says hasMore=false, on an empty page,
- * at maxPaginas, or when the platform's queueable stack depth is exhausted (developer/trial orgs allow 5).
+ * at maxPaginas, when the platform's queueable stack depth is exhausted, or at our own PROFUNDIDAD_LOCAL_MAXIMA.
+ * The enqueueJob of the next job asks the platform to raise its default chain-depth cap (5) to
+ * PROFUNDIDAD_COLA_SOLICITADA via AsyncOptions.MaximumQueueableStackDepth, but that request is not trusted
+ * blindly: AsyncInfo.hasMaxStackDepth() was observed in nova-cdo reporting false one job before the platform
+ * actually refused to run the next one (an uncaught LimitException, not our graceful WARN stop), so pagina is
+ * also checked against our own, more conservative local ceiling regardless of what the platform reports.
  * The cursor travels only as private state of the next job. It is never logged or stored in a record.
  *
  * Access: without sharing + SYSTEM_MODE makes the DML independent of operator/admin object permissions
@@ -30,6 +35,22 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
     public static final Integer PAGE_SIZE = 200;
     public static final Integer DEFAULT_MAX_PAGINAS = 25;
     private static final Integer HARD_MAX_PAGINAS = 100;
+
+    // Depth we ask the platform to honor for this chain (System.AsyncOptions.MaximumQueueableStackDepth on the
+    // enqueueJob of the next job), above the platform default of 5. Chosen conservatively: this is a trial/dev
+    // org and its real hard ceiling is not confirmed, so we ask for comfortably more than the observed failure
+    // point (job6, i.e. depth 5) without assuming the org will honor something as high as HARD_MAX_PAGINAS (100).
+    // Must stay above DEFAULT_MAX_PAGINAS (25) with margin, or the backstop below would silently shrink the
+    // default run length instead of only guarding against the platform ceiling.
+    private static final Integer PROFUNDIDAD_COLA_SOLICITADA = 30;
+    // Our own ceiling on pagina, independent of PROFUNDIDAD_COLA_SOLICITADA and of what the platform reports via
+    // AsyncInfo.hasMaxStackDepth(). Margin of 3 below PROFUNDIDAD_COLA_SOLICITADA so a bug, a late platform signal,
+    // or a real per-org cap lower than requested can never again surface as an uncaught Failed job instead of our
+    // WARN stop (see class comment: this is exactly what happened with job6 in nova-cdo). Still above
+    // DEFAULT_MAX_PAGINAS (25): a default-sized run (no explicit maxPaginas) must not be cut short by this
+    // backstop. A run asking for more than this (up to HARD_MAX_PAGINAS, 100) has not been empirically validated
+    // past this ceiling yet; see docs/decisiones.md D013.
+    private static final Integer PROFUNDIDAD_LOCAL_MAXIMA = 27;
 
     // Field lengths of Log_Senial__c and Senial_Sensor__e.
     private static final Integer MAX_IDENTIDAD = 60;
@@ -173,11 +194,18 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
         if (soloCapturar) {
             encolados.add(siguiente);
         } else {
-            System.enqueueJob(siguiente);
+            AsyncOptions opciones = new AsyncOptions();
+            opciones.MaximumQueueableStackDepth = PROFUNDIDAD_COLA_SOLICITADA;
+            System.enqueueJob(siguiente, opciones);
         }
     }
 
-    private static Boolean profundidadAgotada() {
+    private Boolean profundidadAgotada() {
+        // Local backstop first: independent of PROFUNDIDAD_COLA_SOLICITADA and of what the platform reports below,
+        // so a bug or a real per-org cap lower than requested still stops the chain gracefully (see class comment).
+        if (pagina >= PROFUNDIDAD_LOCAL_MAXIMA) {
+            return true;
+        }
         if (profundidadForzada != null) {
             return profundidadForzada;
         }
