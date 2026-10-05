@@ -4,6 +4,13 @@
  *   2) publishes one Senial_Sensor__e per message with EventBus.publish, checking each SaveResult.
  * Processing (classification, Lectura_Vigente__c, Cases) is the Senial_Sensor__e subscriber's job.
  *
+ * Nothing is dropped silently (BR-202, BR-209): a message that cannot be published (no identity, source or
+ * messageId longer than its field, identity longer than 60) and every non-object element of "data" get a
+ * Log_Senial__c row with Resultado__c = 'Rechazada' and a Motivo__c, keyed by a hash so it stays unique and
+ * dedupes on replay. A message whose log row cannot be inserted (anything other than a duplicate) is NOT
+ * published, because an event without a log row would be untraceable; it is counted and reported in the
+ * final WARN debug line (counts only).
+ *
  * Queueable chain: one job = one page. Order inside a job is callouts first (POST /session when there is no
  * cursor yet, then GET /telemetry), then DML (log insert, event publish, log update), then enqueue of the next job.
  * Salesforce forbids a callout after uncommitted DML in the same transaction, so a job never callouts after DML;
@@ -11,9 +18,11 @@
  * at maxPaginas, or when the platform's queueable stack depth is exhausted (developer/trial orgs allow 5).
  * The cursor travels only as private state of the next job. It is never logged or stored in a record.
  *
- * Access: without sharing + SYSTEM_MODE. Ingestion must not depend on operator/admin permissions (AGENTS.md,
- * BR-208): whoever starts the chain (or Automated Process) may lack access to Log_Senial__c. The operator query
- * path has its own authorization; this class must not be called from LWC or @AuraEnabled code.
+ * Access: without sharing + SYSTEM_MODE makes the DML independent of operator/admin object permissions
+ * (AGENTS.md, BR-208). The CALLOUT is not independent: the user who calls iniciar() (the job runs as that
+ * user) needs the Nova_Casa_Simulator_Integration permission set, which grants access to the Named
+ * Credential's external credential principal. Without it the first callout fails. Publishing needs Create on
+ * Senial_Sensor__e for that user; see D013. This class must not be called from LWC or @AuraEnabled code.
  */
 public without sharing class TelemetriaIngesta implements Queueable, Database.AllowsCallouts {
 
@@ -42,12 +51,24 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
     private static final String FALLIDA = 'Fallida';
     private static final Set<String> TIPOS_LOG = new Set<String>{ 'MEASUREMENT', 'CONNECTIVITY' };
 
-    // Test seams. In production: encolados is unused and resultadosForzados stays null.
-    // Tests cannot chain real queueables, so under Test.isRunningTest() the next job is captured here.
+    private static final String RECHAZADA = 'Rechazada';
+    private static final Integer MAX_MOTIVO = 255;
+
+    // Test seams. In production: soloCapturar is false, the other two are null/empty.
+    // Tests cannot run a real chain, so with soloCapturar the next job is kept in encolados instead of enqueued.
+    @TestVisible
+    private static Boolean soloCapturar = false;
     @TestVisible
     private static List<TelemetriaIngesta> encolados = new List<TelemetriaIngesta>();
+    // Replaces the EventBus.publish results when its size matches the chunk.
     @TestVisible
     private static List<Database.SaveResult> resultadosForzados;
+    // Replaces AsyncInfo.hasMaxStackDepth() when not null.
+    @TestVisible
+    private static Boolean profundidadForzada;
+    // Identities whose log row is sent with an invalid Resultado__c so the insert fails (not a duplicate).
+    @TestVisible
+    private static Set<String> identidadesConFalloDeLog = new Set<String>();
     @TestVisible
     private static Resumen ultimoResumen;
 
@@ -66,24 +87,26 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
     /** Counters only: no cursor, no token, no message content. */
     public class Resumen {
         public Integer paginas = 0;
-        public Integer recibidos = 0;
-        public Integer logsCreados = 0;
-        public Integer yaExistentes = 0;
-        public Integer logsFallidos = 0;
+        public Integer recibidos = 0; // elements of "data", objects or not
+        public Integer logsCreados = 0; // 'Publicada' rows created
+        public Integer yaExistentes = 0; // rows skipped because the identity already existed (resends, replays)
+        public Integer logsFallidos = 0; // rows that failed for a reason other than duplicate, plus failed updates
+        public Integer noPublicadosPorLog = 0; // events not published because their log row failed
         public Integer publicados = 0;
         public Integer fallosPublicacion = 0;
-        public Integer descartados = 0;
-        public Integer omitidosPorLongitud = 0;
+        public Integer rechazados = 0; // messages/elements rejected here with a 'Rechazada' row
+        public Integer descartados = 0; // subset of rechazados: non-object elements of "data"
 
         public void sumar(Resumen otro) {
             recibidos += otro.recibidos;
             logsCreados += otro.logsCreados;
             yaExistentes += otro.yaExistentes;
             logsFallidos += otro.logsFallidos;
+            noPublicadosPorLog += otro.noPublicadosPorLog;
             publicados += otro.publicados;
             fallosPublicacion += otro.fallosPublicacion;
+            rechazados += otro.rechazados;
             descartados += otro.descartados;
-            omitidosPorLongitud += otro.omitidosPorLongitud;
         }
     }
 
@@ -102,6 +125,7 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
 
     /**
      * Starts an ingestion run: opens a session (optionally for a scenario such as QA_200) and reads pages.
+     * The caller needs the Nova_Casa_Simulator_Integration permission set (see class comment).
      * @param escenario Scenario name, or blank for the simulator default
      * @param maxPaginas Upper bound on pages for this run; null or less than 1 means 25; capped at 100
      * @return Id of the first queueable job
@@ -125,11 +149,13 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
         SimuladorClient.Pagina leida = SimuladorClient.leerPagina(cursor, PAGE_SIZE);
 
         // 2) DML: log rows first, then the events.
-        Resumen deEstaPagina = procesarPagina(leida.mensajes);
-        deEstaPagina.descartados += leida.descartados;
+        Resumen deEstaPagina = procesarPagina(leida.mensajes, leida.descartes, pagina);
         acumulado.sumar(deEstaPagina);
         acumulado.paginas++;
         ultimoResumen = acumulado;
+        if (acumulado.logsFallidos > 0 || acumulado.noPublicadosPorLog > 0 || acumulado.fallosPublicacion > 0) {
+            System.debug(LoggingLevel.WARN, 'Ingesta con mensajes sin rastro completo: ' + resumenComoTexto(acumulado));
+        }
 
         // 3) Chain.
         Boolean hayOtra = leida.hayMas && !leida.mensajes.isEmpty() && pagina < maxPaginas;
@@ -138,16 +164,26 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
                 + ', hayMas=' + leida.hayMas + ', paginaVacia=' + leida.mensajes.isEmpty());
             return;
         }
-        if (!Test.isRunningTest() && AsyncInfo.hasMaxStackDepth()) {
+        if (profundidadAgotada()) {
             System.debug(LoggingLevel.WARN, 'Ingesta detenida: profundidad maxima de cola alcanzada, ' + resumenComoTexto(acumulado));
             return;
         }
         TelemetriaIngesta siguiente = new TelemetriaIngesta(escenario, leida.siguienteCursor, pagina + 1, maxPaginas, acumulado);
-        if (Test.isRunningTest()) {
+        if (soloCapturar) {
             encolados.add(siguiente);
         } else {
             System.enqueueJob(siguiente);
         }
+    }
+
+    private static Boolean profundidadAgotada() {
+        return profundidadForzada != null ? profundidadForzada : AsyncInfo.hasMaxStackDepth();
+    }
+
+    /** Convenience for pages with no discarded elements. */
+    @TestVisible
+    private static Resumen procesarPagina(List<Map<String, Object>> mensajes) {
+        return procesarPagina(mensajes, new List<SimuladorClient.Descarte>(), 1);
     }
 
     /**
@@ -155,44 +191,74 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
      * and one EventBus.publish per 200 events, whatever the page size.
      */
     @TestVisible
-    private static Resumen procesarPagina(List<Map<String, Object>> mensajes) {
+    private static Resumen procesarPagina(
+        List<Map<String, Object>> mensajes,
+        List<SimuladorClient.Descarte> descartes,
+        Integer numeroPagina
+    ) {
         Resumen resumen = new Resumen();
-        resumen.recibidos = mensajes.size();
-
-        List<Senial_Sensor__e> eventos = new List<Senial_Sensor__e>();
-        List<Log_Senial__c> filas = new List<Log_Senial__c>(); // parallel to eventos; null = no identity, no row
-        List<Log_Senial__c> porInsertar = new List<Log_Senial__c>();
+        resumen.recibidos = mensajes.size() + descartes.size();
         Datetime ahora = Datetime.now();
 
+        List<Senial_Sensor__e> candidatos = new List<Senial_Sensor__e>();
+        List<Log_Senial__c> filasCandidatas = new List<Log_Senial__c>(); // parallel to candidatos
+        List<Log_Senial__c> rechazos = new List<Log_Senial__c>();
+
         for (Map<String, Object> mensaje : mensajes) {
-            Senial_Sensor__e evento = aEvento(mensaje);
-            if (evento == null) {
-                resumen.omitidosPorLongitud++;
+            String motivo = motivoDeRechazo(mensaje);
+            if (motivo != null) {
+                rechazos.add(filaRechazada(mensaje, motivo));
                 continue;
             }
-            eventos.add(evento);
-            Log_Senial__c fila = aFilaDeLog(mensaje, evento, ahora);
-            filas.add(fila);
-            if (fila != null) {
-                porInsertar.add(fila);
-            }
+            Senial_Sensor__e evento = aEvento(mensaje);
+            candidatos.add(evento);
+            filasCandidatas.add(aFilaDeLog(evento, ahora));
         }
+        for (SimuladorClient.Descarte descarte : descartes) {
+            rechazos.add(filaDeDescarte(descarte, numeroPagina));
+            resumen.descartados++;
+        }
+        resumen.rechazados = rechazos.size();
 
-        // Step 1: log rows as 'Publicada'. Partial success: a duplicate identity (resend) leaves the existing row alone.
+        // Step 1: log rows. Partial success: a duplicate identity (resend/replay) leaves the existing row alone.
+        List<Log_Senial__c> porInsertar = new List<Log_Senial__c>(filasCandidatas);
+        porInsertar.addAll(rechazos);
+        List<Boolean> conFila = new List<Boolean>(); // parallel to candidatos: may the event be published?
         if (!porInsertar.isEmpty()) {
             List<Database.SaveResult> resultados = Database.insert(porInsertar, false, AccessLevel.SYSTEM_MODE);
-            for (Database.SaveResult resultado : resultados) {
+            for (Integer i = 0; i < resultados.size(); i++) {
+                Boolean esCandidato = i < candidatos.size();
+                Database.SaveResult resultado = resultados[i];
+                Boolean publicable = true;
                 if (resultado.isSuccess()) {
-                    resumen.logsCreados++;
-                } else if (!resultado.getErrors().isEmpty() && resultado.getErrors()[0].getStatusCode() == StatusCode.DUPLICATE_VALUE) {
+                    if (esCandidato) {
+                        resumen.logsCreados++;
+                    }
+                } else if (esDuplicado(resultado)) {
                     resumen.yaExistentes++;
                 } else {
                     resumen.logsFallidos++;
+                    publicable = false;
+                    if (esCandidato) {
+                        resumen.noPublicadosPorLog++;
+                    }
+                }
+                if (esCandidato) {
+                    conFila.add(publicable);
                 }
             }
         }
 
-        // Step 2: publish. Every event goes out, even a resend, so the subscriber can count it.
+        List<Senial_Sensor__e> eventos = new List<Senial_Sensor__e>();
+        List<Log_Senial__c> filas = new List<Log_Senial__c>(); // parallel to eventos
+        for (Integer i = 0; i < candidatos.size(); i++) {
+            if (conFila[i]) {
+                eventos.add(candidatos[i]);
+                filas.add(filasCandidatas[i]);
+            }
+        }
+
+        // Step 2: publish. Every event with a log row goes out, even a resend, so the subscriber can count it.
         List<Log_Senial__c> aMarcarFallidas = new List<Log_Senial__c>();
         for (Integer desde = 0; desde < eventos.size(); desde += 200) {
             Integer hasta = Math.min(desde + 200, eventos.size());
@@ -211,7 +277,7 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
                 }
                 resumen.fallosPublicacion++;
                 Log_Senial__c fila = filas[desde + j];
-                if (fila != null && fila.Id != null) { // only rows this run created
+                if (fila.Id != null) { // only rows this run created
                     String codigo = resultados[j].getErrors().isEmpty()
                         ? 'UNKNOWN' : String.valueOf(resultados[j].getErrors()[0].getStatusCode());
                     aMarcarFallidas.add(new Log_Senial__c(
@@ -235,26 +301,72 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
     }
 
     /**
-     * Maps one simulator message to an event, or returns null when source or messageId is longer than its
-     * field: those two make up the identity, so truncating would merge different messages. Other text is
-     * truncated to its field length, except the asset/building keys, which become null (the subscriber then
-     * rejects the message with a reason instead of matching a truncated key to another asset).
+     * Why a message cannot be published, or null when it can. The identity (source|messageId) has to fit
+     * Identidad__c (60) and source/messageId have to fit their own fields (80): truncating would merge
+     * different messages, so these are rejected instead.
+     */
+    private static String motivoDeRechazo(Map<String, Object> mensaje) {
+        String source = texto(mensaje.get('source'));
+        String messageId = texto(mensaje.get('messageId'));
+        if (String.isBlank(source) || String.isBlank(messageId)) {
+            return 'Rechazada en la ingesta: falta source o messageId';
+        }
+        if (source.length() > MAX_SOURCE || messageId.length() > MAX_MESSAGE_ID) {
+            return 'Rechazada en la ingesta: source (' + source.length() + ') o messageId (' + messageId.length()
+                + ') excede ' + MAX_SOURCE + ' caracteres';
+        }
+        if (source.length() + 1 + messageId.length() > MAX_IDENTIDAD) {
+            return 'Rechazada en la ingesta: la identidad source|messageId (' + (source.length() + 1 + messageId.length())
+                + ') excede ' + MAX_IDENTIDAD + ' caracteres';
+        }
+        return null;
+    }
+
+    // The row key is a hash because the real identity does not fit (or does not exist). Same message, same key.
+    private static Log_Senial__c filaRechazada(Map<String, Object> mensaje, String motivo) {
+        String source = texto(mensaje.get('source'));
+        String messageId = texto(mensaje.get('messageId'));
+        String base = String.isBlank(source) || String.isBlank(messageId)
+            ? 'SIN-ID|' + hash(JSON.serialize(mensaje))
+            : 'ID-LARGA|' + hash(source + '|' + messageId);
+        String entrega = cortar(texto(mensaje.get('deliveryId')), MAX_DELIVERY_ID);
+        String tipo = texto(mensaje.get('messageType'));
+        return new Log_Senial__c(
+            Identidad__c = base.left(MAX_IDENTIDAD),
+            Source__c = cortar(source, MAX_SOURCE),
+            Message_Id__c = cortar(messageId, MAX_MESSAGE_ID),
+            Delivery_Id__c = entrega,
+            Message_Type__c = TIPOS_LOG.contains(tipo) ? tipo : null,
+            Occurred_At__c = fecha(cortar(texto(mensaje.get('occurredAt')), MAX_FECHA_TEXTO)),
+            Resultado__c = RECHAZADA,
+            Motivo__c = cortar(motivo, MAX_MOTIVO)
+        );
+    }
+
+    private static Log_Senial__c filaDeDescarte(SimuladorClient.Descarte descarte, Integer numeroPagina) {
+        return new Log_Senial__c(
+            Identidad__c = ('DESCARTE|' + hash(descarte.huella + '@' + descarte.posicion)).left(MAX_IDENTIDAD),
+            Resultado__c = RECHAZADA,
+            Motivo__c = cortar('Rechazada en la ingesta: el elemento ' + descarte.posicion + ' de data (pagina '
+                + numeroPagina + ') no es un objeto JSON (' + descarte.tipo + ')', MAX_MOTIVO)
+        );
+    }
+
+    /**
+     * Maps one simulator message (already checked by motivoDeRechazo) to an event. Asset/building keys that do
+     * not fit become null (the subscriber then rejects the message with a reason instead of matching a
+     * truncated key to another asset); the remaining text is truncated to its field length.
      */
     @TestVisible
     private static Senial_Sensor__e aEvento(Map<String, Object> mensaje) {
-        String source = texto(mensaje.get('source'));
-        String messageId = texto(mensaje.get('messageId'));
-        if ((source != null && source.length() > MAX_SOURCE) || (messageId != null && messageId.length() > MAX_MESSAGE_ID)) {
-            return null;
-        }
         Map<String, Object> edificio = mapa(mensaje.get('building'));
         Map<String, Object> activo = mapa(mensaje.get('asset'));
         Map<String, Object> medicion = mapa(mensaje.get('measurement'));
         Map<String, Object> comunicacion = mapa(mensaje.get('communication'));
 
         return new Senial_Sensor__e(
-            Source__c = source,
-            Message_Id__c = messageId,
+            Source__c = texto(mensaje.get('source')),
+            Message_Id__c = texto(mensaje.get('messageId')),
             Delivery_Id__c = cortar(texto(mensaje.get('deliveryId')), MAX_DELIVERY_ID),
             Message_Type__c = cortar(texto(mensaje.get('messageType')), MAX_TIPO_MENSAJE),
             Building_Id__c = soloSiCabe(texto(primero(edificio, 'id', 'externalId')), MAX_LLAVE_EXTERNA),
@@ -273,15 +385,9 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
         );
     }
 
-    // No row without a full identity (source|messageId) that fits Identidad__c; the subscriber rejects those events.
-    private static Log_Senial__c aFilaDeLog(Map<String, Object> mensaje, Senial_Sensor__e evento, Datetime publicadoAt) {
-        if (String.isBlank(evento.Source__c) || String.isBlank(evento.Message_Id__c)) {
-            return null;
-        }
+    private static Log_Senial__c aFilaDeLog(Senial_Sensor__e evento, Datetime publicadoAt) {
         String identidad = evento.Source__c + '|' + evento.Message_Id__c;
-        if (identidad.length() > MAX_IDENTIDAD) {
-            return null;
-        }
+        Boolean forzarFallo = identidadesConFalloDeLog.contains(identidad);
         return new Log_Senial__c(
             Identidad__c = identidad,
             Source__c = evento.Source__c,
@@ -289,18 +395,27 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
             Delivery_Id__c = evento.Delivery_Id__c,
             Message_Type__c = TIPOS_LOG.contains(evento.Message_Type__c) ? evento.Message_Type__c : null,
             Occurred_At__c = fecha(evento.Occurred_At__c),
-            Resultado__c = PUBLICADA,
+            Resultado__c = forzarFallo ? 'ValorInvalidoDePrueba' : PUBLICADA,
             Publicado_At__c = publicadoAt
         );
+    }
+
+    private static Boolean esDuplicado(Database.SaveResult resultado) {
+        return !resultado.getErrors().isEmpty() && resultado.getErrors()[0].getStatusCode() == StatusCode.DUPLICATE_VALUE;
+    }
+
+    private static String hash(String valor) {
+        return EncodingUtil.convertToHex(Crypto.generateDigest('SHA-256', Blob.valueOf(valor)));
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
     private static String resumenComoTexto(Resumen r) {
         return 'paginas=' + r.paginas + ', recibidos=' + r.recibidos + ', logsCreados=' + r.logsCreados
-            + ', yaExistentes=' + r.yaExistentes + ', logsFallidos=' + r.logsFallidos + ', publicados=' + r.publicados
-            + ', fallosPublicacion=' + r.fallosPublicacion + ', descartados=' + r.descartados
-            + ', omitidosPorLongitud=' + r.omitidosPorLongitud;
+            + ', yaExistentes=' + r.yaExistentes + ', logsFallidos=' + r.logsFallidos
+            + ', noPublicadosPorLog=' + r.noPublicadosPorLog + ', publicados=' + r.publicados
+            + ', fallosPublicacion=' + r.fallosPublicacion + ', rechazados=' + r.rechazados
+            + ', descartados=' + r.descartados;
     }
 
     private static Map<String, Object> mapa(Object valor) {
