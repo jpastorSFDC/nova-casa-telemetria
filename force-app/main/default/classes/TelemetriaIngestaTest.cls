@@ -10,8 +10,12 @@
  * SenialSensorTrigger and SenialSensorHandler are deployed in nova-cdo: Test.stopTest() delivers the published
  * events and the handler then rewrites the log rows (test assets do not exist, so 'Publicada' becomes
  * 'Rechazada'). Only the async iniciar test calls startTest/stopTest (it needs them to run the job), and it
- * asserts only fields the ingestion owns. Every other test skips startTest/stopTest so no event is delivered
+ * asserts only fields the ingestion owns. Every other test skips stopTest so no event is delivered
  * and the rows stay exactly as the ingestion left them.
+ *
+ * Tests that run execute() directly still call Test.startTest() right before it (never stopTest). Without it
+ * the callout failed in nova-cdo with a CalloutException (status code lost because no response existed),
+ * which is consistent with pending work in the test transaction; startTest fixes it empirically. Not proven.
  */
 @isTest
 private class TelemetriaIngestaTest {
@@ -184,6 +188,7 @@ private class TelemetriaIngestaTest {
         Mock mock = preparar(mensajes(2, 'msg_b'), 'fake-cursor-3', true);
         TelemetriaIngesta primero = new TelemetriaIngesta(null, 'fake-cursor-2', 2, 5, new TelemetriaIngesta.Resumen());
 
+        Test.startTest(); // no stopTest: see the class note on event delivery
         primero.execute(null);
 
         Assert.areEqual(0, mock.llamadasSesion, 'A job that already has a cursor must not open a new session');
@@ -202,6 +207,7 @@ private class TelemetriaIngestaTest {
         preparar(mensajes(2, 'msg_c'), 'fake-cursor-9', false);
         TelemetriaIngesta trabajo = new TelemetriaIngesta(null, 'fake-cursor-2', 2, 5, new TelemetriaIngesta.Resumen());
 
+        Test.startTest(); // no stopTest: see the class note on event delivery
         trabajo.execute(null);
 
         Assert.isTrue(TelemetriaIngesta.encolados.isEmpty());
@@ -213,6 +219,7 @@ private class TelemetriaIngestaTest {
         preparar(mensajes(1, 'tope-'), 'fake-cursor-3', true);
         TelemetriaIngesta trabajo = new TelemetriaIngesta(null, 'fake-cursor-2', 5, 5, new TelemetriaIngesta.Resumen());
 
+        Test.startTest(); // no stopTest: see the class note on event delivery
         trabajo.execute(null);
 
         Assert.isTrue(TelemetriaIngesta.encolados.isEmpty(), 'pagina == maxPaginas: the chain must stop');
@@ -225,6 +232,7 @@ private class TelemetriaIngestaTest {
         Integer antes = [SELECT COUNT() FROM Log_Senial__c];
         TelemetriaIngesta trabajo = new TelemetriaIngesta(null, 'fake-cursor-2', 1, 5, new TelemetriaIngesta.Resumen());
 
+        Test.startTest(); // no stopTest: see the class note on event delivery
         trabajo.execute(null);
 
         Assert.areEqual(antes, [SELECT COUNT() FROM Log_Senial__c]);
@@ -241,6 +249,7 @@ private class TelemetriaIngestaTest {
         Integer antes = [SELECT COUNT() FROM Log_Senial__c];
         TelemetriaIngesta trabajo = new TelemetriaIngesta(null, 'fake-cursor-2', 1, 5, new TelemetriaIngesta.Resumen());
 
+        Test.startTest(); // no stopTest: see the class note on event delivery
         try {
             trabajo.execute(null);
             Assert.fail('Expected the client exception to propagate so the job shows as failed');
@@ -260,6 +269,7 @@ private class TelemetriaIngestaTest {
         Integer antes = [SELECT COUNT() FROM Log_Senial__c];
         TelemetriaIngesta trabajo = new TelemetriaIngesta(null, 'fake-cursor-2', 1, 5, new TelemetriaIngesta.Resumen());
 
+        Test.startTest(); // no stopTest: see the class note on event delivery
         try {
             trabajo.execute(null);
             Assert.fail('Expected a parse exception');
@@ -278,6 +288,7 @@ private class TelemetriaIngestaTest {
         Test.setMock(HttpCalloutMock.class, mock);
         TelemetriaIngesta trabajo = new TelemetriaIngesta('QA_200', 3);
 
+        Test.startTest(); // no stopTest: see the class note on event delivery
         try {
             trabajo.execute(null);
             Assert.fail('Expected the session failure to propagate');
@@ -293,6 +304,7 @@ private class TelemetriaIngestaTest {
         preparar(new List<Object>{ 'texto', mensaje('msg_e0'), 42 }, null, false);
         TelemetriaIngesta trabajo = new TelemetriaIngesta(null, 'fake-cursor-2', 4, 5, new TelemetriaIngesta.Resumen());
 
+        Test.startTest(); // no stopTest: see the class note on event delivery
         trabajo.execute(null);
 
         Assert.areEqual(2, TelemetriaIngesta.ultimoResumen.descartados);
@@ -433,6 +445,7 @@ private class TelemetriaIngestaTest {
         preparar(mensajes(2, 'msg_m'), 'fake-cursor-3', true);
         TelemetriaIngesta trabajo = new TelemetriaIngesta(null, 'fake-cursor-2', 1, 5, new TelemetriaIngesta.Resumen());
 
+        Test.startTest(); // no stopTest: see the class note on event delivery
         trabajo.execute(null);
 
         Assert.areEqual(1, TelemetriaIngesta.ultimoResumen.noPublicadosPorLog);
@@ -476,6 +489,7 @@ private class TelemetriaIngestaTest {
         TelemetriaIngesta.profundidadForzada = true;
         TelemetriaIngesta trabajo = new TelemetriaIngesta(null, 'fake-cursor-2', 1, 5, new TelemetriaIngesta.Resumen());
 
+        Test.startTest(); // no stopTest: see the class note on event delivery
         trabajo.execute(null);
 
         Assert.isTrue(TelemetriaIngesta.encolados.isEmpty(), 'At max stack depth the next job must not be enqueued');
@@ -487,6 +501,7 @@ private class TelemetriaIngestaTest {
         preparar(mensajes(200, 'msg_p'), 'fake-cursor-3', true);
         TelemetriaIngesta trabajo = new TelemetriaIngesta(null, 'fake-cursor-2', 1, 5, new TelemetriaIngesta.Resumen());
 
+        Test.startTest(); // no stopTest: see the class note on event delivery
         trabajo.execute(null);
         Integer dml = Limits.getDmlStatements();
 
