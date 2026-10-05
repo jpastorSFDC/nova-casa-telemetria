@@ -103,6 +103,14 @@ private class SimuladorClientTest {
 
         Assert.areEqual(1, pagina.mensajes.size());
         Assert.areEqual(3, pagina.descartados);
+        Assert.areEqual(3, pagina.descartes.size());
+        Assert.areEqual(0, pagina.descartes[0].posicion);
+        Assert.areEqual('string', pagina.descartes[0].tipo);
+        Assert.areEqual(2, pagina.descartes[1].posicion);
+        Assert.areEqual('number', pagina.descartes[1].tipo);
+        Assert.areEqual('null', pagina.descartes[2].tipo);
+        Assert.areEqual(64, pagina.descartes[0].huella.length(), 'SHA-256 hex, not the element content');
+        Assert.isFalse(pagina.descartes[0].huella.contains('texto'));
     }
 
     @isTest
@@ -198,6 +206,8 @@ private class SimuladorClientTest {
             Assert.fail('Expected a wrapped callout exception');
         } catch (SimuladorClient.SimuladorClientException e) {
             Assert.isTrue(e.getMessage().contains('callout failed'));
+            Assert.isTrue(e.getMessage().contains('CalloutException'), 'Only the exception type name is kept');
+            Assert.isFalse(e.getMessage().contains('simulated timeout'), 'The exception message must not be copied');
             Assert.isFalse(e.getMessage().contains('fake-cursor-1'));
         }
         Test.stopTest();

@@ -26,11 +26,19 @@ public inherited sharing class SimuladorClient {
         public Integer statusCode;
     }
 
+    /** An element of "data" that is not a JSON object: where it was and a hash of it, never its content. */
+    public class Descarte {
+        public Integer posicion; // 0-based index inside "data"
+        public String tipo; // JSON type: string, number, boolean, array or null
+        public String huella; // SHA-256 hex of the element serialized as JSON, to dedupe replays
+    }
+
     /** One parsed GET /telemetry page. */
     public class Pagina {
         // Each element of "data" that is a JSON object, untyped. Field mapping is TelemetriaIngesta's job.
         public List<Map<String, Object>> mensajes = new List<Map<String, Object>>();
-        // Elements of "data" that were not JSON objects and were skipped.
+        // Elements of "data" that were not JSON objects. They are not in mensajes; the caller must leave evidence.
+        public List<Descarte> descartes = new List<Descarte>();
         public Integer descartados = 0;
         public Boolean hayMas = false;
         // Only set when hayMas is true. Sensitive: do not log.
@@ -109,13 +117,22 @@ public inherited sharing class SimuladorClient {
         }
 
         Pagina pagina = new Pagina();
-        for (Object elemento : (List<Object>) raiz.get('data')) {
+        List<Object> elementos = (List<Object>) raiz.get('data');
+        for (Integer i = 0; i < elementos.size(); i++) {
+            Object elemento = elementos[i];
             if (elemento instanceof Map<String, Object>) {
                 pagina.mensajes.add((Map<String, Object>) elemento);
             } else {
-                pagina.descartados++;
+                Descarte descarte = new Descarte();
+                descarte.posicion = i;
+                descarte.tipo = tipoJson(elemento);
+                descarte.huella = EncodingUtil.convertToHex(
+                    Crypto.generateDigest('SHA-256', Blob.valueOf(JSON.serialize(elemento)))
+                );
+                pagina.descartes.add(descarte);
             }
         }
+        pagina.descartados = pagina.descartes.size();
 
         if (raiz.get('pagination') instanceof Map<String, Object>) {
             Map<String, Object> paginacion = (Map<String, Object>) raiz.get('pagination');
@@ -138,7 +155,8 @@ public inherited sharing class SimuladorClient {
         try {
             return new Http().send(request);
         } catch (CalloutException e) {
-            throw new SimuladorClientException(operacion + ' callout failed: ' + e.getMessage(), e);
+            // Only the exception type: a callout message can echo request details, and the request carries the cursor.
+            throw new SimuladorClientException(operacion + ' callout failed (' + e.getTypeName() + ')');
         }
     }
 
@@ -158,6 +176,21 @@ public inherited sharing class SimuladorClient {
         SimuladorClientException ex = new SimuladorClientException(mensaje);
         ex.statusCode = estado;
         return ex;
+    }
+
+    private static String tipoJson(Object valor) {
+        if (valor == null) {
+            return 'null';
+        } else if (valor instanceof String) {
+            return 'string';
+        } else if (valor instanceof Boolean) {
+            return 'boolean';
+        } else if (valor instanceof List<Object>) {
+            return 'array';
+        } else if (valor instanceof Integer || valor instanceof Long || valor instanceof Decimal || valor instanceof Double) {
+            return 'number';
+        }
+        return 'unknown';
     }
 
     private static String texto(Object valor) {
