@@ -740,6 +740,156 @@ private class SenialSensorHandlerTest {
         Assert.areEqual(1, [SELECT COUNT() FROM Lectura_Vigente__c], 'Una lectura');
     }
 
+    // ─── Límites de umbral y severidad (US-204, US-206) ──────────────────
+    // Umbrales de TEMPERATURE en TECHNICAL_ROOM: GT 30 Advertencia, GT 35 Critica, LT 15 Critica, GE 81 Invalida, LE -11 Invalida.
+    // Invalida se evalúa primero y es un rechazo (sin lectura ni Case); solo Critica abre Case.
+
+    @IsTest
+    static void operadorGTUnValorIgualAlLimiteNoLoCumpleYElSiguienteSi() {
+        Test.startTest();
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{
+            medicion('gt_a', 'AST-BULK-00', 'TEMPERATURE', '29.99', 'CELSIUS', OCURRIDO),
+            medicion('gt_b', 'AST-BULK-01', 'TEMPERATURE', '30', 'CELSIUS', OCURRIDO),
+            medicion('gt_c', 'AST-BULK-02', 'TEMPERATURE', '30.01', 'CELSIUS', OCURRIDO),
+            medicion('gt_d', 'AST-BULK-03', 'TEMPERATURE', '34.99', 'CELSIUS', OCURRIDO),
+            medicion('gt_e', 'AST-BULK-04', 'TEMPERATURE', '35', 'CELSIUS', OCURRIDO),
+            medicion('gt_f', 'AST-BULK-05', 'TEMPERATURE', '35.01', 'CELSIUS', OCURRIDO)
+        });
+        Test.stopTest();
+
+        verificarLimite('gt_a', 'AST-BULK-00', 'Procesada', 0, false, 'GT 30: por debajo es Normal');
+        verificarLimite('gt_b', 'AST-BULK-01', 'Procesada', 0, false, 'GT 30: igual al límite NO es Advertencia');
+        verificarLimite('gt_c', 'AST-BULK-02', 'Procesada', 1, false, 'GT 30: por encima es Advertencia');
+        verificarLimite('gt_d', 'AST-BULK-03', 'Procesada', 1, false, 'GT 35: por debajo sigue siendo Advertencia');
+        verificarLimite('gt_e', 'AST-BULK-04', 'Procesada', 1, false, 'GT 35: igual al límite NO es Crítica');
+        verificarLimite('gt_f', 'AST-BULK-05', 'Procesada', 2, true, 'GT 35: por encima es Crítica y abre Case');
+        Assert.areEqual(1, [SELECT COUNT() FROM Case], 'Solo la crítica abre Case');
+    }
+
+    @IsTest
+    static void operadorLTUnValorIgualAlLimiteNoLoCumpleYElAnteriorSi() {
+        Test.startTest();
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{
+            medicion('lt_a', 'AST-BULK-00', 'TEMPERATURE', '14.99', 'CELSIUS', OCURRIDO),
+            medicion('lt_b', 'AST-BULK-01', 'TEMPERATURE', '15', 'CELSIUS', OCURRIDO),
+            medicion('lt_c', 'AST-BULK-02', 'TEMPERATURE', '15.01', 'CELSIUS', OCURRIDO)
+        });
+        Test.stopTest();
+
+        verificarLimite('lt_a', 'AST-BULK-00', 'Procesada', 2, true, 'LT 15: por debajo es Crítica y abre Case');
+        verificarLimite('lt_b', 'AST-BULK-01', 'Procesada', 0, false, 'LT 15: igual al límite NO es Crítica');
+        verificarLimite('lt_c', 'AST-BULK-02', 'Procesada', 0, false, 'LT 15: por encima es Normal');
+        Assert.areEqual(1, [SELECT COUNT() FROM Case], 'Solo la crítica abre Case');
+    }
+
+    @IsTest
+    static void operadorGEUnValorIgualAlLimiteSiLoCumpleYSeRechazaComoInvalido() {
+        Test.startTest();
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{
+            medicion('ge_a', 'AST-BULK-00', 'TEMPERATURE', '80.99', 'CELSIUS', OCURRIDO),
+            medicion('ge_b', 'AST-BULK-01', 'TEMPERATURE', '81', 'CELSIUS', OCURRIDO),
+            medicion('ge_c', 'AST-BULK-02', 'TEMPERATURE', '81.01', 'CELSIUS', OCURRIDO)
+        });
+        Test.stopTest();
+
+        verificarLimite('ge_a', 'AST-BULK-00', 'Procesada', 2, true, 'GE 81: por debajo cae en la crítica GT 35');
+        verificarLimite('ge_b', 'AST-BULK-01', 'Rechazada', null, false, 'GE 81: igual al límite SÍ es inválida');
+        verificarLimite('ge_c', 'AST-BULK-02', 'Rechazada', null, false, 'GE 81: por encima es inválida');
+        Assert.areEqual(1, [SELECT COUNT() FROM Case], 'Las inválidas no abren Case');
+        Assert.areEqual(1, [SELECT COUNT() FROM Lectura_Vigente__c], 'Las inválidas no escriben lectura');
+    }
+
+    @IsTest
+    static void operadorLEUnValorIgualAlLimiteSiLoCumpleYSeRechazaComoInvalido() {
+        Test.startTest();
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{
+            medicion('le_a', 'AST-BULK-00', 'TEMPERATURE', '-11.01', 'CELSIUS', OCURRIDO),
+            medicion('le_b', 'AST-BULK-01', 'TEMPERATURE', '-11', 'CELSIUS', OCURRIDO),
+            medicion('le_c', 'AST-BULK-02', 'TEMPERATURE', '-10.99', 'CELSIUS', OCURRIDO)
+        });
+        Test.stopTest();
+
+        verificarLimite('le_a', 'AST-BULK-00', 'Rechazada', null, false, 'LE -11: por debajo es inválida');
+        verificarLimite('le_b', 'AST-BULK-01', 'Rechazada', null, false, 'LE -11: igual al límite SÍ es inválida');
+        verificarLimite('le_c', 'AST-BULK-02', 'Procesada', 2, true, 'LE -11: por encima cae en la crítica LT 15');
+        Assert.areEqual(1, [SELECT COUNT() FROM Case], 'Las inválidas no abren Case');
+        Assert.areEqual(1, [SELECT COUNT() FROM Lectura_Vigente__c], 'Las inválidas no escriben lectura');
+    }
+
+    @IsTest
+    static void unaAdvertenciaEscribeLecturaNivel1SinCaseYElActivoQuedaEnNivel1() {
+        Test.startTest();
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('adv_1', SALA, 'TEMPERATURE', '32', 'CELSIUS', OCURRIDO) });
+        Test.stopTest();
+
+        Assert.areEqual('Advertencia', SenialSensorHandler.clasificacionPorMessageId.get('adv_1').estado, 'Clasificada como Advertencia');
+        Log_Senial__c log = filaLog(identidad('adv_1'));
+        Assert.areEqual('Procesada', log.Resultado__c, 'Una advertencia queda Procesada: ' + log.Motivo__c);
+        Assert.isNull(log.Caso__c, 'Una advertencia no enlaza Case');
+        Assert.areEqual(1, lectura(SALA + '|TEMPERATURE').Severidad_Nivel__c.intValue(), 'La lectura vigente se escribe con nivel 1');
+        Assert.areEqual(32, lectura(SALA + '|TEMPERATURE').Valor__c, 'Valor de la lectura');
+        Assert.areEqual(0, [SELECT COUNT() FROM Case], 'Una advertencia no abre Case');
+        Assert.areEqual(1, [SELECT Severidad_Nivel__c FROM Asset WHERE External_Id__c = :SALA].Severidad_Nivel__c.intValue(),
+            'La severidad del activo es la de su única lectura: 1');
+    }
+
+    @IsTest
+    static void elActivoMuestraLaMaximaSeveridadEntreAdvertenciaYCritica() {
+        Test.startTest();
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{
+            medicion('max_adv', SALA, 'TEMPERATURE', '32', 'CELSIUS', OCURRIDO),
+            medicion('max_crit', SALA, 'WATER_PRESSURE', '7', 'BAR', OCURRIDO),
+            medicion('max_normal', SALA_2, 'TEMPERATURE', '32', 'CELSIUS', OCURRIDO),
+            medicion('max_normal2', SALA_2, 'WATER_PRESSURE', '5', 'BAR', OCURRIDO)
+        });
+        Test.stopTest();
+
+        Assert.areEqual(1, lectura(SALA + '|TEMPERATURE').Severidad_Nivel__c.intValue(), 'La temperatura del activo es Advertencia');
+        Assert.areEqual(2, lectura(SALA + '|WATER_PRESSURE').Severidad_Nivel__c.intValue(), 'La presión del activo es Crítica');
+        Assert.areEqual(2, [SELECT Severidad_Nivel__c FROM Asset WHERE External_Id__c = :SALA].Severidad_Nivel__c.intValue(),
+            'El activo muestra el máximo: Crítica (2) sobre Advertencia (1)');
+        Assert.areEqual(1, [SELECT Severidad_Nivel__c FROM Asset WHERE External_Id__c = :SALA_2].Severidad_Nivel__c.intValue(),
+            'Advertencia (1) sobre Normal (0)');
+        Assert.areEqual(1, [SELECT COUNT() FROM Case], 'Solo la crítica abre Case');
+        Assert.areEqual(activo(SALA).Id, [SELECT AssetId FROM Case].AssetId, 'El Case es del activo con la crítica');
+    }
+
+    @IsTest
+    static void tresValoresRepresentativosDeTemperaturaSonNormalAdvertenciaYCritica() {
+        Test.startTest();
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{
+            medicion('rep_n', SALA, 'TEMPERATURE', '25', 'CELSIUS', OCURRIDO),
+            medicion('rep_a', SALA_2, 'TEMPERATURE', '32', 'CELSIUS', OCURRIDO),
+            medicion('rep_c', SALA_3, 'TEMPERATURE', '36', 'CELSIUS', OCURRIDO)
+        });
+        Test.stopTest();
+
+        assertClasificacion('rep_n', 'Normal', 0);
+        assertClasificacion('rep_a', 'Advertencia', 1);
+        assertClasificacion('rep_c', 'Critica', 2);
+        verificarLimite('rep_n', SALA, 'Procesada', 0, false, 'Normal');
+        verificarLimite('rep_a', SALA_2, 'Procesada', 1, false, 'Advertencia');
+        verificarLimite('rep_c', SALA_3, 'Procesada', 2, true, 'Crítica');
+    }
+
+    // Comprueba log, lectura vigente (nivel null = sin lectura) y Case de una señal.
+    private static void verificarLimite(String messageId, String assetId, String resultado, Integer nivel, Boolean abreCase, String contexto) {
+        Log_Senial__c log = filaLog(identidad(messageId));
+        Assert.areEqual(resultado, log.Resultado__c, contexto + ' - Resultado__c: ' + log.Motivo__c);
+        String clave = assetId + '|TEMPERATURE';
+        List<Lectura_Vigente__c> lecturas = [SELECT Severidad_Nivel__c FROM Lectura_Vigente__c WHERE Clave__c = :clave];
+        if (nivel == null) {
+            Assert.isTrue(lecturas.isEmpty(), contexto + ' - no debe escribir lectura vigente');
+        } else {
+            Assert.areEqual(1, lecturas.size(), contexto + ' - debe escribir lectura vigente');
+            Assert.areEqual(nivel, lecturas[0].Severidad_Nivel__c.intValue(), contexto + ' - nivel de la lectura');
+        }
+        Id activoId = activo(assetId).Id;
+        Integer casos = [SELECT COUNT() FROM Case WHERE AssetId = :activoId];
+        Assert.areEqual(abreCase ? 1 : 0, casos, contexto + ' - Cases del activo');
+        Assert.areEqual(abreCase, log.Caso__c != null, contexto + ' - el log enlaza Case solo si es crítica');
+    }
+
     // ─── Helpers de persistencia ─────────────────────────────────────────
 
     // D003: mismo occurredAt en el mismo lote. Gana el nivel mayor; a igual nivel, el messageId menor.
