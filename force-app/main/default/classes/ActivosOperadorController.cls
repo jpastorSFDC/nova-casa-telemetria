@@ -239,6 +239,25 @@ public with sharing class ActivosOperadorController {
         }
     }
 
+    /** What the running user may do on the screen. Only drives what is shown: every action re-checks on the server (BR-208). */
+    public class Capacidades {
+        @AuraEnabled public Boolean puedeCrearIntervencion { get; private set; }
+        @AuraEnabled public Boolean puedeSeguirIntervencion { get; private set; }
+        @AuraEnabled public Boolean puedeTraerSenales { get; private set; }
+        @AuraEnabled public Boolean puedeVerLimites { get; private set; }
+        public Capacidades() {
+            this.puedeCrearIntervencion = FeatureManagement.checkPermission(IntervencionOperadorController.PERM_CREAR);
+            this.puedeSeguirIntervencion = FeatureManagement.checkPermission(IntervencionOperadorController.PERM_SEGUIR);
+            this.puedeTraerSenales = FeatureManagement.checkPermission(IngestaController.PERM_INGESTA);
+            this.puedeVerLimites = Umbral__c.SObjectType.getDescribe().isAccessible();
+        }
+    }
+
+    @AuraEnabled(cacheable=true)
+    public static Capacidades getCapacidades() {
+        return new Capacidades();
+    }
+
     /** Buildings (Accounts) that have at least one asset visible to the user; truncated when over the bound. */
     @AuraEnabled(cacheable=true)
     public static BuildingListResult getBuildings() {

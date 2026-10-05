@@ -415,6 +415,7 @@ public without sharing class SenialSensorHandler {
             solicitud.identidad = ganadora.identidad;
             solicitud.assetId = activo.Id;
             solicitud.accountId = activo.AccountId;
+            solicitud.codigoActivo = activo.External_Id__c;
             solicitud.tipoMedicion = ganadora.medicion;
             solicitud.causa = ganadora.motivo;
             solicitudes.add(solicitud);

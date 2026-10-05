@@ -22,7 +22,8 @@
  * (AGENTS.md, BR-208). The CALLOUT is not independent: the user who calls iniciar() (the job runs as that
  * user) needs the Nova_Casa_Simulator_Integration permission set, which grants access to the Named
  * Credential's external credential principal. Without it the first callout fails. Publishing needs Create on
- * Senial_Sensor__e for that user; see D013. This class must not be called from LWC or @AuraEnabled code.
+ * Senial_Sensor__e for that user; see D013. Not for operator-facing LWC/@AuraEnabled code; the one exception is
+ * IngestaController (admin-only manual start, D018).
  */
 public without sharing class TelemetriaIngesta implements Queueable, Database.AllowsCallouts {
 

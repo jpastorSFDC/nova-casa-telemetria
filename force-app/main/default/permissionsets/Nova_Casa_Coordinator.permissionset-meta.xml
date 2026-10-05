@@ -8,6 +8,18 @@
         <apexClass>ActivosOperadorController</apexClass>
         <enabled>true</enabled>
     </classAccesses>
+    <classAccesses>
+        <apexClass>IntervencionOperadorController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <customPermissions>
+        <enabled>true</enabled>
+        <name>Nova_Casa_Crear_Intervencion</name>
+    </customPermissions>
+    <customPermissions>
+        <enabled>true</enabled>
+        <name>Nova_Casa_Seguir_Intervencion</name>
+    </customPermissions>
     <description>Everything Nova Casa Operator has, duplicated, plus edit on Case to follow up interventions (no create) and read/create/edit on Umbral__c. No delete, View All or Modify All. Building visibility comes from record sharing.</description>
     <fieldPermissions>
         <editable>false</editable>
@@ -152,6 +164,10 @@
     </objectPermissions>
     <tabSettings>
         <tab>Activos_Operador</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
+    <tabSettings>
+        <tab>Umbral__c</tab>
         <visibility>Visible</visibility>
     </tabSettings>
 </PermissionSet>
