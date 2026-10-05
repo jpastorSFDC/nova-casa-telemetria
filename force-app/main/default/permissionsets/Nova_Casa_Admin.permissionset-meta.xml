@@ -98,6 +98,11 @@
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
+        <editable>false</editable>
+        <field>Log_Senial__c.Accion_Reintento__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
         <editable>true</editable>
         <field>Log_Senial__c.Asset__c</field>
         <readable>true</readable>

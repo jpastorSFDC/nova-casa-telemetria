@@ -7,6 +7,7 @@
     <columns>Asset__c</columns>
     <columns>Resultado__c</columns>
     <columns>Motivo__c</columns>
+    <columns>Accion_Reintento__c</columns>
     <columns>Occurred_At__c</columns>
     <columns>Publicado_At__c</columns>
     <columns>Procesado_At__c</columns>
