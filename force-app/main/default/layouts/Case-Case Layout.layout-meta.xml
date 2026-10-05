@@ -34,6 +34,14 @@
                 <field>ContactId</field>
             </layoutItems>
             <layoutItems>
+                <behavior>Required</behavior>
+                <field>Origin</field>
+            </layoutItems>
+            <layoutItems>
+                <behavior>Required</behavior>
+                <field>CurrencyIsoCode</field>
+            </layoutItems>
+            <layoutItems>
                 <behavior>Readonly</behavior>
                 <field>Identidad_Senal__c</field>
             </layoutItems>
