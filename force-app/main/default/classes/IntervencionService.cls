@@ -103,7 +103,8 @@ public without sharing class IntervencionService {
     }
 
     private static Case buildCase(String identity, Solicitud solicitud) {
-        String subject = 'Critical signal: ' + nullToEmpty(solicitud.tipoMedicion) + ' on asset ' + solicitud.assetId;
+        String asset = String.isBlank(solicitud.codigoActivo) ? String.valueOf(solicitud.assetId) : solicitud.codigoActivo;
+        String subject = 'Señal crítica: ' + nullToEmpty(solicitud.tipoMedicion) + ' en ' + asset;
         return new Case(
             Identidad_Senal__c = identity,
             Origin = ORIGIN_TELEMETRY,
@@ -161,6 +162,7 @@ public without sharing class IntervencionService {
         public String identidad; // source + '|' + messageId
         public Id assetId;
         public Id accountId;
+        public String codigoActivo; // Asset.External_Id__c, used in the subject; falls back to assetId
         public String tipoMedicion;
         public String causa;
     }

@@ -1,5 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <classAccesses>
+        <apexClass>ActivosOperadorController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>IntervencionOperadorController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>IngestaController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <customPermissions>
+        <enabled>true</enabled>
+        <name>Nova_Casa_Crear_Intervencion</name>
+    </customPermissions>
+    <customPermissions>
+        <enabled>true</enabled>
+        <name>Nova_Casa_Seguir_Intervencion</name>
+    </customPermissions>
+    <customPermissions>
+        <enabled>true</enabled>
+        <name>Nova_Casa_Traer_Senales</name>
+    </customPermissions>
     <description>Acceso a todos los campos nuevos del modelo de telemetría (HP-03 / T2.9).</description>
     <hasActivationRequired>false</hasActivationRequired>
     <label>Nova Casa Admin</label>

@@ -109,3 +109,18 @@ BLD-BAQ-001 es un edificio de prueba de John (System Administrator, sin rol) y s
 - **Ingesta con OWD Private**: un `SYSTEM_MODE` dentro de una clase `with sharing` sigue aplicando sharing. El usuario de integración no es dueño de los edificios ni está sobre el operador en la jerarquía, así que necesita View All / Modify All en los objetos que lee y escribe, en su propio permission set (T2.10). Eso además deja la autorización de la ingesta explícita y separada del operador, como pide US-208.
 - **`Case.AccountId`**: el operador ve un caso porque es dueño de su `Account` (nivel del rol). Si la ingesta crea un caso sin `AccountId`, el operador no lo ve. Los casos actuales sí lo traen.
 - **Dueño del edificio**: `CatalogoService` no toca `OwnerId`; un edificio nuevo queda a nombre de quien corre la carga y hay que reasignarlo al operador a mano.
+
+## Acciones de la pantalla (D020)
+
+Todos ven la misma pantalla y los mismos datos; cambian las acciones. Cada acción vive detrás de una custom permission y el servidor la vuelve a comprobar.
+
+| Acción | Operador | Coordinador | Gerente | Admin |
+|---|---|---|---|---|
+| Ver activos, lecturas, intervención abierta y resumen por edificio | sí | sí | sí | sí |
+| Crear intervención manual (`Nova_Casa_Crear_Intervencion`) | sí | sí | no | sí |
+| Cambiar estado de la intervención (`Nova_Casa_Seguir_Intervencion`) | no | sí (necesita además Edit en `Case`) | no | sí |
+| Ir a los límites (`Umbral__c`, por permiso de objeto) | no | sí | no | sí |
+| Traer señales del simulador (`Nova_Casa_Traer_Senales`) | no | no | no | sí (necesita además `Nova_Casa_Simulator_Integration`) |
+
+La creación del `Case` corre en modo sistema porque el operador no tiene Create sobre `Case`; la custom permission es su única llave (ver D020).
+

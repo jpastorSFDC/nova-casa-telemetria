@@ -38,7 +38,7 @@ private class IntervencionServiceTest {
     // ─── Helpers ──────────────────────────────────────────────────────────
 
     private static Asset asset(String externalId) {
-        return [SELECT Id, AccountId FROM Asset WHERE External_Id__c = :externalId LIMIT 1];
+        return [SELECT Id, AccountId, External_Id__c FROM Asset WHERE External_Id__c = :externalId LIMIT 1];
     }
 
     private static IntervencionService.Solicitud solicitud(String identidad, Asset a, String tipo, String causa) {
@@ -46,6 +46,7 @@ private class IntervencionServiceTest {
         s.identidad = identidad;
         s.assetId = a == null ? null : a.Id;
         s.accountId = a == null ? null : a.AccountId;
+        s.codigoActivo = a == null ? null : a.External_Id__c;
         s.tipoMedicion = tipo;
         s.causa = causa;
         return s;
@@ -81,8 +82,34 @@ private class IntervencionServiceTest {
         Assert.areEqual(a.Id, c.AssetId);
         Assert.areEqual(a.AccountId, c.AccountId);
         Assert.areEqual(identity, c.Identidad_Senal__c);
-        Assert.areEqual('Critical signal: WATER_PRESSURE on asset ' + a.Id, c.Subject);
+        Assert.areEqual('Señal crítica: WATER_PRESSURE en AST-INT-001', c.Subject);
         Assert.areEqual('Signal ' + identity + ': above critical threshold', c.Description);
+    }
+
+    @isTest
+    static void shouldFallBackToAssetId_WhenCatalogCodeIsBlank() {
+        Asset a = asset('AST-INT-001');
+        IntervencionService.Solicitud s = solicitud('SIM|msg-nocode', a, 'TEMPERATURE', 'above critical threshold');
+        s.codigoActivo = null;
+
+        IntervencionService.abrir(new List<IntervencionService.Solicitud>{ s });
+
+        Assert.areEqual('Señal crítica: TEMPERATURE en ' + a.Id, [SELECT Subject FROM Case].Subject);
+    }
+
+    @isTest
+    static void shouldOpenItsOwnCase_WhenAManualInterventionIsAlreadyOpenOnTheAsset() {
+        Asset a = asset('AST-INT-001');
+        insert new Case(AssetId = a.Id, Status = 'En curso', Origin = 'Operador', Subject = 'Intervención manual en AST-INT-001');
+
+        Test.startTest();
+        IntervencionService.Resultado r = IntervencionService.abrir(
+            new List<IntervencionService.Solicitud>{ solicitud('SIM|msg-critical', a, 'WATER_PRESSURE', 'above critical threshold') });
+        Test.stopTest();
+
+        Assert.areEqual(2, caseCount(), 'A manual Case does not stand in for the Case of a critical message');
+        Assert.isTrue(r.casoPorIdentidad.containsKey('SIM|msg-critical'));
+        Assert.areEqual(1, [SELECT COUNT() FROM Case WHERE Identidad_Senal__c = 'SIM|msg-critical' AND Origin = 'Telemetria']);
     }
 
     @isTest

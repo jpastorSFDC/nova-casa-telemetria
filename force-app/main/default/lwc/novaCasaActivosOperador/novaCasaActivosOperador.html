@@ -5,9 +5,38 @@
             <h1 class="comp-titulo">Mis activos</h1>
             <div class="comp-cab-der">
                 <span class="comp-conteo">{countText}</span>
+                <template if:true={showIngest}>
+                    <button type="button" class="boton secundario" aria-expanded={ingestOpen} onclick={toggleIngest}>{ingestToggleLabel}</button>
+                </template>
                 <button type="button" class="boton secundario" disabled={isBusy} onclick={handleRefresh}>Actualizar</button>
             </div>
         </div>
+
+        <!-- Admin only: pull signals from the simulator -->
+        <template if:true={showIngest}>
+            <template if:true={ingestOpen}>
+                <section class="panel-ingesta" aria-label="Traer señales del simulador">
+                    <div class="filtros">
+                        <label class="filtro-label" for="i-escenario">Escenario</label>
+                        <select class="campo" id="i-escenario" disabled={ingestRunning} onchange={handleScenario}>
+                            <template for:each={scenarioOptions} for:item="opt">
+                                <option key={opt.value} value={opt.value} selected={opt.selected}>{opt.label}</option>
+                            </template>
+                        </select>
+                        <label class="filtro-label" for="i-paginas">Páginas (1 a 25)</label>
+                        <input class="campo" id="i-paginas" type="number" min="1" max="25" value={ingestPages} disabled={ingestRunning} onchange={handleIngestPages} />
+                        <button type="button" class="boton urgente" disabled={ingestRunning} onclick={handleStartIngest}>Traer señales</button>
+                    </div>
+                    <p class="nota">Crea lecturas, registros de log y casos reales. Una sola corrida a la vez; avisa al equipo antes de lanzarla.</p>
+                    <template if:true={hasIngestState}>
+                        <p class="nota" role="status" aria-live="polite">{ingestSummary}</p>
+                    </template>
+                    <template if:true={ingestError}>
+                        <p class="nota nota-error" role="alert">{ingestError}</p>
+                    </template>
+                </section>
+            </template>
+        </template>
 
         <!-- Loading: skeleton -->
         <template if:true={isBusy}>
@@ -48,10 +77,41 @@
                         <span class="chip chip-nivel">{noReadingChip}</span>
                     </template>
                     <template if:true={updatedText}>
-                        <span>Actualizado <span class="frescor">{updatedText}</span></span>
+                        <span>Actualizado a las {updatedClock} <span class="frescor">({updatedText})</span></span>
                     </template>
                 </div>
             </div>
+        </template>
+
+        <!-- Summary per building: everyone sees it -->
+        <template if:true={showBuildingSummary}>
+            <section class="resumen-edificios" aria-label="Resumen por edificio">
+                <p class="nota">{buildingSummaryNote}</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th scope="col">Edificio</th>
+                            <th scope="col">Activos</th>
+                            <th scope="col">Críticos</th>
+                            <th scope="col">Precaución</th>
+                            <th scope="col">Sin dato</th>
+                            <th scope="col">Desactualizados</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template for:each={buildingSummary} for:item="b">
+                            <tr key={b.key} class={b.rowClass}>
+                                <td class="celda-fuerte">{b.name}</td>
+                                <td class="num">{b.total}</td>
+                                <td class="num">{b.critical}</td>
+                                <td class="num">{b.warning}</td>
+                                <td class="num">{b.noData}</td>
+                                <td class="num">{b.stale}</td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </section>
         </template>
 
         <!-- Filters -->
@@ -171,6 +231,9 @@
                     <span aria-hidden="true"> &rsaquo; </span>
                     <span aria-current="page">{selectedRow.name}</span>
                     <button type="button" class="enlace enlace-der" data-id={selectedRow.assetId} onclick={handleOpenAsset}>Abrir registro del activo</button>
+                    <template if:true={caps.puedeVerLimites}>
+                        <button type="button" class="enlace enlace-der" onclick={handleOpenThresholds}>Ver límites</button>
+                    </template>
                 </nav>
 
                 <section class={selectedRow.heroClass} aria-label="Resumen del activo">
@@ -235,6 +298,9 @@
                             <template if:true={selectedRow.hasMoreInterventions}>
                                 <p>{selectedRow.moreInterventionsText}</p>
                             </template>
+                            <template if:true={selectedRow.canFollow}>
+                                <button type="button" class="boton secundario" data-mode="seguir" onclick={openForm}>Actualizar seguimiento</button>
+                            </template>
                         </div>
                     </section>
                 </template>
@@ -244,6 +310,37 @@
                             <span class="rot">Intervención</span>
                             <p class="val">Ninguna abierta</p>
                             <p>{selectedRow.noInterventionText}</p>
+                            <template if:true={selectedRow.canCreate}>
+                                <button type="button" class="boton urgente" data-mode="crear" onclick={openForm}>Crear intervención</button>
+                            </template>
+                        </div>
+                    </section>
+                </template>
+
+                <template if:true={formMode}>
+                    <section class="card-extra form-accion" aria-label="Acción sobre la intervención">
+                        <template if:true={isCreating}>
+                            <h3>Crear intervención</h3>
+                            <label class="filtro-label" for="a-motivo">Motivo (obligatorio)</label>
+                            <textarea class="campo campo-texto" id="a-motivo" maxlength="1000" rows="3" value={motivo} oninput={handleMotivo}></textarea>
+                        </template>
+                        <template if:true={isFollowing}>
+                            <h3>Actualizar seguimiento</h3>
+                            <label class="filtro-label" for="a-estado">Estado</label>
+                            <select class="campo" id="a-estado" onchange={handleEstado}>
+                                <template for:each={followUpOptions} for:item="opt">
+                                    <option key={opt.value} value={opt.value} selected={opt.selected}>{opt.label}</option>
+                                </template>
+                            </select>
+                            <label class="filtro-label" for="a-comentario">Comentario (opcional)</label>
+                            <textarea class="campo campo-texto" id="a-comentario" maxlength="4000" rows="3" value={comentario} oninput={handleComentario}></textarea>
+                        </template>
+                        <template if:true={showActionError}>
+                            <p class="nota nota-error" role="alert">{actionError}</p>
+                        </template>
+                        <div class="acciones-form">
+                            <button type="button" class="boton urgente" disabled={saveDisabled} onclick={handleSaveForm}>Guardar</button>
+                            <button type="button" class="boton secundario" disabled={isSaving} onclick={closeForm}>Cancelar</button>
                         </div>
                     </section>
                 </template>

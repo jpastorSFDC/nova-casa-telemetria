@@ -8,7 +8,15 @@
         <apexClass>ActivosOperadorController</apexClass>
         <enabled>true</enabled>
     </classAccesses>
-    <description>Read-only operator path for the telemetry screen (BR-208, D005). Read on Account, Asset, Case and Lectura_Vigente__c with read-only FLS. No Log_Senial__c or admin access. Building visibility comes from record sharing.</description>
+    <classAccesses>
+        <apexClass>IntervencionOperadorController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <customPermissions>
+        <enabled>true</enabled>
+        <name>Nova_Casa_Crear_Intervencion</name>
+    </customPermissions>
+    <description>Operator path for the telemetry screen (BR-208, D005, D020). Read on Account, Asset, Case and Lectura_Vigente__c; opens manual interventions via IntervencionOperadorController, no Create on Case. No Log_Senial__c or admin access.</description>
     <fieldPermissions>
         <editable>false</editable>
         <field>Account.External_Id__c</field>

@@ -6,8 +6,26 @@ import ASSET_OBJECT from '@salesforce/schema/Asset';
 import TIPO_ACTIVO from '@salesforce/schema/Asset.Tipo_Activo__c';
 import getAssets from '@salesforce/apex/ActivosOperadorController.getAssets';
 import getBuildings from '@salesforce/apex/ActivosOperadorController.getBuildings';
+import getCapacidades from '@salesforce/apex/ActivosOperadorController.getCapacidades';
+import crearIntervencion from '@salesforce/apex/IntervencionOperadorController.crearIntervencion';
+import actualizarSeguimiento from '@salesforce/apex/IntervencionOperadorController.actualizarSeguimiento';
+import traerSenales from '@salesforce/apex/IngestaController.traerSenales';
+import estadoIngesta from '@salesforce/apex/IngestaController.estadoIngesta';
+import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
 const TICK_MS = 30000;
+const INGEST_POLL_MS = 5000;
+// A signal dated further ahead than this is flagged: the simulator clock or the source is wrong (display only).
+const FUTURE_TOLERANCE_MS = 5 * 60000;
+const DEFAULT_INGEST_PAGES = 5;
+// Scenarios of the simulator contract; IngestaController validates the same list on the server.
+const SCENARIOS = ['MIXED', 'QA_200', 'BOUNDARIES', 'CRITICAL_BURST', 'LATE_MESSAGES', 'DUPLICATES', 'CONFLICT', 'INVALID_DATA', 'CAMERA_OUTAGE'];
+// Follow-up statuses the controller accepts.
+const FOLLOW_UP_OPTIONS = [
+    { label: 'En curso', value: 'En curso' },
+    { label: 'En espera', value: 'On Hold' },
+    { label: 'Cerrada', value: 'Closed' }
+];
 // Single source of the stale default (display-only). Keep in sync with the
 // staleMinutes default in novaCasaActivosOperador.js-meta.xml.
 const DEFAULT_STALE_MINUTES = 15;
@@ -161,6 +179,27 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     typeLabels = {};
     typeOptionsRaw = [];
 
+    // What the user may do; all false until getCapacidades answers (and if it fails). The server re-checks each action.
+    caps = {};
+
+    // Inline forms of the detail view: null, 'crear' or 'seguir'.
+    formMode = null;
+    motivo = '';
+    nuevoEstado = 'En curso';
+    comentario = '';
+    isSaving = false;
+    actionError = '';
+
+    // Admin ingestion panel.
+    ingestOpen = false;
+    scenario = 'MIXED';
+    ingestPages = String(DEFAULT_INGEST_PAGES);
+    ingestStarting = false;
+    ingestError = '';
+    ingestState = null;
+    _ingestSince;
+    _ingestTimer;
+
     _assetsResult;
     _timer;
     _focusTarget; // 'detail' or an asset Id whose "Ver activo" button should regain focus
@@ -175,6 +214,7 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
 
     disconnectedCallback() {
         clearInterval(this._timer);
+        clearInterval(this._ingestTimer);
     }
 
     renderedCallback() {
@@ -244,6 +284,11 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             this.buildingsError = reduceError(error);
             this.buildingsLoaded = true;
         }
+    }
+
+    @wire(getCapacidades)
+    wiredCaps({ data }) {
+        this.caps = data || {};
     }
 
     @wire(getObjectInfo, { objectApiName: ASSET_OBJECT })
@@ -376,6 +421,11 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     get showSummary() {
         return this.showList;
     }
+    get updatedClock() {
+        return this.updatedAtMs
+            ? new Date(this.updatedAtMs).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })
+            : '';
+    }
     get updatedText() {
         return this.updatedAtMs ? relativeTime(this.updatedAtMs, this.nowMs) : '';
     }
@@ -464,6 +514,44 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         return this.truncated ? `${base}; no se pudo verificar todo, puede haber críticos sin mostrar` : base;
     }
 
+    // ---- summary per building (same rows as the list: the current filtered view, and it says so when cut) ----
+
+    get buildingSummary() {
+        const byBuilding = new Map();
+        (this.assets || []).forEach((a) => {
+            const key = a.accountId || a.accountName || '—';
+            if (!byBuilding.has(key)) {
+                byBuilding.set(key, { key, name: a.accountName || 'Sin edificio', total: 0, critical: 0, warning: 0, noData: 0, stale: 0 });
+            }
+            const b = byBuilding.get(key);
+            b.total += 1;
+            if (a.severityLevel === 2) {
+                b.critical += 1;
+            } else if (a.severityLevel === 1) {
+                b.warning += 1;
+            } else if (a.severityLevel == null) {
+                b.noData += 1;
+            }
+            const lastMs = toMillis(a.lastSignalAt);
+            if (lastMs !== null && this.nowMs - lastMs > this.staleMs) {
+                b.stale += 1;
+            }
+        });
+        return [...byBuilding.values()]
+            .sort((x, y) => y.critical - x.critical || y.warning - x.warning || x.name.localeCompare(y.name))
+            .map((b) => ({
+                ...b,
+                totalText: plural(b.total, 'activo', 'activos'),
+                rowClass: b.critical > 0 ? 'edif-fila edif-critico' : b.warning > 0 ? 'edif-fila edif-advertencia' : 'edif-fila'
+            }));
+    }
+    get showBuildingSummary() {
+        return this.showList && this.buildingSummary.length > 0;
+    }
+    get buildingSummaryNote() {
+        return this.truncated ? 'Resumen parcial: hay activos que no se muestran.' : 'Resumen de la vista actual.';
+    }
+
     // ---- view models ----
 
     get staleMs() {
@@ -520,6 +608,9 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         let signalClass = 'senal';
         if (!hasReadings || lastMs === null) {
             signalText = 'Sin señal recibida todavía';
+        } else if (lastMs - this.nowMs > FUTURE_TOLERANCE_MS) {
+            signalText = `Fecha de origen en el futuro (${formatUtcTime(a.lastSignalAt)}): revisa el reloj de la fuente`;
+            signalClass = 'senal senal-vieja';
         } else if (this.nowMs - lastMs > this.staleMs) {
             signalText = `Última señal ${relativeTime(a.lastSignalAt, this.nowMs)} (desactualizada)`;
             signalClass = 'senal senal-vieja';
@@ -577,7 +668,9 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             caseAgeText: inv ? `Abierta ${relativeTime(inv.createdDate, this.nowMs)}` : '',
             hasMoreInterventions: count > 1,
             moreInterventionsText: `y ${count - 1} intervención(es) abierta(s) más`,
-            noInterventionText: this.noInterventionText(level, hasReadings)
+            noInterventionText: this.noInterventionText(level, hasReadings),
+            canCreate: Boolean(this.caps.puedeCrearIntervencion) && hasReadings && !inv,
+            canFollow: Boolean(this.caps.puedeSeguirIntervencion) && Boolean(inv)
         };
     }
 
@@ -640,6 +733,14 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     handleOpenCase(event) {
         this.navigateToRecord(event, 'Case');
     }
+    handleOpenThresholds(event) {
+        event.preventDefault();
+        this[NavigationMixin.Navigate]({
+            type: 'standard__objectPage',
+            attributes: { objectApiName: 'Umbral__c', actionName: 'list' },
+            state: { filterName: 'Nova_Casa_Umbrales' }
+        });
+    }
 
     // ---- in-component detail ----
 
@@ -648,6 +749,8 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             return;
         }
         this.selectedAssetId = assetId;
+        this.formMode = null;
+        this.actionError = '';
         this._focusTarget = 'detail';
     }
 
@@ -665,5 +768,154 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     handleBackToList() {
         this._focusTarget = this.selectedAssetId || undefined;
         this.selectedAssetId = null;
+        this.formMode = null;
+    }
+
+    // ---- interventions (actions re-checked on the server) ----
+
+    get showActionError() {
+        return Boolean(this.actionError);
+    }
+    get isCreating() {
+        return this.formMode === 'crear';
+    }
+    get isFollowing() {
+        return this.formMode === 'seguir';
+    }
+    get followUpOptions() {
+        return FOLLOW_UP_OPTIONS.map((o) => ({ ...o, selected: o.value === this.nuevoEstado }));
+    }
+    get saveDisabled() {
+        return this.isSaving || (this.isCreating && !this.motivo.trim());
+    }
+
+    openForm(event) {
+        this.formMode = event.currentTarget.dataset.mode;
+        this.motivo = '';
+        this.comentario = '';
+        this.nuevoEstado = 'En curso';
+        this.actionError = '';
+    }
+    closeForm() {
+        this.formMode = null;
+        this.actionError = '';
+    }
+    handleMotivo(event) {
+        this.motivo = event.target.value;
+    }
+    handleComentario(event) {
+        this.comentario = event.target.value;
+    }
+    handleEstado(event) {
+        this.nuevoEstado = event.target.value;
+    }
+
+    toast(title, message, variant) {
+        this.dispatchEvent(new ShowToastEvent({ title, message, variant }));
+    }
+
+    async handleSaveForm() {
+        if (this.saveDisabled || !this.selectedRow) {
+            return;
+        }
+        this.isSaving = true;
+        this.actionError = '';
+        try {
+            if (this.isCreating) {
+                const result = await crearIntervencion({ assetId: this.selectedRow.assetId, motivo: this.motivo });
+                this.toast('Intervención creada', `Caso ${result.caseNumber}`, 'success');
+            } else {
+                await actualizarSeguimiento({
+                    caseId: this.selectedRow.caseId,
+                    estado: this.nuevoEstado,
+                    comentario: this.comentario
+                });
+                this.toast('Seguimiento actualizado', '', 'success');
+            }
+            this.formMode = null;
+            await this.handleRefresh();
+        } catch (e) {
+            this.actionError = reduceError(e);
+            // The state may have changed under us (another person opened one first): show the real state.
+            await this.handleRefresh();
+        }
+        this.isSaving = false;
+    }
+
+    // ---- admin: pull signals from the simulator ----
+
+    get showIngest() {
+        return Boolean(this.caps.puedeTraerSenales);
+    }
+    get ingestToggleLabel() {
+        return this.ingestOpen ? 'Ocultar traer señales' : 'Traer señales';
+    }
+    get scenarioOptions() {
+        return SCENARIOS.map((v) => ({ label: v, value: v, selected: v === this.scenario }));
+    }
+    get ingestRunning() {
+        return this.ingestStarting || Boolean(this.ingestState && this.ingestState.enCurso);
+    }
+    get hasIngestState() {
+        return Boolean(this.ingestState);
+    }
+    get ingestSummary() {
+        const st = this.ingestState;
+        if (!st) {
+            return '';
+        }
+        const parts = Object.keys(st.porResultado || {})
+            .sort()
+            .map((k) => `${k}: ${st.porResultado[k]}`);
+        const head = st.enCurso ? 'En curso' : 'Terminada';
+        return `${head} · ${plural(st.total, 'señal registrada', 'señales registradas')}${parts.length ? ' · ' + parts.join(' · ') : ''}`;
+    }
+
+    toggleIngest() {
+        this.ingestOpen = !this.ingestOpen;
+    }
+    handleScenario(event) {
+        this.scenario = event.target.value;
+    }
+    handleIngestPages(event) {
+        this.ingestPages = event.target.value;
+    }
+
+    async handleStartIngest() {
+        if (this.ingestRunning) {
+            return;
+        }
+        this.ingestStarting = true;
+        this.ingestError = '';
+        try {
+            const pages = Number.parseInt(this.ingestPages, 10);
+            const started = await traerSenales({ escenario: this.scenario, paginas: Number.isNaN(pages) ? null : pages });
+            this._ingestSince = started.iniciadaEn;
+            this.ingestState = { enCurso: true, total: 0, porResultado: {} };
+            this.startIngestPolling();
+        } catch (e) {
+            this.ingestError = reduceError(e);
+        }
+        this.ingestStarting = false;
+    }
+
+    startIngestPolling() {
+        clearInterval(this._ingestTimer);
+        // eslint-disable-next-line @lwc/lwc/no-async-operation
+        this._ingestTimer = setInterval(() => this.pollIngest(), INGEST_POLL_MS);
+    }
+
+    async pollIngest() {
+        try {
+            const state = await estadoIngesta({ desde: this._ingestSince });
+            this.ingestState = state;
+            if (!state.enCurso) {
+                clearInterval(this._ingestTimer);
+                await this.handleRefresh();
+            }
+        } catch (e) {
+            clearInterval(this._ingestTimer);
+            this.ingestError = reduceError(e);
+        }
     }
 }
