@@ -177,7 +177,16 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
     }
 
     private static Boolean profundidadAgotada() {
-        return profundidadForzada != null ? profundidadForzada : AsyncInfo.hasMaxStackDepth();
+        if (profundidadForzada != null) {
+            return profundidadForzada;
+        }
+        try {
+            return AsyncInfo.hasMaxStackDepth();
+        } catch (AsyncException e) {
+            // Called outside a Queueable/Finalizer (for example execute() invoked directly): there is no chain
+            // to exhaust, so the depth limit cannot have been reached.
+            return false;
+        }
     }
 
     /** Convenience for pages with no discarded elements. */
@@ -333,8 +342,9 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
         String tipo = texto(mensaje.get('messageType'));
         return new Log_Senial__c(
             Identidad__c = base.left(MAX_IDENTIDAD),
-            Source__c = cortar(source, MAX_SOURCE),
-            Message_Id__c = cortar(messageId, MAX_MESSAGE_ID),
+            // Source__c and Message_Id__c are required on Log_Senial__c, so a missing value gets a visible placeholder.
+            Source__c = String.isBlank(source) ? '(sin source)' : cortar(source, MAX_SOURCE),
+            Message_Id__c = String.isBlank(messageId) ? '(sin messageId)' : cortar(messageId, MAX_MESSAGE_ID),
             Delivery_Id__c = entrega,
             Message_Type__c = TIPOS_LOG.contains(tipo) ? tipo : null,
             Occurred_At__c = fecha(cortar(texto(mensaje.get('occurredAt')), MAX_FECHA_TEXTO)),
@@ -346,6 +356,9 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
     private static Log_Senial__c filaDeDescarte(SimuladorClient.Descarte descarte, Integer numeroPagina) {
         return new Log_Senial__c(
             Identidad__c = ('DESCARTE|' + hash(descarte.huella + '@' + descarte.posicion)).left(MAX_IDENTIDAD),
+            // Required fields: no source/messageId exist for a non-object element, so say where it was.
+            Source__c = '(descartado)',
+            Message_Id__c = 'elemento-' + descarte.posicion + '-pagina-' + numeroPagina,
             Resultado__c = RECHAZADA,
             Motivo__c = cortar('Rechazada en la ingesta: el elemento ' + descarte.posicion + ' de data (pagina '
                 + numeroPagina + ') no es un objeto JSON (' + descarte.tipo + ')', MAX_MOTIVO)

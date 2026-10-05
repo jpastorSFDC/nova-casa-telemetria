@@ -5,7 +5,13 @@
  *
  * Shape notes: a queueable job does its callouts before its DML, so a test cannot run two jobs of the chain
  * in one method (the second callout would follow uncommitted DML). Each page is therefore tested as its own
- * job, and the next job is read from TelemetriaIngesta.encolados (the Test.isRunningTest() seam).
+ * job, and the next job is read from TelemetriaIngesta.encolados (the soloCapturar seam).
+ *
+ * SenialSensorTrigger and SenialSensorHandler are deployed in nova-cdo: Test.stopTest() delivers the published
+ * events and the handler then rewrites the log rows (test assets do not exist, so 'Publicada' becomes
+ * 'Rechazada'). Only the async iniciar test calls startTest/stopTest (it needs them to run the job), and it
+ * asserts only fields the ingestion owns. Every other test skips startTest/stopTest so no event is delivered
+ * and the rows stay exactly as the ingestion left them.
  */
 @isTest
 private class TelemetriaIngestaTest {
@@ -155,14 +161,14 @@ private class TelemetriaIngestaTest {
         Assert.areEqual('fake-session-cursor', mock.ultimoCursorEnviado);
 
         List<Log_Senial__c> filas = [
-            SELECT Identidad__c, Resultado__c, Publicado_At__c, Procesado_At__c, Occurred_At__c, Message_Type__c, Delivery_Id__c
+            SELECT Identidad__c, Publicado_At__c, Occurred_At__c, Message_Type__c, Delivery_Id__c
             FROM Log_Senial__c WHERE Message_Id__c LIKE 'msg_a%' ORDER BY Message_Id__c
         ];
+        // Resultado__c is not asserted here: stopTest delivers the events to the deployed handler, which owns
+        // the row from then on. 'Publicada' before delivery is asserted by the tests that skip stopTest.
         Assert.areEqual(3, filas.size());
         for (Log_Senial__c fila : filas) {
-            Assert.areEqual('Publicada', fila.Resultado__c, 'Published is not processed');
             Assert.isNotNull(fila.Publicado_At__c);
-            Assert.isNull(fila.Procesado_At__c);
             Assert.areEqual(Datetime.newInstanceGmt(2026, 9, 30, 16, 46, 21).getTime() / 1000, fila.Occurred_At__c.getTime() / 1000);
             Assert.areEqual('MEASUREMENT', fila.Message_Type__c);
         }
@@ -178,9 +184,7 @@ private class TelemetriaIngestaTest {
         Mock mock = preparar(mensajes(2, 'msg_b'), 'fake-cursor-3', true);
         TelemetriaIngesta primero = new TelemetriaIngesta(null, 'fake-cursor-2', 2, 5, new TelemetriaIngesta.Resumen());
 
-        Test.startTest();
         primero.execute(null);
-        Test.stopTest();
 
         Assert.areEqual(0, mock.llamadasSesion, 'A job that already has a cursor must not open a new session');
         Assert.areEqual('fake-cursor-2', mock.ultimoCursorEnviado, 'The request carries the previous page nextCursor');
@@ -198,9 +202,7 @@ private class TelemetriaIngestaTest {
         preparar(mensajes(2, 'msg_c'), 'fake-cursor-9', false);
         TelemetriaIngesta trabajo = new TelemetriaIngesta(null, 'fake-cursor-2', 2, 5, new TelemetriaIngesta.Resumen());
 
-        Test.startTest();
         trabajo.execute(null);
-        Test.stopTest();
 
         Assert.isTrue(TelemetriaIngesta.encolados.isEmpty());
         Assert.areEqual(2, [SELECT COUNT() FROM Log_Senial__c WHERE Message_Id__c LIKE 'msg_c%']);
@@ -208,15 +210,13 @@ private class TelemetriaIngestaTest {
 
     @isTest
     static void elTopeDePaginasDetieneLaCadena() {
-        preparar(mensajes(1, 'msg_d'), 'fake-cursor-3', true);
+        preparar(mensajes(1, 'tope-'), 'fake-cursor-3', true);
         TelemetriaIngesta trabajo = new TelemetriaIngesta(null, 'fake-cursor-2', 5, 5, new TelemetriaIngesta.Resumen());
 
-        Test.startTest();
         trabajo.execute(null);
-        Test.stopTest();
 
         Assert.isTrue(TelemetriaIngesta.encolados.isEmpty(), 'pagina == maxPaginas: the chain must stop');
-        Assert.areEqual(1, [SELECT COUNT() FROM Log_Senial__c WHERE Message_Id__c LIKE 'msg_d%']);
+        Assert.areEqual(1, [SELECT COUNT() FROM Log_Senial__c WHERE Message_Id__c LIKE 'tope-%']);
     }
 
     @isTest
@@ -225,9 +225,7 @@ private class TelemetriaIngestaTest {
         Integer antes = [SELECT COUNT() FROM Log_Senial__c];
         TelemetriaIngesta trabajo = new TelemetriaIngesta(null, 'fake-cursor-2', 1, 5, new TelemetriaIngesta.Resumen());
 
-        Test.startTest();
         trabajo.execute(null);
-        Test.stopTest();
 
         Assert.areEqual(antes, [SELECT COUNT() FROM Log_Senial__c]);
         Assert.isTrue(TelemetriaIngesta.encolados.isEmpty(), 'An empty page ends the run even if hasMore is true');
@@ -243,14 +241,12 @@ private class TelemetriaIngestaTest {
         Integer antes = [SELECT COUNT() FROM Log_Senial__c];
         TelemetriaIngesta trabajo = new TelemetriaIngesta(null, 'fake-cursor-2', 1, 5, new TelemetriaIngesta.Resumen());
 
-        Test.startTest();
         try {
             trabajo.execute(null);
             Assert.fail('Expected the client exception to propagate so the job shows as failed');
         } catch (SimuladorClient.SimuladorClientException e) {
             Assert.areEqual(500, e.statusCode);
         }
-        Test.stopTest();
 
         Assert.areEqual(antes, [SELECT COUNT() FROM Log_Senial__c]);
         Assert.isTrue(TelemetriaIngesta.encolados.isEmpty());
@@ -264,14 +260,12 @@ private class TelemetriaIngestaTest {
         Integer antes = [SELECT COUNT() FROM Log_Senial__c];
         TelemetriaIngesta trabajo = new TelemetriaIngesta(null, 'fake-cursor-2', 1, 5, new TelemetriaIngesta.Resumen());
 
-        Test.startTest();
         try {
             trabajo.execute(null);
             Assert.fail('Expected a parse exception');
         } catch (SimuladorClient.SimuladorClientException e) {
             Assert.isFalse(e.getMessage().contains('fake-cursor-2'));
         }
-        Test.stopTest();
 
         Assert.areEqual(antes, [SELECT COUNT() FROM Log_Senial__c]);
         Assert.isTrue(TelemetriaIngesta.encolados.isEmpty());
@@ -284,14 +278,12 @@ private class TelemetriaIngestaTest {
         Test.setMock(HttpCalloutMock.class, mock);
         TelemetriaIngesta trabajo = new TelemetriaIngesta('QA_200', 3);
 
-        Test.startTest();
         try {
             trabajo.execute(null);
             Assert.fail('Expected the session failure to propagate');
         } catch (SimuladorClient.SimuladorClientException e) {
             Assert.areEqual(401, e.statusCode);
         }
-        Test.stopTest();
 
         Assert.areEqual(0, mock.llamadasTelemetria, 'No page may be read without a session');
     }
@@ -301,19 +293,19 @@ private class TelemetriaIngestaTest {
         preparar(new List<Object>{ 'texto', mensaje('msg_e0'), 42 }, null, false);
         TelemetriaIngesta trabajo = new TelemetriaIngesta(null, 'fake-cursor-2', 4, 5, new TelemetriaIngesta.Resumen());
 
-        Test.startTest();
         trabajo.execute(null);
-        Test.stopTest();
 
         Assert.areEqual(2, TelemetriaIngesta.ultimoResumen.descartados);
         Assert.areEqual(2, TelemetriaIngesta.ultimoResumen.rechazados);
         Assert.areEqual(1, TelemetriaIngesta.ultimoResumen.publicados);
         List<Log_Senial__c> filas = [
-            SELECT Identidad__c, Motivo__c, Publicado_At__c FROM Log_Senial__c
+            SELECT Identidad__c, Source__c, Message_Id__c, Motivo__c, Publicado_At__c FROM Log_Senial__c
             WHERE Resultado__c = 'Rechazada' AND Identidad__c LIKE 'DESCARTE|%' ORDER BY Motivo__c
         ];
         Assert.areEqual(2, filas.size());
         Assert.isTrue(filas[0].Motivo__c.contains('elemento 0'));
+        Assert.areEqual('(descartado)', filas[0].Source__c);
+        Assert.areEqual('elemento-0-pagina-4', filas[0].Message_Id__c);
         Assert.isTrue(filas[0].Motivo__c.contains('pagina 4'));
         Assert.isTrue(filas[0].Motivo__c.contains('string'));
         Assert.isTrue(filas[1].Motivo__c.contains('elemento 2'));
@@ -323,17 +315,15 @@ private class TelemetriaIngestaTest {
 
     @isTest
     static void masDe200EventosSePublicanEnLotes() {
-        List<Object> lista = mensajes(250, 'msg_f');
+        List<Object> lista = mensajes(250, 'lote250-');
 
-        Test.startTest();
         TelemetriaIngesta.Resumen resumen = TelemetriaIngesta.procesarPagina(comoMapas(lista));
-        Test.stopTest();
 
         Assert.areEqual(250, resumen.recibidos);
         Assert.areEqual(250, resumen.logsCreados);
         Assert.areEqual(250, resumen.publicados);
         Assert.areEqual(0, resumen.fallosPublicacion);
-        Assert.areEqual(250, [SELECT COUNT() FROM Log_Senial__c WHERE Message_Id__c LIKE 'msg_f%' AND Resultado__c = 'Publicada']);
+        Assert.areEqual(250, [SELECT COUNT() FROM Log_Senial__c WHERE Message_Id__c LIKE 'lote250-%' AND Resultado__c = 'Publicada']);
     }
 
     @isTest
@@ -343,9 +333,7 @@ private class TelemetriaIngestaTest {
             resultadoExitoso(), resultadoFallido(), resultadoExitoso()
         };
 
-        Test.startTest();
         TelemetriaIngesta.Resumen resumen = TelemetriaIngesta.procesarPagina(comoMapas(lista));
-        Test.stopTest();
 
         Assert.areEqual(2, resumen.publicados);
         Assert.areEqual(1, resumen.fallosPublicacion);
@@ -363,9 +351,7 @@ private class TelemetriaIngestaTest {
     static void unReenvioDejaLaFilaExistenteIntactaYSePublicaDeTodosModos() {
         List<Object> lista = new List<Object>{ mensaje('msg_dup'), mensaje('msg_h0'), mensaje('msg_h0') };
 
-        Test.startTest();
         TelemetriaIngesta.Resumen resumen = TelemetriaIngesta.procesarPagina(comoMapas(lista));
-        Test.stopTest();
 
         Assert.areEqual(1, resumen.logsCreados);
         Assert.areEqual(2, resumen.yaExistentes);
@@ -390,11 +376,9 @@ private class TelemetriaIngestaTest {
         Map<String, Object> sinMessageId = mensaje('msg_i4');
         sinMessageId.remove('messageId');
 
-        Test.startTest();
         TelemetriaIngesta.Resumen resumen = TelemetriaIngesta.procesarPagina(
             comoMapas(new List<Object>{ messageIdLargo, sourceLargo, identidadLarga, entregaLarga, activoLargo, sinMessageId })
         );
-        Test.stopTest();
 
         Assert.areEqual(4, resumen.rechazados);
         Assert.areEqual(2, resumen.publicados);
@@ -409,9 +393,10 @@ private class TelemetriaIngestaTest {
             Assert.isTrue(fila.Identidad__c.length() <= 60);
             Assert.isNotNull(fila.Motivo__c);
             Assert.isNull(fila.Publicado_At__c);
-            Assert.isTrue(fila.Message_Id__c == null || fila.Message_Id__c.length() <= 80);
-            Assert.isTrue(fila.Source__c == null || fila.Source__c.length() <= 80);
+            Assert.isTrue(fila.Message_Id__c.length() <= 80, 'Message_Id__c is required and must fit');
+            Assert.isTrue(fila.Source__c.length() <= 80, 'Source__c is required and must fit');
         }
+        Assert.areEqual(1, [SELECT COUNT() FROM Log_Senial__c WHERE Identidad__c LIKE 'SIN-ID|%' AND Message_Id__c = '(sin messageId)' AND Source__c = :SOURCE]);
         Assert.areEqual(40, [SELECT Delivery_Id__c FROM Log_Senial__c WHERE Message_Id__c = 'msg_i2'].Delivery_Id__c.length());
         Assert.areEqual('Publicada', [SELECT Resultado__c FROM Log_Senial__c WHERE Message_Id__c = 'msg_i3'].Resultado__c);
     }
@@ -420,10 +405,8 @@ private class TelemetriaIngestaTest {
     static void unMensajeLargoRechazadoDosVecesDejaUnaSolaFila() {
         List<Object> lista = new List<Object>{ mensaje('x'.repeat(81)) };
 
-        Test.startTest();
         TelemetriaIngesta.procesarPagina(comoMapas(lista));
         TelemetriaIngesta.Resumen segunda = TelemetriaIngesta.procesarPagina(comoMapas(lista));
-        Test.stopTest();
 
         Assert.areEqual(1, segunda.yaExistentes, 'A replay of a rejected message dedupes on its hash key');
         Assert.areEqual(1, [SELECT COUNT() FROM Log_Senial__c WHERE Identidad__c LIKE 'ID-LARGA|%']);
@@ -434,9 +417,7 @@ private class TelemetriaIngestaTest {
         TelemetriaIngesta.identidadesConFalloDeLog = new Set<String>{ SOURCE + '|msg_l1' };
         List<Object> lista = new List<Object>{ mensaje('msg_l0'), mensaje('msg_l1'), mensaje('msg_l2') };
 
-        Test.startTest();
         TelemetriaIngesta.Resumen resumen = TelemetriaIngesta.procesarPagina(comoMapas(lista));
-        Test.stopTest();
 
         Assert.areEqual(2, resumen.logsCreados);
         Assert.areEqual(1, resumen.logsFallidos);
@@ -452,9 +433,7 @@ private class TelemetriaIngestaTest {
         preparar(mensajes(2, 'msg_m'), 'fake-cursor-3', true);
         TelemetriaIngesta trabajo = new TelemetriaIngesta(null, 'fake-cursor-2', 1, 5, new TelemetriaIngesta.Resumen());
 
-        Test.startTest();
         trabajo.execute(null);
-        Test.stopTest();
 
         Assert.areEqual(1, TelemetriaIngesta.ultimoResumen.noPublicadosPorLog);
         Assert.areEqual(1, TelemetriaIngesta.encolados.size(), 'The chain goes on: the page replay dedupes by identity');
@@ -465,9 +444,7 @@ private class TelemetriaIngestaTest {
         Map<String, Object> cambiado = mensaje('msg_dup');
         cambiado.put('measurement', new Map<String, Object>{ 'type' => 'WATER_PRESSURE', 'value' => 9.99, 'unit' => 'BAR' });
 
-        Test.startTest();
         TelemetriaIngesta.Resumen resumen = TelemetriaIngesta.procesarPagina(comoMapas(new List<Object>{ cambiado }));
-        Test.stopTest();
 
         // Ingestion does not judge content: the conflict (same identity, different fingerprint) is the handler's call.
         Assert.areEqual(1, resumen.yaExistentes);
@@ -481,11 +458,9 @@ private class TelemetriaIngestaTest {
 
     @isTest
     static void unReenvioDeUnaFilaFallidaNoLaTocaYSePublica() {
-        Test.startTest();
         TelemetriaIngesta.Resumen resumen = TelemetriaIngesta.procesarPagina(
             comoMapas(new List<Object>{ mensaje('msg_fallida') })
         );
-        Test.stopTest();
 
         Assert.areEqual(0, resumen.logsCreados);
         Assert.areEqual(1, resumen.yaExistentes);
@@ -501,9 +476,7 @@ private class TelemetriaIngestaTest {
         TelemetriaIngesta.profundidadForzada = true;
         TelemetriaIngesta trabajo = new TelemetriaIngesta(null, 'fake-cursor-2', 1, 5, new TelemetriaIngesta.Resumen());
 
-        Test.startTest();
         trabajo.execute(null);
-        Test.stopTest();
 
         Assert.isTrue(TelemetriaIngesta.encolados.isEmpty(), 'At max stack depth the next job must not be enqueued');
         Assert.areEqual(2, [SELECT COUNT() FROM Log_Senial__c WHERE Message_Id__c LIKE 'msg_n%'], 'The current page is still ingested');
@@ -514,10 +487,8 @@ private class TelemetriaIngestaTest {
         preparar(mensajes(200, 'msg_p'), 'fake-cursor-3', true);
         TelemetriaIngesta trabajo = new TelemetriaIngesta(null, 'fake-cursor-2', 1, 5, new TelemetriaIngesta.Resumen());
 
-        Test.startTest();
         trabajo.execute(null);
-        Integer dml = Limits.getDmlStatements(); // read before stopTest, which restores the outer limits
-        Test.stopTest();
+        Integer dml = Limits.getDmlStatements();
 
         Assert.isTrue(dml <= 5, 'Bulk: a page costs a handful of DML statements, not one per message (used ' + dml + ')');
         Assert.areEqual(200, TelemetriaIngesta.ultimoResumen.logsCreados);
@@ -531,11 +502,9 @@ private class TelemetriaIngestaTest {
         User sinPermisos = [SELECT Id FROM User WHERE LastName = 'IngestaSinPermisos' LIMIT 1];
         TelemetriaIngesta.Resumen resumen;
 
-        Test.startTest();
         System.runAs(sinPermisos) {
             resumen = TelemetriaIngesta.procesarPagina(comoMapas(mensajes(2, 'msg_j')));
         }
-        Test.stopTest();
 
         // The DML is SYSTEM_MODE, so the rows exist whatever the user can see.
         Assert.areEqual(2, resumen.logsCreados);
