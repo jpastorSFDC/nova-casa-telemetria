@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ListView xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Todas_las_senales</fullName>
+    <columns>NAME</columns>
+    <columns>Identidad__c</columns>
+    <columns>Message_Id__c</columns>
+    <columns>Asset__c</columns>
+    <columns>Resultado__c</columns>
+    <columns>Motivo__c</columns>
+    <columns>Occurred_At__c</columns>
+    <columns>Publicado_At__c</columns>
+    <columns>Procesado_At__c</columns>
+    <columns>Reenvios__c</columns>
+    <columns>Caso__c</columns>
+    <filterScope>Everything</filterScope>
+    <label>Todas las señales</label>
+</ListView>
