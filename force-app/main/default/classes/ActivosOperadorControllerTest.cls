@@ -23,6 +23,8 @@ private class ActivosOperadorControllerTest {
             }
             insert objectPerms;
 
+            // Only these need FLS: Valor__c, Occurred_At__c, Tipo_Medicion__c, Unidad__c are required and Asset__c is
+            // master-detail (always visible); standard Asset/Account/Case fields are visible with object Read.
             List<FieldPermissions> fieldPerms = new List<FieldPermissions>{
                 new FieldPermissions(ParentId = fullPs.Id, SobjectType = 'Asset',
                     Field = 'Asset.Tipo_Activo__c', PermissionsRead = true, PermissionsEdit = false),
@@ -226,48 +228,128 @@ private class ActivosOperadorControllerTest {
         newAsset('AST-B', withAsset, 'WATER_PUMP');
 
         // When the operator loads the building options
-        List<ActivosOperadorController.Option> options;
+        ActivosOperadorController.BuildingListResult result;
         System.runAs(userLike('nc207operator')) {
-            options = ActivosOperadorController.getBuildings();
+            result = ActivosOperadorController.getBuildings();
         }
 
         // Then only the building that has an asset is offered
-        Assert.areEqual(1, options.size());
-        Assert.areEqual(withAsset.Id, options[0].value);
-        Assert.areEqual('Edificio Con Activo', options[0].label);
+        Assert.areEqual(1, result.options.size());
+        Assert.areEqual(withAsset.Id, result.options[0].value);
+        Assert.areEqual('Edificio Con Activo', result.options[0].label);
+        Assert.isFalse(result.truncated);
     }
 
     @isTest
-    static void userWithoutObjectAccessGetsNoData() {
+    static void buildingsAreFlaggedWhenOverTheBound() {
+        // Given two buildings with assets and a bound of one
+        newAsset('AST-B1', newAccount('Edificio 1'), 'WATER_PUMP');
+        newAsset('AST-B2', newAccount('Edificio 2'), 'WATER_PUMP');
+        ActivosOperadorController.maxBuildings = 1;
+
+        // When the operator loads the building options
+        ActivosOperadorController.BuildingListResult result;
+        System.runAs(userLike('nc207operator')) {
+            result = ActivosOperadorController.getBuildings();
+        }
+
+        // Then one is returned and the caller is told the list is cut
+        Assert.areEqual(1, result.options.size());
+        Assert.isTrue(result.truncated);
+    }
+
+    @isTest
+    static void mostSevereAssetsSurviveThePageCutEvenWhenTheirNameSortsLast() {
+        // Given three assets where the critical one sorts last by name, and a page of two
+        Account building = newAccount('Edificio Paginado');
+        Datetime now = baseTime();
+        newReading(newAsset('AST-A', building, 'WATER_PUMP'), 'TEMPERATURE', 'CELSIUS', 20, now, 0);
+        newReading(newAsset('AST-B', building, 'WATER_PUMP'), 'TEMPERATURE', 'CELSIUS', 60, now, 1);
+        newReading(newAsset('AST-Z', building, 'WATER_PUMP'), 'TEMPERATURE', 'CELSIUS', 95, now, 2);
+        ActivosOperadorController.pageSize = 2;
+        User operator = userLike('nc207operator');
+
+        // When the operator loads the list, unfiltered and filtered by critical
+        ActivosOperadorController.AssetPage all = loadResult(operator, null, null, null);
+        ActivosOperadorController.AssetPage critical = loadResult(operator, null, 2, null);
+
+        // Then the critical asset leads, the cut is reported, and the severity filter still finds it
+        Assert.areEqual(new List<String>{ 'AST-Z', 'AST-B' }, new List<String>{ all.assets[0].name, all.assets[1].name });
+        Assert.areEqual(3, all.totalCount);
+        Assert.areEqual(2, all.assetLimit);
+        Assert.isTrue(all.truncated);
+        Assert.areEqual(1, critical.assets.size());
+        Assert.areEqual('AST-Z', critical.assets[0].name);
+        Assert.areEqual(1, critical.totalCount);
+        Assert.isFalse(critical.truncated);
+    }
+
+    @isTest
+    static void scanCeilingIsReportedAsTruncated() {
+        // Given more assets than the scan ceiling
+        Account building = newAccount('Edificio Grande');
+        newAsset('AST-1', building, 'WATER_PUMP');
+        newAsset('AST-2', building, 'WATER_PUMP');
+        newAsset('AST-3', building, 'WATER_PUMP');
+        ActivosOperadorController.maxScan = 2;
+
+        // When the operator loads the list
+        ActivosOperadorController.AssetPage result = loadResult(userLike('nc207operator'), null, null, null);
+
+        // Then only the scanned assets are ranked and the caller is told it is truncated
+        Assert.areEqual(2, result.totalCount);
+        Assert.isTrue(result.truncated);
+        Assert.areEqual(100, result.assetLimit);
+    }
+
+    @isTest
+    static void equalSeverityAndOccurredAtResolvesByRecordIdNotArrivalOrder() {
+        // Given two readings of the same type with the same severity and instant but different values
+        Account building = newAccount('Edificio Empate');
+        Asset asset = newAsset('AST-TIE-ID', building, 'WATER_PUMP');
+        Datetime now = baseTime();
+        Lectura_Vigente__c first = newReading(asset, 'TEMPERATURE', 'CELSIUS', 91, now, 2);
+        Lectura_Vigente__c second = newReading(asset, 'TEMPERATURE', 'CELSIUS', 92, now, 2);
+        Lectura_Vigente__c expected = String.valueOf(first.Id) > String.valueOf(second.Id) ? first : second;
+
+        // When the operator loads the list
+        List<ActivosOperadorController.AssetView> result = load(userLike('nc207operator'), null, null, null);
+
+        // Then the higher record Id wins every time
+        Assert.areEqual(1, result[0].readings.size());
+        Assert.areEqual(expected.Valor__c, result[0].readings[0].value);
+    }
+
+    @isTest
+    static void userWithoutObjectAccessIsDeniedWithASafeError() {
         // Given data that exists and that an admin can see
         Account building = newAccount('Edificio Privado');
         Asset asset = newAsset('AST-PRIV', building, 'WATER_PUMP');
         newReading(asset, 'TEMPERATURE', 'CELSIUS', 95, baseTime(), 2);
         newCase(asset, 'New', 'Secret case');
-        Assert.areEqual(1, ActivosOperadorController.getAssets(null, null, null).size());
+        Assert.areEqual(1, ActivosOperadorController.getAssets(null, null, null).assets.size());
 
         // When a user with no object access asks the server directly
-        List<ActivosOperadorController.AssetView> assets;
-        List<ActivosOperadorController.Option> buildings;
-        Boolean assetsDenied = false;
-        Boolean buildingsDenied = false;
+        AuraHandledException assetsError;
+        AuraHandledException buildingsError;
         System.runAs(userLike('nc207restricted')) {
             try {
-                assets = ActivosOperadorController.getAssets(null, null, null);
+                ActivosOperadorController.getAssets(null, null, null);
             } catch (AuraHandledException e) {
-                assetsDenied = true;
-                Assert.isFalse(e.getMessage().contains('Access to entity'), 'Raw platform error leaked');
+                assetsError = e;
             }
             try {
-                buildings = ActivosOperadorController.getBuildings();
+                ActivosOperadorController.getBuildings();
             } catch (AuraHandledException e) {
-                buildingsDenied = true;
+                buildingsError = e;
             }
         }
 
-        // Then nothing comes back: either a safe error or an empty result
-        Assert.isTrue(assetsDenied || assets.isEmpty(), 'Restricted user must not receive assets');
-        Assert.isTrue(buildingsDenied || buildings.isEmpty(), 'Restricted user must not receive buildings');
+        // Then USER_MODE denies the query and both calls fail with the static access message
+        Assert.isNotNull(assetsError, 'getAssets must throw for a user without object access');
+        Assert.areEqual(ActivosOperadorController.ACCESS_MESSAGE, assetsError.getMessage());
+        Assert.isNotNull(buildingsError, 'getBuildings must throw for a user without object access');
+        Assert.areEqual(ActivosOperadorController.ACCESS_MESSAGE, buildingsError.getMessage());
     }
 
     @isTest
@@ -278,30 +360,30 @@ private class ActivosOperadorControllerTest {
         newReading(asset, 'TEMPERATURE', 'CELSIUS', 95, baseTime(), 2);
 
         // When that user asks for the list
-        List<ActivosOperadorController.AssetView> result;
-        Boolean denied = false;
+        AuraHandledException error;
         System.runAs(userLike('nc207nofls')) {
             try {
-                result = ActivosOperadorController.getAssets(null, null, null);
+                ActivosOperadorController.getAssets(null, null, null);
             } catch (AuraHandledException e) {
-                denied = true;
-                Assert.isFalse(e.getMessage().contains('Tipo_Activo__c'), 'Field names should not leak');
+                error = e;
             }
         }
 
-        // Then the field is never returned: the call fails safely instead of handing back the asset
-        Assert.isTrue(denied || result.isEmpty(), 'Hidden field must not come back');
-        if (!denied) {
-            for (ActivosOperadorController.AssetView v : result) {
-                Assert.isNull(v.assetType, 'Hidden field leaked');
-            }
-        }
+        // Then the call fails with the static message, which names no field or object
+        Assert.isNotNull(error, 'Missing FLS must raise an AuraHandledException');
+        Assert.areEqual(ActivosOperadorController.ACCESS_MESSAGE, error.getMessage());
+        Assert.isFalse(error.getMessage().contains('Tipo_Activo__c'));
+        Assert.isFalse(error.getMessage().containsIgnoreCase('Asset'));
     }
 
     // ---------- helpers ----------
 
     private static List<ActivosOperadorController.AssetView> load(User runAs, String accountId, Integer severity, String type) {
-        List<ActivosOperadorController.AssetView> result;
+        return loadResult(runAs, accountId, severity, type).assets;
+    }
+
+    private static ActivosOperadorController.AssetPage loadResult(User runAs, String accountId, Integer severity, String type) {
+        ActivosOperadorController.AssetPage result;
         System.runAs(runAs) {
             result = ActivosOperadorController.getAssets(accountId, severity, type);
         }

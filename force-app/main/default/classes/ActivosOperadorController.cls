@@ -4,9 +4,15 @@
  */
 public with sharing class ActivosOperadorController {
 
-    @TestVisible private static final Integer MAX_ASSETS = 500;
-    @TestVisible private static final Integer MAX_BUILDINGS = 200;
-    private static final Integer MAX_CHILD_ROWS = 5000;
+    // Ceiling: severity is computed over at most maxScan assets (5 measurement types => <= 5x readings),
+    // ~30k rows of the 50k SOQL row limit; beyond that `truncated` is set. Only pageSize assets are returned.
+    @TestVisible private static Integer maxScan = 5000;
+    @TestVisible private static Integer pageSize = 100;
+    @TestVisible private static Integer maxBuildings = 2000;
+    private static final Integer READING_TYPES = 5;
+    private static final Integer MAX_CASE_ROWS = 2000;
+    @TestVisible private static final String ACCESS_MESSAGE = 'You do not have access to all the information needed for this list.';
+    @TestVisible private static final String LOAD_MESSAGE = 'The information could not be loaded. Try again later.';
 
     public class Option {
         @AuraEnabled public String value { get; private set; }
@@ -14,6 +20,54 @@ public with sharing class ActivosOperadorController {
         public Option(String value, String label) {
             this.value = value;
             this.label = label;
+        }
+    }
+
+    public class BuildingListResult {
+        @AuraEnabled public List<Option> options { get; private set; }
+        @AuraEnabled public Boolean truncated { get; private set; }
+        public BuildingListResult(List<Option> options, Boolean truncated) {
+            this.options = options;
+            this.truncated = truncated;
+        }
+    }
+
+    public class AssetPage {
+        @AuraEnabled public List<AssetView> assets { get; private set; }
+        // Assets matching the filters within the scan ceiling, before the page cut.
+        @AuraEnabled public Integer totalCount { get; private set; }
+        // Max assets returned per call.
+        @AuraEnabled public Integer assetLimit { get; private set; }
+        // True when anything was cut: page, asset scan ceiling, or readings/cases row caps.
+        @AuraEnabled public Boolean truncated { get; private set; }
+        public AssetPage(List<AssetView> assets, Integer totalCount, Integer assetLimit, Boolean truncated) {
+            this.assets = assets;
+            this.totalCount = totalCount;
+            this.assetLimit = assetLimit;
+            this.truncated = truncated;
+        }
+    }
+
+    // Lightweight sort key so severity is ranked over every scanned asset before any view is built.
+    private class Ranked implements Comparable {
+        Asset asset;
+        Integer level;
+        Ranked(Asset asset, Integer level) {
+            this.asset = asset;
+            this.level = level;
+        }
+        public Integer compareTo(Object other) {
+            Ranked o = (Ranked) other;
+            if (level != o.level) {
+                return level > o.level ? -1 : 1;
+            }
+            String n1 = asset.Name == null ? '' : asset.Name;
+            String n2 = o.asset.Name == null ? '' : o.asset.Name;
+            Integer byName = n1.compareTo(n2);
+            if (byName != 0) {
+                return byName;
+            }
+            return String.valueOf(asset.Id).compareTo(String.valueOf(o.asset.Id));
         }
     }
 
@@ -102,13 +156,14 @@ public with sharing class ActivosOperadorController {
     }
 
     /**
-     * Assets the running user can see, with latest readings and open intervention.
+     * Assets the running user can see, most severe first, with latest readings and open intervention.
+     * Severity is computed over all scanned assets before the page cut, so a critical asset is never dropped.
      * @param accountId building (Account Id); blank means all
      * @param severityLevel 0 normal, 1 warning, 2 critical; null means all
      * @param assetType Asset.Tipo_Activo__c API value; blank means all
      */
     @AuraEnabled(cacheable=true)
-    public static List<AssetView> getAssets(String accountId, Integer severityLevel, String assetType) {
+    public static AssetPage getAssets(String accountId, Integer severityLevel, String assetType) {
         try {
             Id buildingId = parseId(accountId);
             if (severityLevel != null && (severityLevel < 0 || severityLevel > 2)) {
@@ -127,18 +182,38 @@ public with sharing class ActivosOperadorController {
             }
             String soql = 'SELECT Id, Name, AccountId, Account.Name, Tipo_Activo__c FROM Asset'
                 + (conditions.isEmpty() ? '' : ' WHERE ' + String.join(conditions, ' AND '))
-                + ' ORDER BY Name LIMIT ' + MAX_ASSETS;
+                + ' ORDER BY Name, Id LIMIT ' + (maxScan + 1);
             List<Asset> assets = Database.queryWithBinds(soql, binds, AccessLevel.USER_MODE);
-            if (assets.isEmpty()) {
-                return new List<AssetView>();
+            Boolean truncated = assets.size() > maxScan;
+            while (assets.size() > maxScan) {
+                assets.remove(assets.size() - 1);
             }
-            Set<Id> assetIds = new Map<Id, Asset>(assets).keySet();
+            if (assets.isEmpty()) {
+                return new AssetPage(new List<AssetView>(), 0, pageSize, false);
+            }
 
-            Map<Id, Map<String, Lectura_Vigente__c>> latest = latestReadings(assetIds);
-            Map<Id, List<Case>> openCases = openInterventions(assetIds);
+            List<Boolean> capped = new List<Boolean>{ false };
+            Map<Id, Map<String, Lectura_Vigente__c>> latest = latestReadings(new Map<Id, Asset>(assets).keySet(), capped);
 
-            List<AssetView> result = new List<AssetView>();
+            List<Ranked> ranked = new List<Ranked>();
             for (Asset a : assets) {
+                Integer level = highestLevel(latest.get(a.Id));
+                if (severityLevel == null || (level >= 0 && level == severityLevel)) {
+                    ranked.add(new Ranked(a, level));
+                }
+            }
+            ranked.sort();
+
+            Integer total = ranked.size();
+            Integer shown = Math.min(total, pageSize);
+            List<Asset> pageAssets = new List<Asset>();
+            for (Integer i = 0; i < shown; i++) {
+                pageAssets.add(ranked[i].asset);
+            }
+            Map<Id, List<Case>> openCases = openInterventions(new Map<Id, Asset>(pageAssets).keySet(), capped);
+
+            List<AssetView> page = new List<AssetView>();
+            for (Asset a : pageAssets) {
                 List<ReadingView> readings = new List<ReadingView>();
                 Map<String, Lectura_Vigente__c> byType = latest.get(a.Id);
                 if (byType != null) {
@@ -149,52 +224,61 @@ public with sharing class ActivosOperadorController {
                     }
                 }
                 List<Case> cases = openCases.containsKey(a.Id) ? openCases.get(a.Id) : new List<Case>();
-                AssetView view = new AssetView(a, readings, cases);
-                // Severity is derived from readings, so it is filtered after the query.
-                if (severityLevel == null || view.severityLevel == severityLevel) {
-                    result.add(view);
-                }
+                page.add(new AssetView(a, readings, cases));
             }
-            result.sort();
-            return result;
+            return new AssetPage(page, total, pageSize, truncated || total > shown || capped[0]);
         } catch (AuraHandledException e) {
             throw e;
         } catch (Exception e) {
-            throw safeError('You do not have access to this information or it could not be loaded.');
+            throw failure(e);
         }
     }
 
-    /** Buildings (Accounts) that have at least one asset visible to the user. */
+    /** Buildings (Accounts) that have at least one asset visible to the user; truncated when over the bound. */
     @AuraEnabled(cacheable=true)
-    public static List<Option> getBuildings() {
+    public static BuildingListResult getBuildings() {
         try {
+            Integer cap = maxBuildings;
+            Integer fetch = cap + 1;
             List<Option> options = new List<Option>();
             for (Account acc : [
                 SELECT Id, Name FROM Account
                 WHERE Id IN (SELECT AccountId FROM Asset)
                 WITH USER_MODE
-                ORDER BY Name
-                LIMIT :MAX_BUILDINGS
+                ORDER BY Name, Id
+                LIMIT :fetch
             ]) {
                 options.add(new Option(acc.Id, acc.Name));
             }
-            return options;
+            Boolean truncated = options.size() > cap;
+            if (truncated) {
+                options.remove(options.size() - 1);
+            }
+            return new BuildingListResult(options, truncated);
         } catch (Exception e) {
-            throw safeError('You do not have access to this information or it could not be loaded.');
+            throw failure(e);
         }
     }
 
     // One reading per asset + measurement type; the newest occurredAt wins, ties go to the higher severity (D003).
-    private static Map<Id, Map<String, Lectura_Vigente__c>> latestReadings(Set<Id> assetIds) {
+    private static Map<Id, Map<String, Lectura_Vigente__c>> latestReadings(Set<Id> assetIds, List<Boolean> capped) {
         Map<Id, Map<String, Lectura_Vigente__c>> latest = new Map<Id, Map<String, Lectura_Vigente__c>>();
+        // No recency window: a quiet asset's reading must not fall outside it. Lectura_Vigente__c is assumed to hold
+        // only valid readings (invalid messages are rejected before write, T2.12), so no validity filter here.
+        Integer readingCap = assetIds.size() * READING_TYPES;
+        Integer readingFetch = readingCap + 1;
+        Integer readingRows = 0;
         for (Lectura_Vigente__c r : [
             SELECT Asset__c, Tipo_Medicion__c, Valor__c, Unidad__c, Occurred_At__c, Severidad_Nivel__c, Sensor_Id__c
             FROM Lectura_Vigente__c
             WHERE Asset__c IN :assetIds
             WITH USER_MODE
-            ORDER BY Occurred_At__c DESC
-            LIMIT :MAX_CHILD_ROWS
+            LIMIT :readingFetch
         ]) {
+            if (++readingRows > readingCap) {
+                capped[0] = true;
+                break;
+            }
             Map<String, Lectura_Vigente__c> byType = latest.get(r.Asset__c);
             if (byType == null) {
                 byType = new Map<String, Lectura_Vigente__c>();
@@ -209,16 +293,22 @@ public with sharing class ActivosOperadorController {
     }
 
     // Open means Case.IsClosed = false; newest first.
-    private static Map<Id, List<Case>> openInterventions(Set<Id> assetIds) {
+    private static Map<Id, List<Case>> openInterventions(Set<Id> assetIds, List<Boolean> capped) {
         Map<Id, List<Case>> byAsset = new Map<Id, List<Case>>();
+        Integer caseFetch = MAX_CASE_ROWS + 1;
+        Integer caseRows = 0;
         for (Case c : [
             SELECT Id, CaseNumber, Subject, Status, CreatedDate, AssetId
             FROM Case
             WHERE AssetId IN :assetIds AND IsClosed = false
             WITH USER_MODE
             ORDER BY CreatedDate DESC, Id DESC
-            LIMIT :MAX_CHILD_ROWS
+            LIMIT :caseFetch
         ]) {
+            if (++caseRows > MAX_CASE_ROWS) {
+                capped[0] = true;
+                break;
+            }
             if (!byAsset.containsKey(c.AssetId)) {
                 byAsset.put(c.AssetId, new List<Case>());
             }
@@ -231,7 +321,22 @@ public with sharing class ActivosOperadorController {
         if (candidate.Occurred_At__c != current.Occurred_At__c) {
             return candidate.Occurred_At__c > current.Occurred_At__c;
         }
-        return rank(candidate) > rank(current);
+        if (rank(candidate) != rank(current)) {
+            return rank(candidate) > rank(current);
+        }
+        // Final tie-break by record Id; D003's messageId step belongs to ingestion (no messageId on this object).
+        return String.valueOf(candidate.Id) > String.valueOf(current.Id);
+    }
+
+    // Highest level among an asset's latest readings; -1 when it has none (no reading carries a level).
+    private static Integer highestLevel(Map<String, Lectura_Vigente__c> byType) {
+        Integer best = -1;
+        if (byType != null) {
+            for (Lectura_Vigente__c r : byType.values()) {
+                best = Math.max(best, rank(r));
+            }
+        }
+        return best;
     }
 
     private static Integer rank(Lectura_Vigente__c r) {
@@ -260,6 +365,14 @@ public with sharing class ActivosOperadorController {
         } catch (Exception e) {
             throw safeError('The building filter is not valid.');
         }
+    }
+
+    // Static messages only: access-type failures vs anything else; never echo the platform message.
+    private static AuraHandledException failure(Exception e) {
+        if (e instanceof QueryException || e instanceof NoAccessException) {
+            return safeError(ACCESS_MESSAGE);
+        }
+        return safeError(LOAD_MESSAGE);
     }
 
     private static AuraHandledException safeError(String message) {
