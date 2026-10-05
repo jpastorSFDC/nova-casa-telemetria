@@ -16,11 +16,12 @@ private class ActivosOperadorControllerTest {
 
             List<ObjectPermissions> objectPerms = new List<ObjectPermissions>();
             for (PermissionSet ps : new List<PermissionSet>{ fullPs, noFlsPs }) {
-                for (String obj : new List<String>{ 'Asset', 'Account', 'Case', 'Lectura_Vigente__c' }) {
+                for (String obj : new List<String>{ 'Asset', 'Account', 'Contact', 'Case', 'Lectura_Vigente__c' }) {
                     objectPerms.add(new ObjectPermissions(
                         ParentId = ps.Id, SobjectType = obj, PermissionsRead = true));
                 }
             }
+            // Platform-enforced dependencies: Read Account/Case/Asset require Read Contact (FIELD_INTEGRITY_EXCEPTION).
             insert objectPerms;
 
             // Only these need FLS: Valor__c, Occurred_At__c, Tipo_Medicion__c, Unidad__c are required and Asset__c is
