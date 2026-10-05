@@ -2,7 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>External_Id__c</fullName>
     <label>ID Externo</label>
-    <description>Código del edificio en el catálogo, p.ej. BLD-BOG-01; permite upsert sin duplicar.</description>
+    <description>Building code in the catalog, e.g. BLD-BOG-01; allows upsert without duplicates.</description>
     <type>Text</type>
     <length>50</length>
     <externalId>true</externalId>

@@ -2,7 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Severidad__c</fullName>
     <label>Severidad</label>
-    <description>Severidad que toma la señal si cumple el límite. Invalida marca un valor fuera del rango físico del sensor: la señal se rechaza con motivo.</description>
+    <description>Severity the signal takes if it meets the limit. Invalida marks a value outside the sensor's physical range: the signal is rejected with a reason.</description>
     <type>Picklist</type>
     <required>true</required>
     <valueSet>

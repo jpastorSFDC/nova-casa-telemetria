@@ -2,7 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Message_Type__c</fullName>
     <label>Tipo de Mensaje</label>
-    <description>messageType del payload: MEASUREMENT trae measurement; CONNECTIVITY trae communication.</description>
+    <description>messageType of the payload: MEASUREMENT carries measurement; CONNECTIVITY carries communication.</description>
     <type>Picklist</type>
     <valueSet>
         <restricted>true</restricted>

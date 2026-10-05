@@ -2,7 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Ultima_Senal__c</fullName>
     <label>Última señal</label>
-    <description>Máximo momento de origen entre las lecturas vigentes del activo.</description>
+    <description>Latest origin moment among the asset's current readings.</description>
     <type>Summary</type>
     <summarizedField>Lectura_Vigente__c.Occurred_At__c</summarizedField>
     <summaryForeignKey>Lectura_Vigente__c.Asset__c</summaryForeignKey>

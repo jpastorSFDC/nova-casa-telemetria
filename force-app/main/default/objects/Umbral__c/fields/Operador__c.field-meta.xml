@@ -2,7 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Operador__c</fullName>
     <label>Operador</label>
-    <description>Comparación entre el valor de la señal y Valor__c.</description>
+    <description>Comparison between the signal's value and Valor__c.</description>
     <type>Picklist</type>
     <required>true</required>
     <valueSet>
