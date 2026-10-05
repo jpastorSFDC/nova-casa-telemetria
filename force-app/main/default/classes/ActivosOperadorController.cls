@@ -110,6 +110,8 @@ public with sharing class ActivosOperadorController {
     public class AssetView implements Comparable {
         @AuraEnabled public Id assetId { get; private set; }
         @AuraEnabled public String name { get; private set; }
+        // Catalog code (Asset.External_Id__c), e.g. AST-BOG-002; shown as the ID chip.
+        @AuraEnabled public String externalId { get; private set; }
         @AuraEnabled public String assetType { get; private set; }
         @AuraEnabled public Id accountId { get; private set; }
         @AuraEnabled public String accountName { get; private set; }
@@ -124,6 +126,7 @@ public with sharing class ActivosOperadorController {
         public AssetView(Asset a, List<ReadingView> readings, List<Case> openCases) {
             this.assetId = a.Id;
             this.name = a.Name;
+            this.externalId = a.External_Id__c;
             this.assetType = a.Tipo_Activo__c;
             this.accountId = a.AccountId;
             this.accountName = a.Account?.Name;
@@ -180,7 +183,7 @@ public with sharing class ActivosOperadorController {
                 conditions.add('Tipo_Activo__c = :assetType');
                 binds.put('assetType', assetType);
             }
-            String soql = 'SELECT Id, Name, AccountId, Account.Name, Tipo_Activo__c FROM Asset'
+            String soql = 'SELECT Id, Name, AccountId, Account.Name, Tipo_Activo__c, External_Id__c FROM Asset'
                 + (conditions.isEmpty() ? '' : ' WHERE ' + String.join(conditions, ' AND '))
                 + ' ORDER BY Name, Id LIMIT ' + (maxScan + 1);
             List<Asset> assets = Database.queryWithBinds(soql, binds, AccessLevel.USER_MODE);
