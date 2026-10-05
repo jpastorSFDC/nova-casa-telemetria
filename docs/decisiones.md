@@ -18,6 +18,7 @@ Copiar esta plantilla, numerar secuencialmente, y mantener el estado actualizado
 - **Alternativa descartada**: qué otra opción se consideró.
 - **Trade-off**: qué se gana y qué se sacrifica con la decisión elegida.
 - **Riesgo / dependencia**: qué podría invalidar esto y de qué depende.
+- **Criterios de prueba**: qué prueba o verificación falla si la decisión deja de cumplirse.
 - **Siguiente acción**: qué falta para validarlo o implementarlo.
 ```
 
@@ -90,6 +91,7 @@ Copiar esta plantilla, numerar secuencialmente, y mantener el estado actualizado
 - **Criterios de prueba**: `CatalogoServiceTest` demuestra la regla: un umbral por combinación (`shouldSeedOneThresholdSetPerCombination_WhenCatalogIsValid`), recargar no duplica (`shouldNotDuplicateThresholds_WhenLoadedTwice`), un umbral editado o desactivado se conserva (`shouldKeepEditedThreshold_WhenCatalogIsReloaded`), un conjunto parcial no se completa (`shouldNotCompletePartialSet_WhenCatalogIsReloaded`) y un usuario sin acceso a `Umbral__c` recibe una `CatalogoServiceException` envuelta (`shouldThrowException_WhenRunningAsUserWithoutUmbralAccess`).
 - **Nota**: sembrar estos operadores y valores significa que el equipo ya los escogió en la práctica; siguen pendientes de confirmación del facilitador.
 - **Siguiente acción**: confirmar operadores y valores con el facilitador.
+
 ## D007 — La antigüedad de la señal se marca con un parámetro de presentación (`staleMinutes`), no con un umbral
 
 - **Estado**: Propuesta
@@ -125,7 +127,7 @@ Copiar esta plantilla, numerar secuencialmente, y mantener el estado actualizado
 
 ## Pendientes heredados de la sección "Acuerdos" (abiertos desde Discovery, sin cerrar en Development)
 
-Estos puntos necesitaban una entrada D00X cada uno antes de cerrar el entregable 6 de Discovery. El entregable se aprobó y ya estamos en Development (ver `AGENTS.md`), pero solo el objeto de intervención (D001) y el empate de `occurredAt` (D003 arriba) están cerrados del todo; el edificio (D005 arriba) tiene entrada pero solo resuelve el campo de identidad, no el modelo de sharing. Siguen sin cerrar:
+Estos puntos necesitaban una entrada D00X cada uno antes de cerrar el entregable 6 de Discovery. El entregable se aprobó y ya estamos en Development (ver `AGENTS.md`), pero solo el objeto de intervención (D001), los nombres de conexión al simulador (D002), el empate de `occurredAt` (D003) y el tipo de objeto de `Umbral__c` (D004) están aceptados; el edificio (D005 arriba) tiene entrada pero solo resuelve el campo de identidad, no el modelo de sharing. Siguen sin cerrar:
 
 1. Operadores y valores exactos de umbral por `asset.type` + `measurement.type` (van en metadata, no en código).
 2. Modelo de sharing de edificios/activos para el operador (BR-208) — parcial: D005 define el edificio como `Account`, pero el OWD, el permission set `Nova_Casa_Operator`, las reglas de sharing y el `with sharing`/FLS en Apex siguen pendientes y sin aprobar (ver D005, "Riesgo / dependencia").
