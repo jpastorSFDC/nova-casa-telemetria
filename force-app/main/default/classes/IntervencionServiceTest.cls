@@ -16,7 +16,7 @@ private class IntervencionServiceTest {
         insert building;
         insert new List<Asset>{
             new Asset(Name = 'Bomba test', AccountId = building.Id, External_Id__c = 'AST-INT-001', Tipo_Activo__c = 'WATER_PUMP'),
-            new Asset(Name = 'Ventilacion test', AccountId = building.Id, External_Id__c = 'AST-INT-002', Tipo_Activo__c = 'VENTILATION')
+            new Asset(Name = 'Medidor test', AccountId = building.Id, External_Id__c = 'AST-INT-002', Tipo_Activo__c = 'WATER_METER')
         };
 
         Profile minimumAccessProfile = [SELECT Id FROM Profile WHERE Name = 'Minimum Access - Salesforce' LIMIT 1];
