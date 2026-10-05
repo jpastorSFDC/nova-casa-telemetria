@@ -10,8 +10,8 @@ public with sharing class CatalogoService {
     private static final String CATALOG_ENDPOINT = 'callout:Nova_Casa_Simulator/catalog';
     private static final String HTTP_GET = 'GET';
 
-    // Fallback constants: /catalog's thresholdsReference gives ranges, not operators, so the
-    // team-agreed operator/value table (backlog T2.7) is used. Still to be agreed per AGENTS.md.
+    // /catalog's thresholdsReference gives ranges, not operators, so this seed table holds the team's
+    // proposed reference values from T2.7; operators/values await facilitator confirmation (AGENTS.md pendiente 1).
     private static final Map<String, List<ThresholdRule>> RULES_BY_MEASUREMENT = buildReferenceRules();
 
     // ─── Public API ──────────────────────────────────────────────────────

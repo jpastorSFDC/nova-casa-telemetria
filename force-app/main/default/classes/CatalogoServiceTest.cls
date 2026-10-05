@@ -249,6 +249,26 @@ private class CatalogoServiceTest {
         Assert.isFalse(kept.Activo__c, 'The deactivated flag should be preserved');
     }
 
+    @isTest
+    static void shouldNotCompletePartialSet_WhenCatalogIsReloaded() {
+        // Given: the combination already has a partial set (only one Advertencia row)
+        Umbral__c partial = new Umbral__c(
+            Tipo_Activo__c = 'TECHNICAL_ROOM', Tipo_Medicion__c = 'TEMPERATURE', Unidad_Esperada__c = 'CELSIUS',
+            Severidad__c = 'Advertencia', Operador__c = 'GT', Valor__c = 30, Activo__c = true
+        );
+        insert partial;
+        Test.setMock(HttpCalloutMock.class, new CatalogSimulatorMock(200, ONE_BUILDING_CATALOG_JSON));
+
+        // When
+        Test.startTest();
+        CatalogoService.loadCatalog();
+        Test.stopTest();
+
+        // Then: known limit, the partial set is left alone and not completed
+        Assert.areEqual(1, [SELECT COUNT() FROM Umbral__c], 'A partial set should not be completed on reload');
+        Assert.areEqual(partial.Id, [SELECT Id FROM Umbral__c LIMIT 1].Id, 'The existing row should be the only one');
+    }
+
     // ─── Edge Case Tests ──────────────────────────────────────────────────
 
     @isTest

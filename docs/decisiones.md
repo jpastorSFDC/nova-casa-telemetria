@@ -87,6 +87,8 @@ Copiar esta plantilla, numerar secuencialmente, y mantener el estado actualizado
 - **Alternativa descartada**: clave natural completa (tipo, medición, severidad, operador, valor, unidad): un umbral editado dejaría de coincidir y se duplicaría. Un campo de id externo: cambio de modelo sin necesidad.
 - **Trade-off**: se gana idempotencia y respeto a lo que el usuario cambió; se sacrifica que un umbral borrado a mano no se restituye solo, ni se agregan reglas nuevas a una combinación ya sembrada.
 - **Riesgo / dependencia**: operadores y valores siguen "por acordar" (ver pendiente 1 abajo); la tabla vive en el código como valor inicial, la fuente operativa es el objeto.
+- **Criterios de prueba**: `CatalogoServiceTest` demuestra la regla: un umbral por combinación (`shouldSeedOneThresholdSetPerCombination_WhenCatalogIsValid`), recargar no duplica (`shouldNotDuplicateThresholds_WhenLoadedTwice`), un umbral editado o desactivado se conserva (`shouldKeepEditedThreshold_WhenCatalogIsReloaded`), un conjunto parcial no se completa (`shouldNotCompletePartialSet_WhenCatalogIsReloaded`) y un usuario sin acceso a `Umbral__c` recibe una `CatalogoServiceException` envuelta (`shouldThrowException_WhenRunningAsUserWithoutUmbralAccess`).
+- **Nota**: sembrar estos operadores y valores significa que el equipo ya los escogió en la práctica; siguen pendientes de confirmación del facilitador.
 - **Siguiente acción**: confirmar operadores y valores con el facilitador.
 
 ## Pendientes heredados de la sección "Acuerdos" (abiertos desde Discovery, sin cerrar en Development)
