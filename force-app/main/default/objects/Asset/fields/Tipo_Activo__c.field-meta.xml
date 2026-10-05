@@ -33,6 +33,12 @@
                 <default>false</default>
                 <label>Cámara de seguridad</label>
             </value>
+            <value>
+                <fullName>VENTILATION</fullName>
+                <default>false</default>
+                <isActive>false</isActive>
+                <label>VENTILATION</label>
+            </value>
         </valueSetDefinition>
     </valueSet>
 </CustomField>
