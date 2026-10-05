@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>67.0</apiVersion>
+    <isExposed>true</isExposed>
+    <masterLabel>Nova Casa - Activos del operador</masterLabel>
+    <description>Operator screen: assets with latest readings, severity, signal age and open interventions (US-207).</description>
+    <targets>
+        <target>lightning__AppPage</target>
+        <target>lightning__HomePage</target>
+        <target>lightning__Tab</target>
+    </targets>
+    <targetConfigs>
+        <targetConfig targets="lightning__AppPage,lightning__HomePage">
+            <!-- Default must match DEFAULT_STALE_MINUTES in novaCasaActivosOperador.js -->
+            <property name="staleMinutes" type="Integer" default="15" min="1" label="Minutes before a signal is stale" description="A last signal older than this is flagged as stale."/>
+        </targetConfig>
+    </targetConfigs>
+</LightningComponentBundle>

@@ -27,7 +27,7 @@ These aren't production outcomes — there's no production yet. They're what thi
 
 ## Open questions
 
-The 4 questions already logged as pending in `docs/decisiones.md` (the `occurredAt` tie-break rule, threshold values, the intervention object, the sharing model) aren't repeated here. On top of those:
+The 4 questions already logged as pending in `docs/decisiones.md` (the `occurredAt` tie-break rule, threshold values, the intervention object, the sharing model) aren't repeated here — the intervention object (D001) and the `occurredAt` tie-break (D003) are now closed there; threshold values and the sharing model are still open. On top of those:
 
 - The documented contract is a synchronous `GET /api/v1/telemetry`. The brief requires "Platform Events genuinely published by the simulator." Does the simulator publish the PE directly, or do we need a bridge (something that polls the endpoint and republishes it as a PE)? That decides half the architecture and it isn't settled yet.
 - Do Building/Asset objects already exist in this org from an earlier sprint, or are we starting from a clean org for this domain?
