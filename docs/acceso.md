@@ -62,7 +62,7 @@ C/R/E/D = Create/Read/Edit/Delete del permission set; después del punto, de dó
 - **Operador**: lectura en `Asset.AccountId`, `Asset.Tipo_Activo__c`, los resúmenes de `Asset` (`Severidad_Actual__c`, `Severidad_Nivel__c`, `Ultima_Senal__c`), `Case.AssetId`, `Case.Subject`, `Lectura_Vigente__c.Sensor_Id__c`, `Lectura_Vigente__c.Severidad_Nivel__c`, `Lectura_Vigente__c.Severidad__c` y las claves técnicas.
 - **Coordinador**: lo del operador, más edición en `Umbral__c.Activo__c` y lectura en `Umbral__c.Severidad_Nivel__c`.
 - **Gerente**: lo del operador. Nada editable.
-- **Claves técnicas** (`Account.External_Id__c`, `Asset.External_Id__c`, `Lectura_Vigente__c.Clave__c`, `Identidad_Senal__c` en `Case` y `Lectura_Vigente__c`): solo lectura para todas las personas (alineado con PR #26); solo Admin las edita. La pantalla del operador consulta `Asset.External_Id__c` en `USER_MODE`, así que sin esa FLS muestra error de acceso.
+- **Claves técnicas** (`Account.External_Id__c`, `Asset.External_Id__c`, `Lectura_Vigente__c.Clave__c`, `Identidad_Senal__c` en `Case` y `Lectura_Vigente__c`): solo lectura para todas las personas (alineado con PR #26); solo Admin las edita. La pantalla del operador consulta `Asset.External_Id__c` en `USER_MODE`, así que sin esa FLS muestra error de acceso; las otras cuatro son para los layouts de `Case`, `Account` y `Lectura_Vigente__c`.
 - **Solo Admin**: todo `Log_Senial__c`.
 
 ## Acciones
