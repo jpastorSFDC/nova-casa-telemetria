@@ -189,6 +189,17 @@ Copiar esta plantilla, numerar secuencialmente, y mantener el estado actualizado
 - **Nota (FLS de lectura, T2.11)**: para que los layouts no salgan en blanco, `Nova_Casa_Operator` y `Nova_Casa_Coordinator` reciben FLS de solo lectura (`readable=true`, `editable=false`) sobre los campos custom que muestran los layouts de `Account`, `Asset`, `Case` y `Lectura_Vigente__c` (`Account.External_Id__c`, `Asset.External_Id__c`, `Severidad_Actual__c`, `Severidad_Nivel__c`, `Ultima_Senal__c`, `Case.Identidad_Senal__c`, `Lectura_Vigente__c.Clave__c`, `Identidad_Senal__c`, `Severidad__c`). Se omiten los campos obligatorios y el master-detail, que la plataforma concede implícitamente. Confirmado por John: el operador y el coordinador ven lo mismo que la pantalla ya les muestra, sin crear, editar ni borrar; no se amplía el acceso a `Umbral__c` ni a `Log_Senial__c`. Toca permission sets compartidos.
 - **Siguiente acción**: dry-run de solo layouts y compact layouts, revisar en el org Asset, Account y Case, y decidir si se separan las cuentas personales. Criterio de prueba: cada página muestra solo los campos listados y las listas relacionadas cargan sin error.
 
+## D015 — Pestaña de Account y list views propias en la app Nova Casa (HP-07)
+
+- **Estado**: Propuesta
+- **Fecha**: 2026-10-05
+- **Contexto**: desde la app Nova Casa Telemetry no se llegaba a los edificios (`Account`, D005), y las list views estándar de `Asset` y `Account` muestran muchas columnas sin relación con el proyecto.
+- **Decisión**: (1) se agrega la pestaña estándar `standard-Account` a la app, con el orden `Activos_Operador`, `standard-Account`, `standard-Asset`, `standard-Case`; la etiqueta queda la estándar ("Accounts"/"Cuentas"), porque la app no permite renombrar una pestaña estándar. (2) `Asset.Nova_Casa_Activos` (Nombre, cuenta, `Tipo_Activo__c`, `Severidad_Actual__c`, `Ultima_Senal__c`, `External_Id__c`) y `Account.Nova_Casa_Edificios` (Nombre, `External_Id__c`), ambas con filtro de todos los registros (`filterScope` Everything, sin criterios).
+- **Alternativa descartada**: editar las list views estándar "All Assets"/"All Accounts", que son compartidas y no versionadas aquí; o un objeto/tab custom para edificios, contrario a D005.
+- **Trade-off**: acceso directo y columnas útiles; la pestaña dice "Accounts" en vez de "Edificio" y lista también cuentas que no son edificios. Toca la app, metadata compartida.
+- **Riesgo / dependencia**: los tokens `ACCOUNT.NAME` (Asset) y `ASSET.NAME` no se validaron contra el org desde esta sesión; el dry-run los confirma. Sin Case list views (las lleva otra historia).
+- **Siguiente acción**: dry-run de la app y las dos list views; verificar en el org que ambas vistas cargan. Criterio de prueba: la pestaña Accounts aparece en la app y cada vista muestra solo las columnas listadas.
+
 ## Pendientes heredados de la sección "Acuerdos" (abiertos desde Discovery, sin cerrar en Development)
 
 Estos puntos necesitaban una entrada D00X cada uno antes de cerrar el entregable 6 de Discovery. El entregable se aprobó y ya estamos en Development (ver `AGENTS.md`), pero solo el objeto de intervención (D001) y el empate de `occurredAt` (D003 arriba) están cerrados del todo; el edificio (D005 arriba) tiene entrada pero solo resuelve el campo de identidad, no el modelo de sharing. Siguen sin cerrar:
