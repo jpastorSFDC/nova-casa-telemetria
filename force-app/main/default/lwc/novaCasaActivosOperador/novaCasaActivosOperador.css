@@ -782,3 +782,56 @@ tbody tr:last-child td {
         transition: none !important;
     }
 }
+
+/* Summary per building */
+.resumen-edificios {
+    margin: 0 0 1rem;
+    background: var(--nc-papel);
+    border: 1px solid var(--nc-linea-suave);
+    border-radius: 8px;
+    padding: 0.6rem 0.85rem 0.4rem;
+}
+.resumen-edificios .nota {
+    margin-bottom: 0.4rem;
+}
+.resumen-edificios .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+.resumen-edificios th:not(:first-child) {
+    text-align: right;
+}
+.edif-critico td {
+    background: #fef2f2;
+}
+.edif-advertencia td {
+    background: #fffbeb;
+}
+
+/* Inline forms (create / follow up) and admin ingestion panel */
+.form-accion .campo-texto {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: 8px;
+    cursor: text;
+    margin: 0.3rem 0 0.6rem;
+}
+.form-accion .filtro-label {
+    display: block;
+}
+.acciones-form {
+    display: flex;
+    gap: 0.55rem;
+}
+.panel-ingesta {
+    margin: 0 0 1rem;
+    padding: 0.7rem 0.85rem 0.3rem;
+    background: #f7f8fb;
+    border: 1px solid var(--nc-linea-suave);
+    border-radius: 8px;
+}
+.boton:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}

@@ -78,6 +78,8 @@ It's safe to run more than once: a building or asset already in the org (matched
 TelemetriaIngesta.iniciar('QA_200', 5); // scenario, max pages (default 25, cap 100)
 ```
 
+Admins can also start it from the operator screen: **Traer señales** (needs the `Nova_Casa_Traer_Senales` custom permission and `Nova_Casa_Simulator_Integration`). It refuses to start while another run is queued or running, and shows the log rows written by result.
+
 Follow it in Setup > Apex Jobs. The run ends on `hasMore = false`, an empty page or the page cap. Processing is the subscriber's job; a row stays `Publicada` until it has handled the event. The simulator token lives only in Setup; the session cursor is never logged or stored (see D013).
 
 ## Discovery Definition of Done
