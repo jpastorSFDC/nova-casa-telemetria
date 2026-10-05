@@ -156,7 +156,7 @@
                                     <span class="lectura-tipo">Sin lecturas todavía</span>
                                 </template>
                             </div>
-                            <button type="button" class={row.viewButtonClass} data-id={row.assetId} aria-label={row.viewLabel}>Ver activo</button>
+                            <button type="button" class={row.viewButtonClass} data-id={row.assetId} aria-label={row.viewLabel} onclick={handleViewAssetButton}>Ver activo</button>
                         </div>
                     </article>
                 </template>
@@ -206,7 +206,7 @@
                     <div class="prio-card">
                         <span class="rot">Severidad del activo</span>
                         <span class={selectedRow.sevValueClass}>{selectedRow.sevLabel}</span>
-                        <span class="sub">La mayor de sus mediciones vigentes</span>
+                        <span class="sub">{selectedRow.sevSub}</span>
                     </div>
                     <div class="prio-card">
                         <span class="rot">Última lectura</span>
@@ -248,6 +248,7 @@
                     </section>
                 </template>
 
+                <p class="extra-label">Más información</p>
                 <section class="card-extra">
                     <h3>Lectura vigente por tipo</h3>
                     <table>

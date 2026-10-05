@@ -409,13 +409,13 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         return this.countWhere((a) => a.severityLevel == null);
     }
     get criticalChip() {
-        return `${this.criticalCount} crítico(s)`;
+        return plural(this.criticalCount, 'crítico', 'críticos');
     }
     get warningChip() {
         return `${this.warningCount} precaución`;
     }
     get normalChip() {
-        return `${this.normalCount} estable(s)`;
+        return plural(this.normalCount, 'estable', 'estables');
     }
     get noReadingChip() {
         return `${this.noReadingCount} sin dato`;
@@ -424,24 +424,27 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         if (this.criticalCount > 0) {
             return 'situacion situacion-critico';
         }
-        return this.warningCount > 0 ? 'situacion situacion-advertencia' : 'situacion situacion-normal';
+        // A cut result never gets the all-clear look: there may be critical assets we did not see.
+        return this.warningCount > 0 || this.truncated ? 'situacion situacion-advertencia' : 'situacion situacion-normal';
     }
+    // When the result is cut (page, scan ceiling or readings cap; the payload does not say which) the banner
+    // never claims "none critical": it says "al menos" / that it could not verify everything.
     get leadStrong() {
         const crit = this.criticalCount;
         if (crit > 0) {
-            return crit === 1 ? '1 crítico' : `${crit} críticos`;
+            const text = crit === 1 ? '1 crítico' : `${crit} críticos`;
+            return this.truncated ? `Al menos ${text}` : text;
         }
-        return 'Ningún crítico';
+        return this.truncated ? 'Ningún crítico verificado' : 'Ningún crítico';
     }
     get leadRest() {
         const crit = this.criticalCount;
         if (crit > 0) {
-            return `de ${plural(this.assets.length, 'activo', 'activos')} en esta vista ${crit === 1 ? 'necesita' : 'necesitan'} atención ahora`;
+            const rest = `de ${plural(this.assets.length, 'activo', 'activos')} en esta vista ${crit === 1 ? 'necesita' : 'necesitan'} atención ahora`;
+            return this.truncated ? `${rest}; no se pudo verificar todo` : rest;
         }
-        if (this.warningCount > 0) {
-            return `en esta vista; ${this.warningCount} en precaución`;
-        }
-        return 'en esta vista';
+        const base = this.warningCount > 0 ? `en esta vista; ${this.warningCount} en precaución` : 'en esta vista';
+        return this.truncated ? `${base}; no se pudo verificar todo, puede haber críticos sin mostrar` : base;
     }
 
     // ---- view models ----
@@ -533,6 +536,7 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             sevGlyph: ui.glyph,
             sevLabel: ui.label,
             sevValueClass: `val val-${ui.key}`,
+            sevSub: this.severitySub(level, hasReadings),
             viewLabel: `Ver activo ${a.name || ''}`.trim(),
             signalText,
             signalClass,
@@ -558,6 +562,20 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             moreInterventionsText: `y ${count - 1} intervención(es) abierta(s) más`,
             noInterventionText: this.noInterventionText(level, hasReadings)
         };
+    }
+
+    // Sub-line under the detail severity (wording from the prototype, without promising an intervention).
+    severitySub(level, hasReadings) {
+        if (!hasReadings || level == null) {
+            return 'Sin nivel de severidad conocido';
+        }
+        if (level === 1) {
+            return 'Vigilar';
+        }
+        if (level === 0) {
+            return 'Sin acción requerida';
+        }
+        return 'La mayor de sus mediciones vigentes';
     }
 
     // Wording of the "Ninguna abierta" card. Never claims a case exists or will be created.
@@ -608,13 +626,23 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
 
     // ---- in-component detail ----
 
-    handleViewAsset(event) {
-        const assetId = event.currentTarget.dataset.id;
+    openDetail(assetId) {
         if (!assetId || !RECORD_ID_PATTERN.test(assetId)) {
             return;
         }
         this.selectedAssetId = assetId;
         this._focusTarget = 'detail';
+    }
+
+    // Click anywhere on the card (pointer users).
+    handleViewAsset(event) {
+        this.openDetail(event.currentTarget.dataset.id);
+    }
+
+    // The "Ver activo" button is the keyboard path; it stops the click so the card handler does not run twice.
+    handleViewAssetButton(event) {
+        event.stopPropagation();
+        this.openDetail(event.currentTarget.dataset.id);
     }
 
     handleBackToList() {

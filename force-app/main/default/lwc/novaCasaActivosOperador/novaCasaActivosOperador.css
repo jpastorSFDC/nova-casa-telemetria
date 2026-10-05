@@ -581,7 +581,7 @@
     letter-spacing: 0.12em;
     text-transform: uppercase;
     font-weight: 800;
-    opacity: 0.9;
+    opacity: 0.85;
     margin-bottom: 0.3rem;
 }
 .card-intervencion .val {
@@ -633,6 +633,14 @@
     color: var(--nc-tinta-media);
 }
 
+.extra-label {
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--nc-tinta-suave);
+    font-weight: 700;
+    margin: 0.2rem 0 0;
+}
 .card-extra {
     background: #f7f8fb;
     border: 1px solid var(--nc-linea-suave);
