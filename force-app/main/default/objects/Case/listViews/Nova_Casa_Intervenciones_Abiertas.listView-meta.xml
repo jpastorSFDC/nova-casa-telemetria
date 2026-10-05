@@ -19,9 +19,9 @@
     <filters>
         <field>CASES.ORIGIN</field>
         <operation>equals</operation>
-        <value>Telemetria</value>
+        <value>Telemetria,Operador</value>
     </filters>
-    <label>Intervenciones abiertas (Telemetría)</label>
+    <label>Intervenciones abiertas</label>
     <sharedTo>
         <role>Coordinador_Mantenimiento</role>
         <role>Gerente_Regional_Operaciones</role>
