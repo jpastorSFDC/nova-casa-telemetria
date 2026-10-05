@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PlatformEventSubscriberConfig xmlns="http://soap.sforce.com/2006/04/metadata">
+    <batchSize>200</batchSize>
+    <isProtected>false</isProtected>
+    <masterLabel>Nova Casa Procesamiento</masterLabel>
+    <platformEventConsumer>SenialSensorTrigger</platformEventConsumer>
+    <user>novacasa.integracion@novacasa-telemetria.demo</user>
+</PlatformEventSubscriberConfig>
