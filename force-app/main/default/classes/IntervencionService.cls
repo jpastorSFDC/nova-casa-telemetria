@@ -4,6 +4,13 @@
  *              stored in Case.Identidad_Senal__c (unique external id), so a resend of the same
  *              identity maps to the existing Case and never creates or updates a second one.
  *              Different identities are never consolidated into one Case.
+ *
+ *              INGESTION-PATH-ONLY API: runs in system mode (`without sharing`, SYSTEM_MODE query and DML)
+ *              because ingestion runs as an Automated Process (BR-208 covers the separate query-side
+ *              authorization path). It must never be called from operator-facing code (LWC or
+ *              @AuraEnabled controllers): doing so would bypass CRUD/FLS/sharing for operators.
+ *              The strings in Resultado.errorPorIdentidad can come straight from DML
+ *              (Database.Error.getMessage()); they must not be shown verbatim to operators or written to logs.
  */
 public without sharing class IntervencionService {
     // Why `without sharing` + SYSTEM_MODE: ingestion runs as an Automated Process and must not depend on
@@ -14,6 +21,7 @@ public without sharing class IntervencionService {
     private static final String STATUS_IN_PROGRESS = 'En curso';
     private static final String PRIORITY_CRITICAL = 'Critica';
     private static final Integer SUBJECT_MAX_LENGTH = 255;
+    private static final Integer DESCRIPTION_MAX_LENGTH = 32000; // Case.Description field limit
 
     // ─── Public API ──────────────────────────────────────────────────────
 
@@ -43,7 +51,7 @@ public without sharing class IntervencionService {
             if (existing.containsKey(identity)) {
                 resultado.casoPorIdentidad.put(identity, existing.get(identity));
             } else {
-                toInsert.add(buildCase(validByIdentity.get(identity)));
+                toInsert.add(buildCase(identity, validByIdentity.get(identity)));
                 insertIdentities.add(identity);
             }
         }
@@ -58,18 +66,21 @@ public without sharing class IntervencionService {
 
     /**
      * Rejects requests without identity or asset and collapses duplicate identities in the batch
-     * (the first request wins).
+     * (the first request wins). The identity is trimmed before use. A request whose identity is blank
+     * after trimming (or a null request) is reported under '(blank identity #<index>)', where index is its
+     * position in the input, so no failure collapses into another or loses its evidence.
      */
     private static Map<String, Solicitud> collectValid(List<Solicitud> solicitudes, Resultado resultado) {
         Map<String, Solicitud> validByIdentity = new Map<String, Solicitud>();
-        for (Solicitud solicitud : solicitudes) {
-            if (solicitud == null || String.isBlank(solicitud.identidad)) {
-                // No usable identity: the error is keyed by the raw (blank) value, '' when null.
-                resultado.errorPorIdentidad.put(solicitud == null ? '' : nullToEmpty(solicitud.identidad), 'identidad is required');
+        for (Integer i = 0; i < solicitudes.size(); i++) {
+            Solicitud solicitud = solicitudes[i];
+            String identity = (solicitud == null || solicitud.identidad == null) ? '' : solicitud.identidad.trim();
+            if (String.isBlank(identity)) {
+                resultado.errorPorIdentidad.put('(blank identity #' + i + ')', 'identidad is required');
             } else if (solicitud.assetId == null) {
-                resultado.errorPorIdentidad.put(solicitud.identidad, 'assetId is required');
-            } else if (!validByIdentity.containsKey(solicitud.identidad)) {
-                validByIdentity.put(solicitud.identidad, solicitud);
+                resultado.errorPorIdentidad.put(identity, 'assetId is required');
+            } else if (!validByIdentity.containsKey(identity)) {
+                validByIdentity.put(identity, solicitud);
             }
         }
         return validByIdentity;
@@ -91,17 +102,17 @@ public without sharing class IntervencionService {
         return caseIdByIdentity;
     }
 
-    private static Case buildCase(Solicitud solicitud) {
+    private static Case buildCase(String identity, Solicitud solicitud) {
         String subject = 'Critical signal: ' + nullToEmpty(solicitud.tipoMedicion) + ' on asset ' + solicitud.assetId;
         return new Case(
-            Identidad_Senal__c = solicitud.identidad,
+            Identidad_Senal__c = identity,
             Origin = ORIGIN_TELEMETRY,
             Status = STATUS_IN_PROGRESS,
             Priority = PRIORITY_CRITICAL,
             AssetId = solicitud.assetId,
             AccountId = solicitud.accountId,
             Subject = subject.abbreviate(SUBJECT_MAX_LENGTH),
-            Description = 'Signal ' + solicitud.identidad + ': ' + nullToEmpty(solicitud.causa)
+            Description = ('Signal ' + identity + ': ' + nullToEmpty(solicitud.causa)).abbreviate(DESCRIPTION_MAX_LENGTH)
         );
     }
 

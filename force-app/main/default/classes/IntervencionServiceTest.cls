@@ -183,11 +183,45 @@ private class IntervencionServiceTest {
         Assert.areEqual(1, caseCount(), 'Only the valid row creates a Case');
         Assert.areEqual(1, r.casoPorIdentidad.size());
         Assert.isTrue(r.casoPorIdentidad.containsKey('SIM|msg-ok'));
-        Assert.areEqual('identidad is required', r.errorPorIdentidad.get('   '));
-        Assert.areEqual('identidad is required', r.errorPorIdentidad.get(''), 'Null identity is keyed by empty string');
+        Assert.areEqual('identidad is required', r.errorPorIdentidad.get('(blank identity #1)'), 'Blank identity keyed by position');
+        Assert.areEqual('identidad is required', r.errorPorIdentidad.get('(blank identity #2)'), 'Null identity keyed by position');
         Assert.areEqual('assetId is required', r.errorPorIdentidad.get('SIM|msg-noasset'));
         Assert.areEqual(3, r.errorPorIdentidad.size());
         Assert.isFalse(r.casoPorIdentidad.containsKey('SIM|msg-noasset'));
+    }
+
+    @isTest
+    static void shouldReportWhitespaceIdentityUnderOwnLabel_WhenOtherRowsAreValid() {
+        Asset a = asset('AST-INT-001');
+
+        Test.startTest();
+        IntervencionService.Resultado r = IntervencionService.abrir(new List<IntervencionService.Solicitud>{
+            solicitud('  SIM|msg-trim  ', a, 'WATER_PRESSURE', 'padded identity'),
+            solicitud(' \t ', a, 'WATER_PRESSURE', 'whitespace only')
+        });
+        Test.stopTest();
+
+        Assert.areEqual(1, caseCount(), 'Only the valid row creates a Case');
+        Assert.isTrue(r.casoPorIdentidad.containsKey('SIM|msg-trim'), 'Identity is trimmed before use');
+        Assert.areEqual('identidad is required', r.errorPorIdentidad.get('(blank identity #1)'));
+        Assert.areEqual(1, r.errorPorIdentidad.size());
+        Assert.areEqual('SIM|msg-trim', [SELECT Identidad_Senal__c FROM Case].Identidad_Senal__c);
+    }
+
+    @isTest
+    static void shouldCreateCaseWithCappedDescription_WhenCausaIsOversized() {
+        Asset a = asset('AST-INT-001');
+
+        Test.startTest();
+        IntervencionService.Resultado r = IntervencionService.abrir(new List<IntervencionService.Solicitud>{
+            solicitud('SIM|msg-huge', a, 'WATER_PRESSURE', 'x'.repeat(40000))
+        });
+        Test.stopTest();
+
+        Assert.isTrue(r.errorPorIdentidad.isEmpty(), 'Oversized causa must not make the insert fail');
+        Assert.areEqual(1, caseCount());
+        Case c = [SELECT Description FROM Case];
+        Assert.isTrue(c.Description.length() <= 32000, 'Description length: ' + c.Description.length());
     }
 
     @isTest
