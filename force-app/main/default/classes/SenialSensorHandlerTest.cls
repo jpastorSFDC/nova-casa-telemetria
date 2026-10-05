@@ -431,20 +431,26 @@ private class SenialSensorHandlerTest {
 
     @IsTest
     static void unaMarcaPosteriorNoPisaLaEvidenciaDeConflicto() {
-        // El original crítico y su duplicado distinto están en conflicto: no compiten, no se les pide Case y el log sigue en
-        // Conflicto aunque las costuras de fallo de Case estén activas (ninguna marca posterior lo pisa).
-        SenialSensorHandler.identidadesConErrorDeCase = new Set<String>{ identidad('msg_cf') };
-        SenialSensorHandler.abrirLanzaExcepcion = true;
+        // Camino que sí pasa por la guardia de registrar(): el 1.er y 2.º evento comparten identidad con contenido distinto
+        // (Conflicto). El 3.º usa otra grafía del messageId ('MSG_CF'): misma identidad normalizada, pero la excepción
+        // simulada (que distingue mayúsculas) solo lo alcanza a él. Su catch intenta marcar la fila como Fallida; sin la
+        // guardia de registrar() la fila dejaría de ser Conflicto.
+        SenialSensorHandler.excepcionesSimuladas = new Set<String>{ 'decidir:MSG_CF' };
 
         Test.startTest();
         new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{
             medicion('msg_cf', SALA, 'TEMPERATURE', '36', 'CELSIUS', OCURRIDO),
-            medicion('msg_cf', SALA, 'TEMPERATURE', '37', 'CELSIUS', OCURRIDO)
+            medicion('msg_cf', SALA, 'TEMPERATURE', '37', 'CELSIUS', OCURRIDO),
+            medicion('MSG_CF', SALA, 'TEMPERATURE', '38', 'CELSIUS', OCURRIDO)
         });
         Test.stopTest();
 
-        Assert.areEqual('Conflicto', filaLog(identidad('msg_cf')).Resultado__c, 'Fallida o Atrasada no pisan un Conflicto');
-        Assert.areEqual(0, SenialSensorHandler.erroresInesperados, 'Nunca se intentó abrir un Case para la identidad en conflicto');
+        Assert.areEqual(1, SenialSensorHandler.erroresInesperados, 'La excepción simulada del 3.er evento se cuenta y se contiene');
+        Assert.areEqual(1, [SELECT COUNT() FROM Log_Senial__c WHERE Identidad__c = :identidad('msg_cf')], 'Una sola fila por identidad');
+        Assert.areEqual('Conflicto', filaLog(identidad('msg_cf')).Resultado__c, 'Una marca Fallida posterior no pisa el Conflicto');
+        Assert.areEqual(0, [SELECT COUNT() FROM Case], 'Una identidad en conflicto no abre Case');
+        String claveSala = SALA + '|TEMPERATURE';
+        Assert.areEqual(0, [SELECT COUNT() FROM Lectura_Vigente__c WHERE Clave__c = :claveSala], 'Una identidad en conflicto no escribe lectura');
     }
 
     @IsTest
@@ -545,6 +551,33 @@ private class SenialSensorHandlerTest {
         Assert.areEqual(0, [SELECT COUNT() FROM Log_Senial__c WHERE Message_Id__c = :idLargo], 'No hay fila de log para la identidad larga');
         Assert.areEqual(0, [SELECT COUNT() FROM Case], 'Ningún Case para eventos rechazados');
         Assert.areEqual('Procesada', filaLog(identidad('msg_corto')).Resultado__c, 'El resto del lote se procesa');
+    }
+
+    @IsTest
+    static void unUnidadOUnTipoDeMensajeMasLargosQueElDestinoSeRechazanConMotivo() {
+        Senial_Sensor__e largaUnidad = medicion('msg_lu', SALA, 'TEMPERATURE', '36', 'CELSIUS', OCURRIDO);
+        largaUnidad.Unit__c = 'u'.repeat(256);
+        Senial_Sensor__e largoTipo = medicion('msg_lt', SALA_2, 'TEMPERATURE', '36', 'CELSIUS', OCURRIDO);
+        largoTipo.Message_Type__c = 't'.repeat(256);
+
+        Test.startTest();
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{
+            largaUnidad, largoTipo, medicion('msg_ok', SALA_3, 'TEMPERATURE', '25', 'CELSIUS', OCURRIDO)
+        });
+        Test.stopTest();
+
+        Log_Senial__c unidad = filaLog(identidad('msg_lu'));
+        Assert.areEqual('Rechazada', unidad.Resultado__c, 'Unit largo se rechaza');
+        Assert.isTrue(unidad.Motivo__c.contains('Unit'), 'El motivo nombra el campo: ' + unidad.Motivo__c);
+        Log_Senial__c tipo = filaLog(identidad('msg_lt'));
+        Assert.areEqual('Rechazada', tipo.Resultado__c, 'Message_Type largo se rechaza');
+        Assert.isTrue(tipo.Motivo__c.contains('Message_Type'), 'El motivo nombra el campo: ' + tipo.Motivo__c);
+        Assert.isNull(tipo.Message_Type__c, 'El valor que no cabe no se copia a la fila de log');
+        Assert.areEqual(0, SenialSensorHandler.fallosDeLog, 'Ninguna fila de log falló por el valor largo');
+        Assert.areEqual(0, [SELECT COUNT() FROM Case], 'Ningún Case para eventos rechazados');
+        List<String> clavesRechazadas = new List<String>{ SALA + '|TEMPERATURE', SALA_2 + '|TEMPERATURE' };
+        Assert.areEqual(0, [SELECT COUNT() FROM Lectura_Vigente__c WHERE Clave__c IN :clavesRechazadas], 'Los rechazados no escriben lectura');
+        Assert.areEqual('Procesada', filaLog(identidad('msg_ok')).Resultado__c, 'El resto del lote se procesa');
     }
 
     @IsTest

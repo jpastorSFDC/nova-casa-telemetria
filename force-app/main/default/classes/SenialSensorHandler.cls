@@ -38,6 +38,10 @@ public without sharing class SenialSensorHandler {
     private static final Integer MAX_SOURCE = 80;
     private static final Integer MAX_DELIVERY_ID = 40;
     private static final Integer MAX_SENSOR_ID = 50;
+    // Unidad__c (Lectura_Vigente__c) y Message_Type__c (Log_Senial__c) son picklists sin longitud propia: el tope es el
+    // del valor de una picklist (255). Además son restringidas; ver la nota en D011.
+    private static final Integer MAX_UNIDAD = 255;
+    private static final Integer MAX_TIPO_MENSAJE = 255;
     private static final Map<String, String> VERBO_POR_OPERADOR = new Map<String, String>{
         'LT' => 'queda bajo',
         'LE' => 'alcanza',
@@ -75,6 +79,7 @@ public without sharing class SenialSensorHandler {
 
     // Costuras solo para pruebas: permiten forzar fallos que no se pueden provocar con datos válidos.
     // En producción están vacías y no cambian el comportamiento.
+    // NUNCA se deben asignar fuera de una clase de prueba: alterarían o descartarían datos reales de la ingesta.
     // Identidades cuya solicitud de Case se reemplaza por un error (sin llamar a IntervencionService).
     @TestVisible
     private static Set<String> identidadesConErrorDeCase = new Set<String>();
@@ -108,7 +113,7 @@ public without sharing class SenialSensorHandler {
                 clasificaciones.add(clasificacion);
                 clasificacionPorMessageId.put(clasificacion.messageId, clasificacion);
                 System.debug(LoggingLevel.INFO, 'Señal ' + clasificacion.messageId + ' ' + clasificacion.clave + ': '
-                    + clasificacion.estado + ' (nivel ' + clasificacion.nivel + ') ' + clasificacion.motivo);
+                    + clasificacion.estado + ' (nivel ' + clasificacion.nivel + ')');
             }
 
             ganadoraPorClave = elegirGanadoras(clasificaciones);
@@ -167,6 +172,10 @@ public without sharing class SenialSensorHandler {
             motivo = 'Delivery_Id excede ' + MAX_DELIVERY_ID + ' caracteres';
         } else if (senial.Sensor_Id__c != null && senial.Sensor_Id__c.length() > MAX_SENSOR_ID) {
             motivo = 'Sensor_Id excede ' + MAX_SENSOR_ID + ' caracteres';
+        } else if (senial.Unit__c != null && senial.Unit__c.length() > MAX_UNIDAD) {
+            motivo = 'Unit excede ' + MAX_UNIDAD + ' caracteres';
+        } else if (senial.Message_Type__c != null && senial.Message_Type__c.length() > MAX_TIPO_MENSAJE) {
+            motivo = 'Message_Type excede ' + MAX_TIPO_MENSAJE + ' caracteres';
         } else if (c.clave != null && c.clave.length() > MAX_CLAVE) {
             motivo = 'La clave activo|medición excede ' + MAX_CLAVE + ' caracteres';
         }
@@ -179,6 +188,12 @@ public without sharing class SenialSensorHandler {
         }
         if (senial.Sensor_Id__c != null && senial.Sensor_Id__c.length() > MAX_SENSOR_ID) {
             c.sensorId = null;
+        }
+        if (senial.Message_Type__c != null && senial.Message_Type__c.length() > MAX_TIPO_MENSAJE) {
+            c.tipoMensaje = null;
+        }
+        if (senial.Unit__c != null && senial.Unit__c.length() > MAX_UNIDAD) {
+            c.unidad = null;
         }
         return motivo;
     }
