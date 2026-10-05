@@ -30,6 +30,10 @@
                 <field>AssetId</field>
             </layoutItems>
             <layoutItems>
+                <behavior>Edit</behavior>
+                <field>ContactId</field>
+            </layoutItems>
+            <layoutItems>
                 <behavior>Readonly</behavior>
                 <field>Identidad_Senal__c</field>
             </layoutItems>
