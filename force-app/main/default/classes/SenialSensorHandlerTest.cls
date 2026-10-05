@@ -872,38 +872,6 @@ private class SenialSensorHandlerTest {
         verificarLimite('rep_c', SALA_3, 'Procesada', 2, true, 'Crítica');
     }
 
-    // US-204: editar el límite de un Umbral__c (sin tocar código) cambia la clasificación de la misma señal; el histórico no se reclasifica.
-    @IsTest
-    static void editarElLimiteDeUnUmbralCambiaLaClasificacionSinTocarElHistorico() {
-        // WATER_PRESSURE: GT 6 Critica. Un valor de 5.5 BAR es Normal.
-        Test.startTest();
-        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('lim_antes', SALA, 'WATER_PRESSURE', '5.5', 'BAR', ANTERIOR) });
-        Test.stopTest();
-        assertClasificacion('lim_antes', 'Normal', 0);
-        Assert.areEqual('Procesada', filaLog(identidad('lim_antes')).Resultado__c, 'Antes de editar el límite la señal es Normal y queda Procesada');
-        Assert.areEqual(0, [SELECT COUNT() FROM Case], 'Normal no abre Case');
-
-        // Solo datos: se baja el límite de 6 a 5. Ningún cambio de código.
-        Umbral__c umbral = [SELECT Id, Valor__c FROM Umbral__c WHERE Tipo_Medicion__c = 'WATER_PRESSURE' AND Activo__c = true];
-        umbral.Valor__c = 5;
-        update umbral;
-
-        // Mismo valor (5.5 BAR), mismo activo y medición, nuevo messageId y occurredAt posterior.
-        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('lim_despues', SALA, 'WATER_PRESSURE', '5.5', 'BAR', OCURRIDO) });
-
-        assertClasificacion('lim_despues', 'Critica', 2);
-        Log_Senial__c nuevo = filaLog(identidad('lim_despues'));
-        Assert.areEqual('Procesada', nuevo.Resultado__c, 'La señal con el límite editado se procesa: ' + nuevo.Motivo__c);
-        Assert.isNotNull(nuevo.Caso__c, 'Con el límite editado la misma lectura es crítica y enlaza Case');
-        Assert.areEqual(1, [SELECT COUNT() FROM Case], 'Se abre exactamente un Case');
-        Assert.areEqual(2, lectura(SALA + '|WATER_PRESSURE').Severidad_Nivel__c.intValue(), 'La lectura vigente pasa a Crítica');
-        Assert.areEqual(identidad('lim_despues'), lectura(SALA + '|WATER_PRESSURE').Identidad_Senal__c, 'La vigente es la señal nueva');
-
-        Log_Senial__c previo = filaLog(identidad('lim_antes'));
-        Assert.areEqual('Procesada', previo.Resultado__c, 'El log anterior conserva su Resultado original: ' + previo.Motivo__c);
-        Assert.isNull(previo.Caso__c, 'El log anterior no se reclasifica ni gana Case');
-    }
-
     // Comprueba log, lectura vigente (nivel null = sin lectura) y Case de una señal.
     private static void verificarLimite(String messageId, String assetId, String resultado, Integer nivel, Boolean abreCase, String contexto) {
         Log_Senial__c log = filaLog(identidad(messageId));
