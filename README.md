@@ -70,6 +70,16 @@ CatalogoService.loadCatalog();
 
 It's safe to run more than once: a building or asset already in the org (matched by `External_Id__c`) gets updated, not duplicated. Sensor and measurement details from the catalog aren't stored on `Asset` — they only drive `Umbral__c` seeding (T3.2).
 
+## Running the ingestion
+
+`TelemetriaIngesta` opens a simulator session, pages `GET /telemetry` and, for each page, writes a `Log_Senial__c` row as `Publicada` and then publishes `Senial_Sensor__e`. Run it from Execute Anonymous, one person at a time (it creates real records):
+
+```apex
+TelemetriaIngesta.iniciar('QA_200', 5); // scenario, max pages (default 25, cap 100)
+```
+
+Follow it in Setup > Apex Jobs. The run ends on `hasMore = false`, an empty page or the page cap. Processing is the subscriber's job; a row stays `Publicada` until it has handled the event. The simulator token lives only in Setup; the session cursor is never logged or stored (see D013).
+
 ## Discovery Definition of Done
 
 The `entregables/` prototypes, per the "Entregables" section of `Sprint 2 - Nova Casa.md`, approved by the facilitator.
