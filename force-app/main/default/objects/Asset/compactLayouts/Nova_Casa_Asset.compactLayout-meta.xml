@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CompactLayout xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Nova_Casa_Asset</fullName>
+    <fields>Name</fields>
+    <fields>AccountId</fields>
+    <fields>Tipo_Activo__c</fields>
+    <fields>Severidad_Actual__c</fields>
+    <fields>Ultima_Senal__c</fields>
+    <label>Nova Casa Activo</label>
+</CompactLayout>
