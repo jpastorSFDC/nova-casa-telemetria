@@ -1,0 +1,176 @@
+<template>
+    <lightning-card title="Mis activos" icon-name="standard:asset_object">
+        <div slot="actions">
+            <lightning-button-icon
+                icon-name="utility:refresh"
+                alternative-text="Actualizar"
+                title="Actualizar"
+                variant="border-filled"
+                disabled={isBusy}
+                onclick={handleRefresh}></lightning-button-icon>
+        </div>
+        <p slot="footer" class="slds-text-body_small slds-text-color_weak">
+            <template if:true={updatedText}>Actualizado {updatedText}. </template>
+            La severidad del activo es la más alta de sus lecturas vigentes.
+        </p>
+
+        <div class="slds-p-horizontal_medium slds-is-relative nc-body">
+            <!-- Summary -->
+            <template if:true={showSummary}>
+                <div class="slds-m-bottom_small" role="status">
+                    <p class="slds-text-heading_small">{summaryLead}</p>
+                    <div class="slds-m-top_x-small">
+                        <lightning-badge class="slds-theme_error slds-m-right_x-small" label={criticalChip} icon-name="utility:error"></lightning-badge>
+                        <lightning-badge class="slds-theme_warning slds-m-right_x-small" label={warningChip} icon-name="utility:warning"></lightning-badge>
+                        <lightning-badge class="slds-theme_success slds-m-right_x-small" label={normalChip} icon-name="utility:success"></lightning-badge>
+                        <template if:true={noReadingCount}>
+                            <lightning-badge class="slds-m-right_x-small" label={noReadingChip} icon-name="utility:question"></lightning-badge>
+                        </template>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Filters -->
+            <div class="slds-grid slds-wrap slds-grid_vertical-align-end slds-gutters_x-small slds-m-bottom_small">
+                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-4">
+                    <lightning-combobox
+                        name="buildingId"
+                        label="Edificio"
+                        value={buildingId}
+                        options={buildingOptions}
+                        disabled={buildingsDisabled}
+                        onchange={handleFilterChange}></lightning-combobox>
+                </div>
+                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-4">
+                    <lightning-combobox
+                        name="severity"
+                        label="Severidad"
+                        value={severity}
+                        options={severityOptions}
+                        onchange={handleFilterChange}></lightning-combobox>
+                </div>
+                <template if:true={hasTypeOptions}>
+                    <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-4">
+                        <lightning-combobox
+                            name="assetType"
+                            label="Tipo de activo"
+                            value={assetType}
+                            options={typeOptions}
+                            onchange={handleFilterChange}></lightning-combobox>
+                    </div>
+                </template>
+                <template if:true={filtersActive}>
+                    <div class="slds-col slds-m-bottom_xx-small">
+                        <lightning-button variant="base" label="Limpiar filtros" onclick={handleClearFilters}></lightning-button>
+                    </div>
+                </template>
+            </div>
+            <template if:true={buildingsTruncated}>
+                <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_small" role="status">Lista de edificios incompleta.</p>
+            </template>
+            <template if:true={buildingsError}>
+                <p class="slds-text-color_error slds-m-bottom_small" role="alert">
+                    No se pudo cargar la lista de edificios: {buildingsError}
+                </p>
+            </template>
+
+            <!-- Loading -->
+            <template if:true={isBusy}>
+                <div class="nc-loading slds-m-vertical_large" role="status">
+                    <lightning-spinner alternative-text="Cargando activos" size="medium"></lightning-spinner>
+                    <p class="slds-text-align_center slds-text-color_weak nc-loading-text">Cargando activos...</p>
+                </div>
+            </template>
+
+            <!-- Error -->
+            <template if:true={showError}>
+                <div class="slds-box slds-theme_error slds-m-bottom_small" role="alert">
+                    <h3 class="slds-text-heading_small">No se pudieron cargar los activos</h3>
+                    <p class="slds-m-top_x-small">{errorMessage}</p>
+                    <lightning-button class="slds-m-top_small" label="Reintentar" onclick={handleRefresh}></lightning-button>
+                </div>
+            </template>
+
+            <!-- Empty: nothing visible to this user -->
+            <template if:true={showEmptyNoData}>
+                <div class="slds-illustration slds-illustration_small slds-text-align_center slds-p-vertical_large" role="status">
+                    <h3 class="slds-text-heading_medium">No hay activos para mostrar</h3>
+                    <p class="slds-text-color_weak slds-m-top_x-small">
+                        Todavía no hay activos a los que tengas acceso, o aún no se ha cargado el catálogo.
+                        Si esperabas ver activos, consulta con tu administrador.
+                    </p>
+                </div>
+            </template>
+
+            <!-- Empty: filters exclude everything -->
+            <template if:true={showEmptyNoMatch}>
+                <div class="slds-text-align_center slds-p-vertical_large" role="status">
+                    <h3 class="slds-text-heading_medium">Ningún activo coincide con esos filtros</h3>
+                    <lightning-button class="slds-m-top_small" label="Limpiar filtros" onclick={handleClearFilters}></lightning-button>
+                </div>
+            </template>
+
+            <template if:true={showTruncated}>
+                <div class="slds-notify slds-notify_alert slds-alert_warning slds-m-bottom_small" role="status">
+                    <lightning-icon icon-name="utility:warning" size="x-small" alternative-text="Aviso" class="slds-m-right_x-small"></lightning-icon>
+                    <span>{truncatedText}</span>
+                </div>
+            </template>
+
+            <!-- List -->
+            <template if:true={showList}>
+                <ul class="slds-has-dividers_bottom-space">
+                    <template for:each={rows} for:item="row">
+                        <li key={row.key} class={row.cardClass}>
+                            <div class="slds-grid slds-wrap slds-grid_vertical-align-start">
+                                <div class="slds-col slds-size_1-of-1 slds-large-size_5-of-12 slds-p-right_small">
+                                    <div class="slds-m-bottom_xx-small">
+                                        <lightning-badge class={row.severityClass} label={row.severityText} icon-name={row.severityIcon}></lightning-badge>
+                                        <span class="slds-text-color_weak slds-m-left_x-small">{row.accountName}</span>
+                                    </div>
+                                    <p class="slds-text-heading_small">
+                                        <a href="#" data-id={row.assetId} onclick={handleOpenAsset}>{row.name}</a>
+                                    </p>
+                                    <p class="slds-text-body_small slds-text-color_weak">{row.typeLabel}</p>
+                                    <p class="slds-m-top_x-small slds-text-body_small">
+                                        <lightning-icon icon-name={row.signalIcon} size="xx-small" alternative-text={row.signalAlt} class="slds-m-right_xx-small"></lightning-icon>
+                                        <span class={row.signalClass}>{row.signalText}</span>
+                                    </p>
+                                </div>
+                                <div class="slds-col slds-size_1-of-1 slds-large-size_4-of-12">
+                                    <template if:true={row.hasReadings}>
+                                        <template for:each={row.readings} for:item="r">
+                                            <div key={r.key} class="slds-m-bottom_xx-small">
+                                                <span class="slds-text-heading_small">{r.valueText}</span>
+                                                <span class="slds-text-body_small slds-text-color_weak"> {r.measurementType} &middot; {r.ageText}</span>
+                                                <span class={r.chipClass} title={r.severityLabel}>{r.severityLabel}</span>
+                                            </div>
+                                        </template>
+                                    </template>
+                                    <template if:false={row.hasReadings}>
+                                        <p class="slds-text-color_weak">Sin lecturas todavía</p>
+                                    </template>
+                                </div>
+                                <div class="slds-col slds-size_1-of-1 slds-large-size_3-of-12">
+                                    <template if:true={row.hasIntervention}>
+                                        <p class="slds-text-body_small slds-text-color_weak">Intervención abierta</p>
+                                        <p>
+                                            <a href="#" data-id={row.caseId} onclick={handleOpenCase}>Caso {row.caseNumber}</a>
+                                        </p>
+                                        <p class="slds-text-body_small">{row.caseStatus} &middot; {row.caseAgeText}</p>
+                                        <template if:true={row.hasMoreInterventions}>
+                                            <p class="slds-text-body_small slds-text-color_weak">{row.moreInterventionsText}</p>
+                                        </template>
+                                    </template>
+                                    <template if:false={row.hasIntervention}>
+                                        <p class="slds-text-body_small slds-text-color_weak">Sin intervención abierta</p>
+                                    </template>
+                                </div>
+                            </div>
+                        </li>
+                    </template>
+                </ul>
+            </template>
+        </div>
+    </lightning-card>
+</template>
