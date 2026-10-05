@@ -18,12 +18,19 @@ We're in **Development**. The repo is a Salesforce DX project: code and metadata
 | `docs/br-201-210.md` | The 10 BRs, text identical to `Sprint 2 - Nova Casa.md`, split out for quick reference. | Only if the source text changes |
 | `docs/decisiones.md` | Decisions the pair made ourselves (ADR-lite): the alternative we dropped, the trade-off, the risks. This one's genuinely ours. | Yes |
 | `docs/entendimiento.md` | Deliverable 1, written as the pair's own working notes: priority problem, success signals, open questions, assumptions. | Yes |
+| `docs/simulador.md` | What we learned connecting to the simulator that the MDSS contract doesn't say: session and cursor, Named Credential auth, real samples (`docs/muestras/`). | Yes |
 | `entregables/` | Facilitator-facing versions: `01` understanding (PDF), `02` prototype, `03` architecture (interactive guide and diagram), `04` data model. The HTML files are self-contained and open without a server. | Yes |
 | `force-app/` | Salesforce code and metadata: objects, Apex, LWC, permission sets. | Yes |
 | `sfdx-project.json` · `.forceignore` · `config/` | Salesforce DX project configuration. | Rarely |
 | `.githooks/` | Hook that checks commit format. Turn it on once with `git config core.hooksPath .githooks`. | Rarely |
 
 If a new doc would repeat MDSS content in different words, it doesn't get added — quote the verbatim instead.
+
+**Language.** Everything we write is in English: docs, decisions, commits, PRs. The exceptions are the MDSS source (`Sprint 2 - Nova Casa.md`, `docs/br-201-210.md`), which stays verbatim in Spanish, and the approved `entregables/`, which we don't edit (see D014 for the points later decisions have superseded).
+
+**Backlog and board.** Task-level status lives outside the repo: the Slack list "Nova Casa Sprint 2 · Backlog MVP" in `#novacasa_sprint_2`, and the story cards on the MDSS board (see the "Board and backlog" section of [CONTRIBUTING.md](CONTRIBUTING.md#board-and-backlog)).
+
+**Searching.** Agent worktrees under `.claude/worktrees/` hold full copies of every doc. Exclude them when searching, e.g. `rg PATTERN --glob '!.claude/worktrees'`.
 
 ## How we work
 
@@ -50,7 +57,7 @@ sf project deploy start --source-dir <story-files>
 
 The full `force-app` deploys only from `main`, after merging. Full rules are in [CONTRIBUTING.md](CONTRIBUTING.md#deploying-to-the-shared-org).
 
-The org is production (Enterprise Edition, not a sandbox): Apex can't be edited in the browser, and every deploy that includes Apex runs tests that must cover at least 75% of each class. Each class ships with its test in the same PR and deploys running only our tests, with `--test-level RunSpecifiedTests --tests <ClassTest>`, never with `RunLocalTests`, which also runs the tests of the demo classes. Details are in [CONTRIBUTING.md](CONTRIBUTING.md#apex-needs-tests).
+The org is production: every Apex class ships with its test and deploys with `RunSpecifiedTests`, never `RunLocalTests`. The rules and commands are in [CONTRIBUTING.md](CONTRIBUTING.md#apex-needs-tests).
 
 Run one class's tests without deploying:
 

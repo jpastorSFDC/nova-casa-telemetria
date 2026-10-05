@@ -27,11 +27,11 @@ These aren't production outcomes — there's no production yet. They're what thi
 
 ## Open questions
 
-The 4 questions already logged as pending in `docs/decisiones.md` (the `occurredAt` tie-break rule, threshold values, the intervention object, the sharing model) aren't repeated here — the intervention object (D001) and the `occurredAt` tie-break (D003) are now closed there; threshold values and the sharing model are still open. On top of those:
+The questions logged as pending in `docs/decisiones.md` (the `occurredAt` tie-break rule, threshold values, the intervention object, the sharing model) aren't repeated here. The intervention object (D001) and the `occurredAt` tie-break (D003) are closed there; threshold values and the sharing model are still open. On top of those:
 
-- The documented contract is a synchronous `GET /api/v1/telemetry`. The brief requires "Platform Events genuinely published by the simulator." Does the simulator publish the PE directly, or do we need a bridge (something that polls the endpoint and republishes it as a PE)? That decides half the architecture and it isn't settled yet.
-- Do Building/Asset objects already exist in this org from an earlier sprint, or are we starting from a clean org for this domain?
-- Are "Operator," "Coordinator," "Manager" and "Administrator" Profiles/Permission Sets MDSS already provisioned, or do we need to define them ourselves?
+- The documented contract is a synchronous `GET /api/v1/telemetry`. The brief requires "Platform Events genuinely published by the simulator." Does the simulator publish the PE directly, or do we need a bridge (something that polls the endpoint and republishes it as a PE)? The backlog plans a bridge (T4.1–T4.3), but the facilitator hasn't confirmed it (T0.2 is blocked).
+- ~~Do Building/Asset objects already exist in this org from an earlier sprint?~~ Resolved in practice: the catalog load upserts `Account` (building, D005) and `Asset`, and nothing earlier had to be reused.
+- Are "Operator," "Coordinator," "Manager" and "Administrator" Profiles/Permission Sets already provisioned by MDSS? Not confirmed; the backlog assumes we define them ourselves (T8.3, T8.4).
 
 ## Assumptions
 
@@ -39,21 +39,6 @@ The 4 questions already logged as pending in `docs/decisiones.md` (the `occurred
 - The simulator can be pointed at our target org (token, endpoint) with no extra work on our side — MDSS provides that.
 - The 200-signal batch limit (BR-202) isn't arbitrary: it matches Salesforce's per-trigger-context limit, and the design should lean on that instead of fighting a different number.
 
-## Simulator connection notes (HP-01)
+## Simulator connection notes
 
-Resolved:
-
-- **T1.4 — Named Credential auth**: the callout was failing auth because the External Credential's Authentication Parameter name has to be exactly `BearerToken` (case-sensitive) — it has to match the merge field `$Credential.Nova_Casa_Simulator.BearerToken` used in the Named Credential's Authorization header formula. Fixed; the connection authenticates correctly now.
-
-Contract detail not previously documented:
-
-- The simulator needs a session bootstrap before paging: `POST /session` returns a `cursor`. That value must be sent as the `X-Simulator-Cursor` header on every `GET /telemetry` call. Each response's `pagination.nextCursor` is the cursor to send on the next page. Confirmed `GET /catalog` does NOT need the cursor header — it works with just the Bearer token. This isn't in `Sprint 2 - Nova Casa.md`'s contract example — worth flagging to the MDSS facilitator as a gap, not just noting it here.
-
-Done:
-
-- **T1.5/T1.6**: real samples captured and committed at `docs/muestras/telemetry.json` (200 measurement records via session bootstrap + cursor) and `docs/muestras/catalog.json` (asset/scenario catalog, no cursor needed).
-
-Open, for John to decide (not resolved here):
-
-- Whether to rename the deployed `Nova_Casa_Simulator` External Credential / Named Credential / Permission Set to `Nova_Casa_Simulator_Auth` to match the original spec, or keep the current name.
-- `docs/switch-team-language-to-english` looks superseded by `docs/humanize-tone-english` (`dfecb64`) — candidate to close without merging.
+Moved to [`docs/simulador.md`](simulador.md): session and cursor, Named Credential authentication, and the real samples. The component names (`Nova_Casa_Simulator`) are settled in D002 in `docs/decisiones.md`.
