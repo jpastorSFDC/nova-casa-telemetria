@@ -349,6 +349,15 @@ public without sharing class SenialSensorHandler {
                 if (previoFallo == null || previoFallo.Resultado__c == PUBLICADA || previoFallo.Resultado__c == FALLIDA) {
                     Log_Senial__c fila = filaPara(identidadCanonica.containsKey(llave) ? identidadCanonica.get(llave) : c.identidad,
                         llave, filaPorIdentidad, filas);
+                    // Source__c y Message_Id__c son obligatorios en Log_Senial__c: sin ellos el upsert de la fila fallaría
+                    // y la identidad quedaría sin evidencia. No se toca Huella__c para no reemplazar la original.
+                    if (fila.Source__c == null) {
+                        // Fila nueva en este lote: una ya poblada por el evento original conserva sus datos.
+                        fila.Source__c = c.source;
+                        fila.Message_Id__c = c.messageIdLog;
+                        fila.Occurred_At__c = c.occurredAt;
+                        fila.Procesado_At__c = ahora;
+                    }
                     registrar(c, fila, FALLIDA, 'Error inesperado al procesar la señal');
                 }
             }
@@ -757,7 +766,12 @@ public without sharing class SenialSensorHandler {
             return null;
         }
         try {
-            return (Datetime) JSON.deserialize('"' + texto.trim() + '"', Datetime.class);
+            Datetime fecha = (Datetime) JSON.deserialize('"' + texto.trim() + '"', Datetime.class);
+            // Los campos DateTime de Salesforce no guardan milisegundos. Se trunca a segundos para comparar el evento
+            // con la lectura vigente ya guardada con la misma precisión; si no, un empate real (D003) parecería
+            // "más nuevo" solo por los milisegundos y el orden de llegada decidiría.
+            return Datetime.newInstanceGmt(fecha.yearGmt(), fecha.monthGmt(), fecha.dayGmt(),
+                fecha.hourGmt(), fecha.minuteGmt(), fecha.secondGmt());
         } catch (JSONException e) {
             return null;
         }
