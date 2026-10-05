@@ -1,6 +1,6 @@
-# Repo público: nada con credenciales, tokens ni datos de la org.
+# Public repo: nothing with credentials, tokens or org data.
 
-# Secretos y credenciales
+# Secrets and credentials
 .env
 .env.*
 *.key
@@ -11,20 +11,26 @@ server.key
 authUrl*.txt
 *sfdxAuthUrl*
 
-# Configuración local de cada máquina
+# Local configuration on each machine
 .cursor/mcp.json
+CLAUDE.local.md
+.claude/settings.local.json
 
-# Salesforce CLI y servidor local de LWC
+# Editor settings stay on each machine; only the recommended extensions list is shared
+.vscode/*
+!.vscode/extensions.json
+
+# Salesforce CLI and the local LWC server
 .sf/
 .sfdx/
 .localdevserver/
 deploy-options.json
 
-# Autocompletado de LWC y Aura en el editor
+# LWC and Aura autocomplete in the editor
 **/lwc/jsconfig.json
 **/aura/jsconfig.json
 
-# Node, lint y tests de LWC
+# Node, lint and LWC tests
 node_modules/
 coverage/
 .eslintcache
@@ -34,7 +40,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Sistema operativo
+# Operating system
 .DS_Store
 Thumbs.db
 ehthumbs.db

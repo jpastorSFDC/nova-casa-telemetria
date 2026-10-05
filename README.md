@@ -58,7 +58,17 @@ Run one class's tests without deploying:
 sf apex run test --class-names <ClassTest> --code-coverage --result-format human --wait 10
 ```
 
-Still to document once it exists: the connection to the Heroku simulator and how to watch Platform Event processing.
+Still to document once it exists: how to watch Platform Event processing.
+
+## Loading the building/asset catalog
+
+`CatalogoService.loadCatalog()` calls `GET /catalog` on the simulator (via the `Nova_Casa_Simulator` Named Credential) and upserts one `Account` per building and one `Asset` per asset, keyed by `External_Id__c`. Run it from Execute Anonymous after deploying the class:
+
+```apex
+CatalogoService.loadCatalog();
+```
+
+It's safe to run more than once: a building or asset already in the org (matched by `External_Id__c`) gets updated, not duplicated. Sensor and measurement details from the catalog aren't stored on `Asset` — they only drive `Umbral__c` seeding (T3.2).
 
 ## Discovery Definition of Done
 
