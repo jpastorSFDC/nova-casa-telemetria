@@ -90,6 +90,38 @@ Copiar esta plantilla, numerar secuencialmente, y mantener el estado actualizado
 - **Criterios de prueba**: `CatalogoServiceTest` demuestra la regla: un umbral por combinación (`shouldSeedOneThresholdSetPerCombination_WhenCatalogIsValid`), recargar no duplica (`shouldNotDuplicateThresholds_WhenLoadedTwice`), un umbral editado o desactivado se conserva (`shouldKeepEditedThreshold_WhenCatalogIsReloaded`), un conjunto parcial no se completa (`shouldNotCompletePartialSet_WhenCatalogIsReloaded`) y un usuario sin acceso a `Umbral__c` recibe una `CatalogoServiceException` envuelta (`shouldThrowException_WhenRunningAsUserWithoutUmbralAccess`).
 - **Nota**: sembrar estos operadores y valores significa que el equipo ya los escogió en la práctica; siguen pendientes de confirmación del facilitador.
 - **Siguiente acción**: confirmar operadores y valores con el facilitador.
+## D007 — La antigüedad de la señal se marca con un parámetro de presentación (`staleMinutes`), no con un umbral
+
+- **Estado**: Propuesta
+- **Fecha**: 2026-10-05
+- **Contexto**: BR-207 pide que el operador reconozca la antigüedad de la información. La pantalla necesita un corte para marcar una señal como "desactualizada". El acuerdo "Umbrales fuera del código" cubre los límites de clasificación de severidad (D004), no este corte.
+- **Decisión**: el corte es una propiedad de diseño del LWC (`staleMinutes`, 15 por defecto), editable en Lightning App Builder para páginas App y Home. Solo decide si se muestra la marca "(desactualizada)"; no influye en la severidad ni en ninguna decisión del servidor. El valor por defecto vive en una sola constante del JS, con el mismo valor en `js-meta.xml`.
+- **Alternativa descartada**: valor por tipo de activo o de medición en `Umbral__c` o Custom Metadata. Agrega un objeto o un despliegue y no hay una cadencia de emisión por sensor acordada que lo justifique.
+- **Trade-off**: se gana una pantalla simple y ajustable sin tocar código ni datos; se sacrifica un corte distinto por tipo de sensor, de modo que un sensor lento puede verse "desactualizado" sin estarlo. Con la ubicación Tab no hay configuración y rige el valor por defecto.
+- **Riesgo / dependencia**: si la cadencia real del simulador supera los 15 minutos, habrá falsos "desactualizada". Hay que contrastar el valor con la cadencia de emisión del simulador.
+- **Siguiente acción**: validar los 15 minutos contra el simulador. Criterio de prueba: una señal por debajo del corte no lleva marca, una por encima la lleva, y la ubicación Tab usa el valor por defecto.
+
+## D008 — La pantalla del operador se aparta del prototipo de baja fidelidad
+
+- **Estado**: Propuesta
+- **Fecha**: 2026-10-05
+- **Contexto**: `entregables/02-prototipo-baja-fidelidad.html` guía el diseño pero no es la especificación. La implementación de US-207 difiere en varios puntos.
+- **Decisión**: (1) tarjetas con `lightning-card`, insignias e íconos de utilidad SLDS en lugar de tarjetas e íconos SVG propios; (2) se agregan un filtro por tipo de activo, un botón de actualizar y la marca de señal desactualizada; (3) cada tarjeta lista una lectura por tipo de medición, en lugar de una sola; (4) la intervención se abre con el enlace "Caso N" y su estado, en lugar de un botón "Ver intervención"; (5) la interfaz va en español y los errores del controlador en inglés; (6) los contadores del resumen cubren solo los activos de la vista filtrada y así se rotulan ("en esta vista"); (7) si se alcanza el tope del controlador, la pantalla lo avisa.
+- **Alternativa descartada**: reproducir el prototipo tal cual; obliga a componentes propios y pierde accesibilidad y mantenimiento de los componentes base.
+- **Trade-off**: se gana consistencia con SLDS y la cobertura de BR-207 (antigüedad, filtros, estados); se sacrifica fidelidad visual al prototipo.
+- **Riesgo / dependencia**: el facilitador MDSS podría pedir el aspecto del prototipo. Los mensajes de error en inglés y la interfaz en español son inconsistentes.
+- **Siguiente acción**: mostrar la pantalla al facilitador; unificar el idioma de los errores si lo pide.
+
+## D009 — La pantalla del operador asume lecturas válidas en `Lectura_Vigente__c` y desempata por Id
+
+- **Estado**: Propuesta
+- **Fecha**: 2026-10-05
+- **Contexto**: el acuerdo dice que la severidad del activo es la más alta de sus últimas lecturas válidas. `Lectura_Vigente__c` no tiene un campo de validez. Además, D003 desempata por mayor severidad y luego por `messageId`, dato que este objeto no guarda.
+- **Decisión**: (1) `ActivosOperadorController` asume que `Lectura_Vigente__c` solo contiene lecturas válidas: los mensajes inválidos se rechazan antes de escribir (T2.12), por lo que la pantalla no vuelve a validar. (2) Si dos lecturas del mismo activo y tipo empatan en `occurredAt` y severidad, gana el menor Id de registro, de forma determinista y sin depender del orden de llegada. Es una red de seguridad de lectura: `Clave__c` es único, así que normalmente hay una sola fila por clave.
+- **Alternativa descartada**: agregar un campo de validez a `Lectura_Vigente__c` o guardar `messageId` en la lectura; sumaría datos al modelo por un caso que la ingesta ya evita.
+- **Trade-off**: pantalla simple y sin lógica de ingesta duplicada; se sacrifica la defensa en profundidad si la ingesta llegara a escribir una lectura inválida.
+- **Riesgo / dependencia**: depende de que la ingesta rechace de verdad los mensajes inválidos y no escriba conflictos en `Lectura_Vigente__c`. Si eso cambia, la pantalla mostraría una severidad basada en una lectura inválida.
+- **Siguiente acción**: confirmar que las pruebas de ingesta (T2.12) fallan si una lectura inválida llega a `Lectura_Vigente__c`.
 
 ## Pendientes heredados de la sección "Acuerdos" (abiertos desde Discovery, sin cerrar en Development)
 
