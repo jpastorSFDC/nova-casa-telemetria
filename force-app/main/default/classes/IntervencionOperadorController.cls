@@ -1,5 +1,5 @@
 /**
- * Write side of the operator screen (D018): a person opens a manual intervention or follows up an open one.
+ * Write side of the operator screen (D020): a person opens a manual intervention or follows up an open one.
  * Each action checks its custom permission on the server, so hiding a button in the LWC is never the only guard (BR-208).
  *
  * `with sharing`: the asset must be visible to the user (USER_MODE). The Case insert runs in SYSTEM_MODE on purpose:

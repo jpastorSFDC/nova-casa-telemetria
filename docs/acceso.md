@@ -110,7 +110,7 @@ BLD-BAQ-001 es un edificio de prueba de John (System Administrator, sin rol) y s
 - **`Case.AccountId`**: el operador ve un caso porque es dueño de su `Account` (nivel del rol). Si la ingesta crea un caso sin `AccountId`, el operador no lo ve. Los casos actuales sí lo traen.
 - **Dueño del edificio**: `CatalogoService` no toca `OwnerId`; un edificio nuevo queda a nombre de quien corre la carga y hay que reasignarlo al operador a mano.
 
-## Acciones de la pantalla (D018)
+## Acciones de la pantalla (D020)
 
 Todos ven la misma pantalla y los mismos datos; cambian las acciones. Cada acción vive detrás de una custom permission y el servidor la vuelve a comprobar.
 
@@ -122,5 +122,5 @@ Todos ven la misma pantalla y los mismos datos; cambian las acciones. Cada acci�
 | Ir a los límites (`Umbral__c`, por permiso de objeto) | no | sí | no | sí |
 | Traer señales del simulador (`Nova_Casa_Traer_Senales`) | no | no | no | sí (necesita además `Nova_Casa_Simulator_Integration`) |
 
-La creación del `Case` corre en modo sistema porque el operador no tiene Create sobre `Case`; la custom permission es su única llave (ver D018).
+La creación del `Case` corre en modo sistema porque el operador no tiene Create sobre `Case`; la custom permission es su única llave (ver D020).
 

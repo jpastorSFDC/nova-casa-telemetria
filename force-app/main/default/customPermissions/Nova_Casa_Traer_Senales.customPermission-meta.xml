@@ -2,5 +2,5 @@
 <CustomPermission xmlns="http://soap.sforce.com/2006/04/metadata">
     <isLicensed>false</isLicensed>
     <label>Nova Casa - Traer señales</label>
-    <description>Lets the user start a simulator ingestion run from the operator screen (D018). Checked again on the server.</description>
+    <description>Lets the user start a simulator ingestion run from the operator screen (D020). Checked again on the server.</description>
 </CustomPermission>

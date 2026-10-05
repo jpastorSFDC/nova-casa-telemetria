@@ -1,5 +1,5 @@
 /**
- * Admin-only entry point to pull signals from the simulator from the operator screen (D018), instead of
+ * Admin-only entry point to pull signals from the simulator from the operator screen (D020), instead of
  * Execute Anonymous. It only checks the custom permission and starts TelemetriaIngesta; the ingestion itself keeps
  * running as the integration user and does not depend on who pressed the button (BR-208 covers this path separately).
  *

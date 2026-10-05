@@ -1,5 +1,5 @@
 /**
- * Tests for IntervencionOperadorController (D018) and the capabilities of ActivosOperadorController.
+ * Tests for IntervencionOperadorController (D020) and the capabilities of ActivosOperadorController.
  * Users carry the shipped permission sets, so these also fail if a custom permission is dropped from one.
  */
 @isTest

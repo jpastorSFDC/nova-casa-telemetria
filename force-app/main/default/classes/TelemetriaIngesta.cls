@@ -23,7 +23,7 @@
  * user) needs the Nova_Casa_Simulator_Integration permission set, which grants access to the Named
  * Credential's external credential principal. Without it the first callout fails. Publishing needs Create on
  * Senial_Sensor__e for that user; see D013. Not for operator-facing LWC/@AuraEnabled code; the one exception is
- * IngestaController (admin-only manual start, D018).
+ * IngestaController (admin-only manual start, D020).
  */
 public without sharing class TelemetriaIngesta implements Queueable, Database.AllowsCallouts {
 
