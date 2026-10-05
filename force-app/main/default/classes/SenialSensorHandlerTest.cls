@@ -581,6 +581,31 @@ private class SenialSensorHandlerTest {
     }
 
     @IsTest
+    static void unTipoDeMensajeFueraDeLaPicklistSeRechazaSinLecturaNiCase() {
+        Senial_Sensor__e desconocido = medicion('msg_foo', SALA, 'TEMPERATURE', '36', 'CELSIUS', OCURRIDO);
+        desconocido.Message_Type__c = 'FOO';
+        Senial_Sensor__e sinTipo = medicion('msg_sintipo', SALA_2, 'TEMPERATURE', '25', 'CELSIUS', OCURRIDO);
+        sinTipo.Message_Type__c = null;
+
+        Test.startTest();
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{
+            desconocido, sinTipo, medicion('msg_ok_tipo', SALA_3, 'TEMPERATURE', '25', 'CELSIUS', OCURRIDO)
+        });
+        Test.stopTest();
+
+        String claveFoo = SALA + '|TEMPERATURE';
+        Log_Senial__c foo = filaLog(identidad('msg_foo'));
+        Assert.areEqual('Rechazada', foo.Resultado__c, 'Un Message_Type fuera de la picklist se rechaza');
+        Assert.isTrue(foo.Motivo__c.contains('Message_Type'), 'El motivo nombra el campo: ' + foo.Motivo__c);
+        Assert.isNull(foo.Message_Type__c, 'El valor no permitido no se copia a la fila de log');
+        Assert.areEqual(0, SenialSensorHandler.fallosDeLog, 'La fila de log se guarda: la evidencia no se pierde');
+        Assert.areEqual(0, [SELECT COUNT() FROM Case], 'Ningún Case para el evento rechazado');
+        Assert.areEqual(0, [SELECT COUNT() FROM Lectura_Vigente__c WHERE Clave__c = :claveFoo], 'El rechazado no escribe lectura');
+        Assert.areEqual('Procesada', filaLog(identidad('msg_sintipo')).Resultado__c, 'Un Message_Type vacío se comporta como hasta ahora');
+        Assert.areEqual('Procesada', filaLog(identidad('msg_ok_tipo')).Resultado__c, 'El resto del lote se procesa');
+    }
+
+    @IsTest
     static void siFallaElUpsertDelLogQuedaEvidenciaYLasDemasFilasSeGuardan() {
         String identidadLf = identidad('msg_lf');
         SenialSensorHandler.identidadesConFalloDeLog = new Set<String>{ identidad('msg_lf') };

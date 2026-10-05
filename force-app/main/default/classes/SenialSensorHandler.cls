@@ -42,6 +42,19 @@ public without sharing class SenialSensorHandler {
     // del valor de una picklist (255). Además son restringidas; ver la nota en D011.
     private static final Integer MAX_UNIDAD = 255;
     private static final Integer MAX_TIPO_MENSAJE = 255;
+    // Valores vigentes de la picklist restringida Log_Senial__c.Message_Type__c (describe, sin SOQL/DML); se lee una vez por transacción.
+    private static Set<String> tiposDeMensajeValidos {
+        get {
+            if (tiposDeMensajeValidos == null) {
+                tiposDeMensajeValidos = new Set<String>();
+                for (Schema.PicklistEntry entrada : Log_Senial__c.Message_Type__c.getDescribe().getPicklistValues()) {
+                    tiposDeMensajeValidos.add(entrada.getValue());
+                }
+            }
+            return tiposDeMensajeValidos;
+        }
+        private set;
+    }
     private static final Map<String, String> VERBO_POR_OPERADOR = new Map<String, String>{
         'LT' => 'queda bajo',
         'LE' => 'alcanza',
@@ -176,6 +189,8 @@ public without sharing class SenialSensorHandler {
             motivo = 'Unit excede ' + MAX_UNIDAD + ' caracteres';
         } else if (senial.Message_Type__c != null && senial.Message_Type__c.length() > MAX_TIPO_MENSAJE) {
             motivo = 'Message_Type excede ' + MAX_TIPO_MENSAJE + ' caracteres';
+        } else if (String.isNotBlank(senial.Message_Type__c) && !tiposDeMensajeValidos.contains(senial.Message_Type__c)) {
+            motivo = 'Message_Type no es un valor permitido';
         } else if (c.clave != null && c.clave.length() > MAX_CLAVE) {
             motivo = 'La clave activo|medición excede ' + MAX_CLAVE + ' caracteres';
         }
@@ -189,7 +204,8 @@ public without sharing class SenialSensorHandler {
         if (senial.Sensor_Id__c != null && senial.Sensor_Id__c.length() > MAX_SENSOR_ID) {
             c.sensorId = null;
         }
-        if (senial.Message_Type__c != null && senial.Message_Type__c.length() > MAX_TIPO_MENSAJE) {
+        if (senial.Message_Type__c != null && (senial.Message_Type__c.length() > MAX_TIPO_MENSAJE
+                || (String.isNotBlank(senial.Message_Type__c) && !tiposDeMensajeValidos.contains(senial.Message_Type__c)))) {
             c.tipoMensaje = null;
         }
         if (senial.Unit__c != null && senial.Unit__c.length() > MAX_UNIDAD) {
