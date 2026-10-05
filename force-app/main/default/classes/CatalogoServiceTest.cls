@@ -69,6 +69,10 @@ private class CatalogoServiceTest {
                 PermissionsCreate = true, PermissionsRead = true, PermissionsEdit = true
             ));
         }
+        // Read Account/Asset depend on Read Contact (FIELD_INTEGRITY_EXCEPTION otherwise).
+        objectPerms.add(new ObjectPermissions(
+            ParentId = catalogNoUmbral.Id, SobjectType = 'Contact', PermissionsRead = true
+        ));
         insert objectPerms;
         List<FieldPermissions> fieldPerms = new List<FieldPermissions>();
         for (String fieldName : new List<String>{'Account.External_Id__c', 'Asset.External_Id__c', 'Asset.Tipo_Activo__c', 'Asset.AccountId'}) {
