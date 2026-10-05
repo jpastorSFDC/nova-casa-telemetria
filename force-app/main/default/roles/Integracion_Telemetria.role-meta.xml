@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Role xmlns="http://soap.sforce.com/2006/04/metadata">
+    <caseAccessLevel>None</caseAccessLevel>
     <description>Integración Telemetría</description>
     <mayForecastManagerShare>false</mayForecastManagerShare>
     <name>Integración Telemetría</name>
+    <opportunityAccessLevel>None</opportunityAccessLevel>
     <parentRole>Coordinador_Mantenimiento</parentRole>
 </Role>
