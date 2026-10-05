@@ -1,13 +1,18 @@
 /**
  * Loads the building/asset catalog from the Nova Casa Simulator (GET /catalog)
  *              and upserts it into Account (building) and Asset (asset) records,
- *              keyed by External_Id__c so a repeated run never duplicates data.
+ *              keyed by External_Id__c so a repeated run never duplicates data. Also seeds
+ *              Umbral__c with the reference thresholds for each asset type + measurement.
  */
 public with sharing class CatalogoService {
 
     // ─── Constants ───────────────────────────────────────────────────────
     private static final String CATALOG_ENDPOINT = 'callout:Nova_Casa_Simulator/catalog';
     private static final String HTTP_GET = 'GET';
+
+    // /catalog's thresholdsReference gives ranges, not operators, so this seed table holds the team's
+    // proposed reference values from T2.7; operators/values await facilitator confirmation (AGENTS.md pendiente 1).
+    private static final Map<String, List<ThresholdRule>> RULES_BY_MEASUREMENT = buildReferenceRules();
 
     // ─── Public API ──────────────────────────────────────────────────────
 
@@ -25,6 +30,7 @@ public with sharing class CatalogoService {
     public static void loadCatalog() {
         CatalogResponse catalogResponse = fetchCatalog();
         upsertBuildingsAndAssets(catalogResponse);
+        seedThresholds(catalogResponse);
     }
 
     // ─── Private Helpers ─────────────────────────────────────────────────
@@ -145,6 +151,120 @@ public with sharing class CatalogoService {
         }
     }
 
+    /**
+     * Seeds Umbral__c for each distinct asset type + measurement in the catalog. A combination
+     *              that already has any Umbral__c is skipped, so edited, deactivated or deleted
+     *              thresholds are never overwritten or resurrected and a reload adds nothing.
+     * @param catalogResponse The deserialized catalog response
+     * @throws CatalogoServiceException if access is missing or the query/insert fails
+     */
+    private static void seedThresholds(CatalogResponse catalogResponse) {
+        Map<String, AssetWrapper> assetByCombination = new Map<String, AssetWrapper>();
+        for (BuildingWrapper building : catalogResponse?.catalog?.buildings ?? new List<BuildingWrapper>()) {
+            for (AssetWrapper asset : building.assets ?? new List<AssetWrapper>()) {
+                if (asset.type == null || asset.measurement == null || asset.unit == null
+                    || !RULES_BY_MEASUREMENT.containsKey(asset.measurement)) {
+                    continue;
+                }
+                String combination = asset.type + '|' + asset.measurement;
+                if (!assetByCombination.containsKey(combination)) {
+                    assetByCombination.put(combination, asset);
+                }
+            }
+        }
+        if (assetByCombination.isEmpty()) {
+            return;
+        }
+
+        if (!Schema.sObjectType.Umbral__c.isAccessible() || !Schema.sObjectType.Umbral__c.isCreateable()) {
+            throw new CatalogoServiceException('Failed to seed Umbral__c: running user lacks read/create access on Umbral__c');
+        }
+
+        Set<String> assetTypes = new Set<String>();
+        for (AssetWrapper asset : assetByCombination.values()) {
+            assetTypes.add(asset.type);
+        }
+
+        Set<String> seededCombinations = new Set<String>();
+        try {
+            for (Umbral__c existing : [
+                SELECT Tipo_Activo__c, Tipo_Medicion__c
+                FROM Umbral__c
+                WHERE Tipo_Activo__c IN :assetTypes
+                WITH USER_MODE
+            ]) {
+                seededCombinations.add(existing.Tipo_Activo__c + '|' + existing.Tipo_Medicion__c);
+            }
+        } catch (Exception e) {
+            throw new CatalogoServiceException('Failed to seed Umbral__c: ' + e.getMessage(), e);
+        }
+
+        List<Umbral__c> thresholds = new List<Umbral__c>();
+        for (String combination : assetByCombination.keySet()) {
+            if (seededCombinations.contains(combination)) {
+                continue;
+            }
+            AssetWrapper asset = assetByCombination.get(combination);
+            for (ThresholdRule rule : RULES_BY_MEASUREMENT.get(asset.measurement)) {
+                thresholds.add(new Umbral__c(
+                    Tipo_Activo__c = asset.type,
+                    Tipo_Medicion__c = asset.measurement,
+                    Unidad_Esperada__c = asset.unit,
+                    Severidad__c = rule.severity,
+                    Operador__c = rule.comparison,
+                    Valor__c = rule.limitValue
+                ));
+            }
+        }
+        if (thresholds.isEmpty()) {
+            return;
+        }
+
+        try {
+            Database.insert(thresholds, AccessLevel.USER_MODE);
+        } catch (Exception e) {
+            throw new CatalogoServiceException('Failed to seed Umbral__c: ' + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Builds the reference threshold rules keyed by measurement type.
+     * @return Map of measurement type to its threshold rules
+     */
+    private static Map<String, List<ThresholdRule>> buildReferenceRules() {
+        List<ThresholdRule> rules = new List<ThresholdRule>{
+            new ThresholdRule('TEMPERATURE', 'Advertencia', 'LT', 18),
+            new ThresholdRule('TEMPERATURE', 'Advertencia', 'GT', 30),
+            new ThresholdRule('TEMPERATURE', 'Critica', 'LT', 15),
+            new ThresholdRule('TEMPERATURE', 'Critica', 'GT', 35),
+            new ThresholdRule('TEMPERATURE', 'Invalida', 'LE', -11),
+            new ThresholdRule('TEMPERATURE', 'Invalida', 'GE', 81),
+            new ThresholdRule('WATER_PRESSURE', 'Advertencia', 'LT', 2.5),
+            new ThresholdRule('WATER_PRESSURE', 'Advertencia', 'GT', 4),
+            new ThresholdRule('WATER_PRESSURE', 'Critica', 'LT', 1.5),
+            new ThresholdRule('WATER_PRESSURE', 'Critica', 'GT', 5),
+            new ThresholdRule('WATER_PRESSURE', 'Invalida', 'GT', 20),
+            new ThresholdRule('WATER_CONSUMPTION', 'Advertencia', 'GT', 400),
+            new ThresholdRule('WATER_CONSUMPTION', 'Critica', 'GT', 650),
+            new ThresholdRule('WATER_CONSUMPTION', 'Invalida', 'LT', 0),
+            new ThresholdRule('WATER_CONSUMPTION', 'Invalida', 'GT', 5000),
+            new ThresholdRule('ENERGY_CONSUMPTION', 'Advertencia', 'GT', 40),
+            new ThresholdRule('ENERGY_CONSUMPTION', 'Critica', 'GT', 65),
+            new ThresholdRule('ENERGY_CONSUMPTION', 'Invalida', 'LT', 0),
+            new ThresholdRule('ENERGY_CONSUMPTION', 'Invalida', 'GT', 1000),
+            new ThresholdRule('CAMERA_CONNECTIVITY', 'Advertencia', 'GT', 90),
+            new ThresholdRule('CAMERA_CONNECTIVITY', 'Critica', 'GT', 180)
+        };
+        Map<String, List<ThresholdRule>> rulesByMeasurement = new Map<String, List<ThresholdRule>>();
+        for (ThresholdRule rule : rules) {
+            if (!rulesByMeasurement.containsKey(rule.measurement)) {
+                rulesByMeasurement.put(rule.measurement, new List<ThresholdRule>());
+            }
+            rulesByMeasurement.get(rule.measurement).add(rule);
+        }
+        return rulesByMeasurement;
+    }
+
     // ─── Response Wrappers (GET /catalog shape) ──────────────────────────
 
     /**
@@ -169,6 +289,22 @@ public with sharing class CatalogoService {
         private String id;
         private String name;
         private String type;
+        private String measurement;
+        private String unit;
+    }
+
+    private class ThresholdRule {
+        private String measurement;
+        private String severity;
+        private String comparison;
+        private Decimal limitValue;
+
+        private ThresholdRule(String measurement, String severity, String comparison, Decimal limitValue) {
+            this.measurement = measurement;
+            this.severity = severity;
+            this.comparison = comparison;
+            this.limitValue = limitValue;
+        }
     }
 
     // ─── Exception ───────────────────────────────────────────────────────

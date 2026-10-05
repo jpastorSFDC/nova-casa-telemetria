@@ -78,6 +78,19 @@ Copiar esta plantilla, numerar secuencialmente, y mantener el estado actualizado
 - **Riesgo / dependencia**: ninguno funcional. Falta que el permission set que dé acceso a `Umbral__c` quede definido (ver D005/BR-208) para que la edición no-admin sea real y no solo teórica.
 - **Siguiente acción**: al definir el permission set del operador/coordinador (D005), incluir CRUD/FLS de `Umbral__c` para el perfil que deba poder ajustar los límites.
 
+## D006 — Siembra de `Umbral__c` desde la carga del catálogo (HP-04)
+
+- **Estado**: Propuesta
+- **Fecha**: 2026-10-05
+- **Contexto**: T3.2 pide un umbral por cada combinación del catálogo. `Umbral__c` no tiene campo de id externo y `/catalog` entrega `thresholdsReference` como rangos (min/max), no como operador + valor.
+- **Decisión**: `CatalogoService.loadCatalog()` siembra `Umbral__c` con la tabla de referencia del equipo (T2.7), una vez por cada `asset.type` + `measurement` del catálogo (la unidad sale del catálogo). Si esa combinación ya tiene cualquier `Umbral__c` (editado, desactivado o no), no se siembra nada para ella.
+- **Alternativa descartada**: clave natural completa (tipo, medición, severidad, operador, valor, unidad): un umbral editado dejaría de coincidir y se duplicaría. Un campo de id externo: cambio de modelo sin necesidad.
+- **Trade-off**: se gana idempotencia y respeto a lo que el usuario cambió; se sacrifica que un umbral borrado a mano no se restituye solo, ni se agregan reglas nuevas a una combinación ya sembrada.
+- **Riesgo / dependencia**: operadores y valores siguen "por acordar" (ver pendiente 1 abajo); la tabla vive en el código como valor inicial, la fuente operativa es el objeto.
+- **Criterios de prueba**: `CatalogoServiceTest` demuestra la regla: un umbral por combinación (`shouldSeedOneThresholdSetPerCombination_WhenCatalogIsValid`), recargar no duplica (`shouldNotDuplicateThresholds_WhenLoadedTwice`), un umbral editado o desactivado se conserva (`shouldKeepEditedThreshold_WhenCatalogIsReloaded`), un conjunto parcial no se completa (`shouldNotCompletePartialSet_WhenCatalogIsReloaded`) y un usuario sin acceso a `Umbral__c` recibe una `CatalogoServiceException` envuelta (`shouldThrowException_WhenRunningAsUserWithoutUmbralAccess`).
+- **Nota**: sembrar estos operadores y valores significa que el equipo ya los escogió en la práctica; siguen pendientes de confirmación del facilitador.
+- **Siguiente acción**: confirmar operadores y valores con el facilitador.
+
 ## Pendientes heredados de la sección "Acuerdos" (abiertos desde Discovery, sin cerrar en Development)
 
 Estos puntos necesitaban una entrada D00X cada uno antes de cerrar el entregable 6 de Discovery. El entregable se aprobó y ya estamos en Development (ver `AGENTS.md`), pero solo el objeto de intervención (D001) y el empate de `occurredAt` (D003 arriba) están cerrados del todo; el edificio (D005 arriba) tiene entrada pero solo resuelve el campo de identidad, no el modelo de sharing. Siguen sin cerrar:
