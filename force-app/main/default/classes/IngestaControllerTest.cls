@@ -29,6 +29,16 @@ private class IngestaControllerTest {
         return u;
     }
 
+    // Keeps the queued job harmless if the platform runs it: an empty session and an empty page, no real callout.
+    private class EmptySimulatorMock implements HttpCalloutMock {
+        public HttpResponse respond(HttpRequest request) {
+            HttpResponse response = new HttpResponse();
+            response.setStatusCode(200);
+            response.setBody(request.getEndpoint().contains('/session') ? '{"cursor":"test-cursor"}' : '{"data":[]}');
+            return response;
+        }
+    }
+
     private static String startError(String scenario, Integer pages) {
         try {
             IngestaController.traerSenales(scenario, pages);
@@ -48,6 +58,7 @@ private class IngestaControllerTest {
     @isTest
     static void shouldQueueOneRunAndRefuseASecond_WhenAdminStartsTwice() {
         User admin = newUserWithPermissionSet('ncingadm', 'Nova_Casa_Admin');
+        Test.setMock(HttpCalloutMock.class, new EmptySimulatorMock());
 
         IngestaController.Inicio started;
         String second;
@@ -105,9 +116,9 @@ private class IngestaControllerTest {
     static void shouldCountLogRowsByResultSinceTheStart() {
         User admin = newUserWithPermissionSet('ncingcnt', 'Nova_Casa_Admin');
         insert new List<Log_Senial__c>{
-            new Log_Senial__c(Identidad__c = 'SIM|a', Resultado__c = 'Procesada'),
-            new Log_Senial__c(Identidad__c = 'SIM|b', Resultado__c = 'Procesada'),
-            new Log_Senial__c(Identidad__c = 'SIM|c', Resultado__c = 'Rechazada')
+            new Log_Senial__c(Source__c = 'SIM', Message_Id__c = 'a', Identidad__c = 'SIM|a', Resultado__c = 'Procesada'),
+            new Log_Senial__c(Source__c = 'SIM', Message_Id__c = 'b', Identidad__c = 'SIM|b', Resultado__c = 'Procesada'),
+            new Log_Senial__c(Source__c = 'SIM', Message_Id__c = 'c', Identidad__c = 'SIM|c', Resultado__c = 'Rechazada')
         };
 
         IngestaController.Estado state;
