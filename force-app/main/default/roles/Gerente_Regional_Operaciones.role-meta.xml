@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Role xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Gerente Regional de Operaciones</description>
+    <mayForecastManagerShare>false</mayForecastManagerShare>
+    <name>Gerente Regional de Operaciones</name>
+</Role>
