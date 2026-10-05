@@ -100,6 +100,10 @@
     background: #f2fbf6;
     border-color: #bbf7d0;
 }
+.situacion-neutro {
+    background: var(--nc-papel);
+    border-color: var(--nc-linea);
+}
 .situacion .lead {
     margin: 0;
     font-size: 1.05rem;
@@ -111,6 +115,9 @@
 }
 .situacion-advertencia .lead em {
     color: var(--nc-advertencia);
+}
+.situacion-neutro .lead em {
+    color: var(--nc-tinta-media);
 }
 .situacion-normal .lead em {
     color: var(--nc-normal);

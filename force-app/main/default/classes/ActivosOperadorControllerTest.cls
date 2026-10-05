@@ -215,8 +215,8 @@ private class ActivosOperadorControllerTest {
         // When the severity is out of range or the building is not an Id
         // Then the user gets a safe AuraHandledException, not a raw error
         for (List<Object> args : new List<List<Object>>{
-            new List<Object>{ null, 7 },
-            new List<Object>{ 'not-an-id', null }
+            new List<Object>{ null, 7, ActivosOperadorController.SEVERITY_FILTER_MESSAGE },
+            new List<Object>{ 'not-an-id', null, ActivosOperadorController.BUILDING_FILTER_MESSAGE }
         }) {
             Boolean rejected = false;
             System.runAs(operator) {
@@ -224,7 +224,7 @@ private class ActivosOperadorControllerTest {
                     ActivosOperadorController.getAssets((String) args[0], (Integer) args[1], null);
                 } catch (AuraHandledException e) {
                     rejected = true;
-                    Assert.isTrue(e.getMessage().contains('not valid'), 'Unexpected message: ' + e.getMessage());
+                    Assert.areEqual((String) args[2], e.getMessage(), 'Unexpected message');
                 }
             }
             Assert.isTrue(rejected, 'Invalid filter should be rejected');

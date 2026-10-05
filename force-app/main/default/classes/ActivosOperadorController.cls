@@ -11,8 +11,10 @@ public with sharing class ActivosOperadorController {
     @TestVisible private static Integer maxBuildings = 2000;
     private static final Integer READING_TYPES = 5;
     private static final Integer MAX_CASE_ROWS = 2000;
-    @TestVisible private static final String ACCESS_MESSAGE = 'You do not have access to all the information needed for this list.';
-    @TestVisible private static final String LOAD_MESSAGE = 'The information could not be loaded. Try again later.';
+    @TestVisible private static final String ACCESS_MESSAGE = 'No tienes acceso a toda la información necesaria para esta lista.';
+    @TestVisible private static final String SEVERITY_FILTER_MESSAGE = 'El filtro de severidad no es válido.';
+    @TestVisible private static final String BUILDING_FILTER_MESSAGE = 'El filtro de edificio no es válido.';
+    @TestVisible private static final String LOAD_MESSAGE = 'No se pudo cargar la información. Inténtalo de nuevo más tarde.';
 
     public class Option {
         @AuraEnabled public String value { get; private set; }
@@ -170,7 +172,7 @@ public with sharing class ActivosOperadorController {
         try {
             Id buildingId = parseId(accountId);
             if (severityLevel != null && (severityLevel < 0 || severityLevel > 2)) {
-                throw safeError('The severity filter is not valid.');
+                throw safeError(SEVERITY_FILTER_MESSAGE);
             }
 
             List<String> conditions = new List<String>();
@@ -366,7 +368,7 @@ public with sharing class ActivosOperadorController {
         try {
             return Id.valueOf(value);
         } catch (Exception e) {
-            throw safeError('The building filter is not valid.');
+            throw safeError(BUILDING_FILTER_MESSAGE);
         }
     }
 

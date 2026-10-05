@@ -408,6 +408,9 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     get noReadingCount() {
         return this.countWhere((a) => a.severityLevel == null);
     }
+    get knownCount() {
+        return this.countWhere((a) => a.severityLevel != null);
+    }
     get criticalChip() {
         return plural(this.criticalCount, 'crítico', 'críticos');
     }
@@ -424,6 +427,10 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         if (this.criticalCount > 0) {
             return 'situacion situacion-critico';
         }
+        // Without any asset of known severity nothing can be called stable: neutral look.
+        if (this.knownCount === 0) {
+            return 'situacion situacion-neutro';
+        }
         // A cut result never gets the all-clear look: there may be critical assets we did not see.
         return this.warningCount > 0 || this.truncated ? 'situacion situacion-advertencia' : 'situacion situacion-normal';
     }
@@ -435,6 +442,9 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             const text = crit === 1 ? '1 crítico' : `${crit} críticos`;
             return this.truncated ? `Al menos ${text}` : text;
         }
+        if (this.knownCount === 0) {
+            return 'Severidad no determinada';
+        }
         return this.truncated ? 'Ningún crítico verificado' : 'Ningún crítico';
     }
     get leadRest() {
@@ -443,7 +453,14 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             const rest = `de ${plural(this.assets.length, 'activo', 'activos')} en esta vista ${crit === 1 ? 'necesita' : 'necesitan'} atención ahora`;
             return this.truncated ? `${rest}; no se pudo verificar todo` : rest;
         }
-        const base = this.warningCount > 0 ? `en esta vista; ${this.warningCount} en precaución` : 'en esta vista';
+        if (this.knownCount === 0) {
+            const none = 'ningún activo de esta vista tiene lecturas con nivel conocido; no se pudo determinar la severidad';
+            return this.truncated ? `${none}; puede haber críticos sin mostrar` : none;
+        }
+        let base = this.warningCount > 0 ? `en esta vista; ${this.warningCount} en precaución` : 'en esta vista';
+        if (this.noReadingCount > 0) {
+            base += `; ${this.noReadingCount} sin dato`;
+        }
         return this.truncated ? `${base}; no se pudo verificar todo, puede haber críticos sin mostrar` : base;
     }
 
