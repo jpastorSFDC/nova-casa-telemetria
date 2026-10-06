@@ -3,8 +3,9 @@
  * Each action checks its custom permission on the server, so hiding a button in the LWC is never the only guard (BR-208).
  *
  * `with sharing`: the asset must be visible to the user (USER_MODE). The Case insert runs in SYSTEM_MODE on purpose:
- * operators have no Create on Case, the custom permission is their only key. The "no open intervention" check also
- * runs in system mode, so a Case the user cannot see still blocks a duplicate (the message never names that Case).
+ * operators have no Create on Case, the custom permission is their only key. The "no open intervention" check runs in
+ * OpenCaseCheck (a separate `without sharing` class): SYSTEM_MODE inside a `with sharing` class still applies sharing,
+ * and with Case Private a Case the user cannot see would not block a duplicate. The message never names that Case.
  * This is not the ingestion path: a manual intervention does not count as a critical message and leaves the
  * one-intervention-per-critical-message rule of IntervencionService untouched.
  */
@@ -78,12 +79,7 @@ public with sharing class IntervencionOperadorController {
                 throw safeError(ASSET_NOT_FOUND);
             }
 
-            List<Case> open = [
-                SELECT Id FROM Case
-                WHERE AssetId = :assetId AND IsClosed = false
-                WITH SYSTEM_MODE LIMIT 1
-            ];
-            if (!open.isEmpty()) {
+            if (OpenCaseCheck.existsFor(assetId)) {
                 throw safeError(ALREADY_OPEN);
             }
 
