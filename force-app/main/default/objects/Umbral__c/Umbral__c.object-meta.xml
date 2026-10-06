@@ -6,6 +6,7 @@
     <enableHistory>true</enableHistory>
     <enableReports>true</enableReports>
     <enableSearch>true</enableSearch>
+    <externalSharingModel>Private</externalSharingModel>
     <label>Umbral</label>
     <pluralLabel>Umbrales</pluralLabel>
     <nameField>
@@ -13,5 +14,5 @@
         <label>Número de Umbral</label>
         <type>AutoNumber</type>
     </nameField>
-    <sharingModel>Read</sharingModel>
+    <sharingModel>ReadWrite</sharingModel>
 </CustomObject>
