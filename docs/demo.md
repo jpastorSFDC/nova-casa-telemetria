@@ -1,6 +1,6 @@
 # Guion de la demo (T9.2)
 
-Recorrido de punta a punta de la historia de referencia de `Sprint 2 - Nova Casa.md`: el operador de edificios empieza su turno, ve qué equipo necesita atención, la señal crítica abre una sola intervención, el reenvío no abre otra y la lectura atrasada no reemplaza la actual. Después, cada rol ve lo suyo.
+Recorrido de punta a punta de la historia de referencia de `Sprint 2 - Nova Casa.md`: Sara, operadora de edificios (usuario Operador Nova Casa), empieza su turno, ve qué equipo necesita atención, la señal crítica abre una sola intervención, el reenvío no abre otra y la lectura atrasada no reemplaza la actual. Después, cada rol ve lo suyo.
 
 Duración: unos 14 minutos, más la preparación. La evidencia por historia está en [evidencia-escenarios.md](evidencia-escenarios.md#evidencia-por-historia-t93).
 
@@ -24,8 +24,8 @@ Duración: unos 14 minutos, más la preparación. La evidencia por historia est�
 |---|---|---|---|---|
 | 1 | 1 | Presentador | El problema y la historia de referencia | — |
 | 2 | 2 | Juan Diego (admin) | Recepción real y procesamiento | BR-201, BR-202 · US-201, US-202 |
-| 3 | 3 | Operador | Pantalla del operador, severidad, filtros, estados | BR-206, BR-207, BR-208 · US-206, US-207, US-208 |
-| 4 | 1,5 | Juan Diego + Operador | Una sola intervención; el reenvío no abre otra | BR-205 · US-205 |
+| 3 | 3 | Sara (Operador Nova Casa) | Pantalla del operador, severidad, filtros, estados | BR-206, BR-207, BR-208 · US-206, US-207, US-208 |
+| 4 | 1,5 | Juan Diego + Sara | Una sola intervención; el reenvío no abre otra | BR-205 · US-205 |
 | 5 | 1 | Juan Diego (admin) | La señal atrasada no reemplaza la actual | BR-203 · US-203 |
 | 6 | 1,5 | Coordinador | Intervenciones abiertas, seguimiento y límites | BR-204, BR-205 · US-204, US-205 |
 | 7 | 1,5 | Gerente y Operador 2 | Cada quien ve solo lo autorizado | BR-208 · US-208 |
@@ -34,7 +34,7 @@ Duración: unos 14 minutos, más la preparación. La evidencia por historia est�
 
 ### 1. Contexto (1 min)
 
-- Hoy cada proveedor tiene su portal y el operador se entera tarde. Leer en voz alta la historia de referencia (`Sprint 2 - Nova Casa.md`, "Historia de referencia"): un operador con dos edificios, una bomba con presión baja, un reenvío y una lectura antigua.
+- Hoy cada proveedor tiene su portal y el operador se entera tarde. Leer en voz alta la historia de referencia (`Sprint 2 - Nova Casa.md`, "Historia de referencia"): Sara, una operadora con dos edificios, una bomba con presión baja, un reenvío y una lectura antigua.
 - Mostrar en una frase el flujo: simulador → `Senial_Sensor__e` (Platform Event) → `SenialSensorTrigger` como usuario de integración → `Lectura_Vigente__c`, `Log_Senial__c` y `Case` → pantalla "Activos del operador".
 
 ### 2. Llegan las señales (2 min) · BR-201, BR-202
@@ -54,7 +54,7 @@ Duración: unos 14 minutos, más la preparación. La evidencia por historia est�
 - Las filas pasan de `Publicada` a `Procesada` sin que nadie cree nada a mano.
 - Unas pocas filas quedan `Rechazada` con `Motivo__c` y las demás siguen: una señal mala no tumba el lote. En la corrida de `QA_200` del 2026-10-05 fueron 4 de 189.
 
-### 3. El operador empieza su turno (3 min) · BR-206, BR-207, BR-208
+### 3. Sara empieza su turno (3 min) · BR-206, BR-207, BR-208
 
 1. Setup > Users > `novacasa.operador@…` > **Login**.
 2. App **Nova Casa Telemetry** > pestaña **Activos del operador**.
@@ -67,7 +67,7 @@ Duración: unos 14 minutos, más la preparación. La evidencia por historia est�
 - Filtrar por **Severidad** = Crítica, después por **Edificio**. Elegir una combinación sin resultados: "Ningún activo coincide con esos filtros" y **Limpiar filtros**. Es distinto de "Sin lecturas todavía", que es un activo sin datos.
 - Cada tarjeta muestra la fecha de origen de la lectura y la marca "(desactualizada)" si pasó el corte de 15 minutos (D007).
 - **Ver activo**: el detalle muestra la lectura vigente por tipo de medición (la temperatura no pisa la presión) y, si es crítico, la intervención como "Caso N", que abre el `Case`.
-- El operador no tiene "Actualizar seguimiento" ni "Ver límites"; sí tiene "Crear intervención" para un activo sin intervención abierta (D020).
+- Sara no tiene "Actualizar seguimiento" ni "Ver límites"; sí tiene "Crear intervención" para un activo sin intervención abierta (D020).
 
 Si en la corrida la bomba no salió crítica, se sigue con el activo crítico que haya: el recorrido es el mismo.
 
@@ -87,7 +87,7 @@ Si en la corrida la bomba no salió crítica, se sigue con el activo crítico qu
 - El número de casos de **Intervenciones abiertas** no cambia.
 - En **Duplicadas (reenvíos)** las filas tienen `Reenvios__c` > 0 y `Ultimo_Reenvio__c`. El resultado (`Procesada`) y el caso (`Caso__c`) siguen siendo los mismos.
 - Si el simulador no repite el mismo contenido con esa semilla, la misma clave llega con otro contenido y la fila queda `Conflicto` (list view **Conflictos**), también sin caso nuevo. Las dos cosas son lo que pide el acuerdo "Mensaje repetido".
-- De vuelta como operador, **Actualizar**: la tarjeta sigue mostrando un solo "Caso N".
+- De vuelta como Sara, **Actualizar**: la tarjeta sigue mostrando un solo "Caso N".
 
 ### 5. Una lectura vieja no es la condición actual (1 min) · BR-203
 
@@ -111,7 +111,7 @@ Si en la corrida la bomba no salió crítica, se sigue con el activo crítico qu
 **Qué debe ver el público**
 
 - Todas las intervenciones abiertas de los dos edificios en un solo lugar, una por mensaje crítico.
-- El coordinador sí puede cambiar el estado de la intervención; el operador no podía.
+- El coordinador sí puede cambiar el estado de la intervención; Sara no podía.
 - Los límites por tipo de activo y medición son registros de `Umbral__c` que el coordinador edita sin desplegar código. Un rango contradictorio (Advertencia GT 40 con Crítica GT 35) se rechaza al guardar (D018). No cambiar un límite en la demo sin dejarlo como estaba; la prueba de que un cambio cambia la clasificación siguiente es `SenialSensorHandlerTest` (paso 9).
 
 ### 7. Cada quien ve lo suyo (1,5 min) · BR-208
@@ -123,7 +123,7 @@ Si en la corrida la bomba no salió crítica, se sigue con el activo crítico qu
 
 - El gerente ve **BLD-BOG-001 y BLD-BAQ-001** y el resumen por edificio para comparar, sin "Crear intervención", "Actualizar seguimiento" ni "Ver límites": solo lectura.
 - En **Nova Casa - Edificios** no aparece **BLD-TEST-NOAUT**: nadie de la jerarquía lo ve (D022).
-- Operador 2 ve solo **BLD-BAQ-001, Edificio Nova Caribe**, al revés que el primer operador.
+- Operador 2 ve solo **BLD-BAQ-001, Edificio Nova Caribe**, al revés que Sara.
 - La restricción también está en el servidor: el controlador es `with sharing` y consulta en `USER_MODE`. Lo prueban `ActivosOperadorControllerTest.operatorDoesNotSeeAnotherOperatorsBuildingButGerenteSeesBoth` y las consultas de `UserRecordAccess` de `docs/acceso.md`.
 
 ### 8. El administrador investiga (1,5 min) · BR-209
