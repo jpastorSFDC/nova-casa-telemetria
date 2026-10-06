@@ -276,7 +276,7 @@ Copiar esta plantilla, numerar secuencialmente, y mantener el estado actualizado
 ### Aclaraciones ya acordadas con John (2026-10-05)
 
 - **Niveles de severidad 0/1/2** (el prototipo decía 1/2/3): se mantienen 0 Normal, 1 Advertencia, 2 Crítica.
-- **`Case.StatusReason` no se usa**; la conectividad de cámara va como `CAMERA_CONNECTIVITY` por segundos de brecha. Se revisa al desbloquear T1.7.
+- **`Case.StatusReason` no se usa**; la conectividad de cámara va como `CAMERA_CONNECTIVITY` por segundos de brecha. Confirmado con `CAMERA_OUTAGE` el 2026-10-06 (T1.7): llega como mensajes `CONNECTIVITY` normales, sin tipo ni campo aparte (ver `docs/evidencia-escenarios.md`).
 - **89 % de `Atrasada`** en una corrida completa es el comportamiento esperado de D011 (h), no un defecto.
 
 ## D021 — La comprobación de "ya hay una intervención abierta" corre en `OpenCaseCheck`, sin sharing y en `SYSTEM_MODE` explícito (US-207)
