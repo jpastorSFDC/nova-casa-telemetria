@@ -2,19 +2,22 @@
 
 T8.1. Quién ve y hace qué, y de dónde sale cada acceso (BR-208). El acceso efectivo es siempre la intersección de dos cosas: el permiso de objeto/campo (permission set o perfil) y el acceso al registro (OWD, ownership, role hierarchy o View All). El modelo de edificio como `Account` viene de [D005](decisiones.md#d005--el-edificio-es-account-external_id__c-para-upsert-del-catálogo).
 
-**Estado al 2026-10-05**: roles y permission sets desplegados y asignados; el OWD sigue público, así que hoy todos ven todos los edificios (ver "Línea base"). El cierre llega con T8.2 en el orden de abajo.
+**Estado al 2026-10-06**: OWD Private aplicado (T8.2, PR #38), gerente con View All de solo lectura y los cuatro usuarios persona en Minimum Access - Salesforce. Verificado en "Resultado (T8.6)".
 
 ## Personas
 
 | Persona | Usuario demo | Rol | Permission sets | Cómo llega a los registros |
 |---|---|---|---|---|
-| Operador | `novacasa.operador@…` | Operador de Edificios | `Nova_Casa_Operator` | Es dueño (`OwnerId`) del `Account` de su edificio |
-| Coordinador | `novacasa.coordinador@…` | Coordinador de Mantenimiento | `Nova_Casa_Coordinator` | Role hierarchy: ve lo de Operador e Integración |
-| Gerente regional | `novacasa.gerente@…` | Gerente Regional de Operaciones | `Nova_Casa_Gerente` | Role hierarchy: ve todo lo de abajo |
-| Administrador (persona) | `novacasa.admin@…` | ninguno | `Nova_Casa_Admin`, `Nova_Casa_Operator` | View All / Modify All en los objetos Nova Casa |
+| Operador | `novacasa.operador@…` | Operador de Edificios | `Nova_Casa_Operator`, `Nova_Casa_Lightning` | Es dueño (`OwnerId`) del `Account` de su edificio |
+| Coordinador | `novacasa.coordinador@…` | Coordinador de Mantenimiento | `Nova_Casa_Coordinator`, `Nova_Casa_Lightning` | Role hierarchy: ve lo de Operador e Integración; lectura del edificio de cada caso por implicit parent sharing |
+| Gerente regional | `novacasa.gerente@…` | Gerente Regional de Operaciones | `Nova_Casa_Gerente`, `Nova_Casa_Lightning` | View All de solo lectura en edificios, activos, lecturas y casos, más Run Reports |
+| Administrador (persona) | `novacasa.admin@…` | ninguno | `Nova_Casa_Admin`, `Nova_Casa_Operator`, `Nova_Casa_Lightning` | View All / Modify All en los objetos Nova Casa |
 | Integración | `novacasa.integracion@…` | Integración Telemetría | `Nova_Casa_Simulator_Integration` + permiso de ingesta (T2.10) | Es dueño de los `Case` y `Log_Senial__c` que crea |
 
-El admin persona no lleva rol: View All / Modify All ya le da todos los registros, y un rol lo metería en la jerarquía operativa sin necesidad. La visibilidad de coordinador y gerente sale de la jerarquía, no de View All en sus permission sets.
+El admin persona no lleva rol: View All / Modify All ya le da todos los registros, y un rol lo metería en la jerarquía operativa sin necesidad.
+
+- **Gerente**: View All en `Account`, `Asset`, `Case` y `Lectura_Vigente__c`, sin Create/Edit/Delete/Modify All, y Run Reports sin Export. La persona necesita "entender qué edificios concentran situaciones graves" y "comparar prioridades", y eso pide ver todos los edificios, no solo los de su jerarquía.
+- **Coordinador**: sigue sin View All. Ve todas las intervenciones porque las crea el usuario de integración, que está bajo él en la jerarquía, y ve en solo lectura el edificio de cada una por implicit parent sharing (acceso de lectura al `Account` padre de un `Case` que puede ver). Se acepta porque es lo que necesita para "revisar intervenciones y organizar su seguimiento".
 
 ## Jerarquía de roles
 
@@ -46,10 +49,10 @@ C/R/E/D = Create/Read/Edit/Delete del permission set; después del punto, de dó
 
 | Objeto | OWD hoy → objetivo | Operador | Coordinador | Gerente | Admin (persona) | Integración |
 |---|---|---|---|---|---|---|
-| `Account` (edificio) | Public Read/Write → **Private** | R · dueño | R · jerarquía | R · jerarquía | CRED · Modify All | T2.10 |
-| `Asset` | Controlled by Parent (sin cambio; hereda el Private de `Account`) | R · vía edificio | R · vía edificio | R · vía edificio | CRED · Modify All | T2.10 |
-| `Lectura_Vigente__c` | Controlled by Parent (sin cambio) | R · vía activo | R · vía activo | R · vía activo | CRED · Modify All | escribe |
-| `Case` (intervención, [D001](decisiones.md#d001--objeto-de-intervención-case)) | Public Read/Write/Transfer → **Private** | R · casos de su edificio (rol) | RE · jerarquía | R · jerarquía | CRED · Modify All | crea, dueño |
+| `Account` (edificio) | Public Read/Write → **Private** | R · dueño | R · jerarquía e implicit parent | R · View All | CRED · Modify All | T2.10 |
+| `Asset` | Controlled by Parent (sin cambio; hereda el Private de `Account`) | R · vía edificio | R · vía edificio | R · View All | CRED · Modify All | T2.10 |
+| `Lectura_Vigente__c` | Controlled by Parent (sin cambio) | R · vía activo | R · vía activo | R · View All | CRED · Modify All | escribe |
+| `Case` (intervención, [D001](decisiones.md#d001--objeto-de-intervención-case)) | Public Read/Write/Transfer → **Private** | R · casos de su edificio (rol) | RE · jerarquía | R · View All | CRED · Modify All | crea, dueño |
 | `Log_Senial__c` | Private (sin cambio) | — | — | — | CRED · Modify All | crea, dueño |
 | `Umbral__c` | Public Read Only → **Public Read/Write** | — | CRE | — | CRED · Modify All | lee |
 | `Contact` / `Opportunity` | Controlled by Parent (sin cambio) / Public Read Only → **Private** | R / — | R / — | R / — | CRED / — | — |
@@ -82,17 +85,26 @@ C/R/E/D = Create/Read/Edit/Delete del permission set; después del punto, de dó
 
 1. **T2.10** (hecho): crear el usuario de integración con rol Integración Telemetría y su permission set de ingesta. Verificado el 2026-10-06: `novacasa.integracion@novacasa-telemetria.demo`, activo, rol `Integracion_Telemetria`, perfil Minimum Access - Salesforce, con `Nova_Casa_Simulator_Integration` y `Nova_Casa_Procesamiento`.
 2. **T2.2** (hecho): `PlatformEventSubscriberConfig` para que el trigger corra como ese usuario. `Nova_Casa_Procesamiento` (PR #28) corre `SenialSensorTrigger` como ese usuario, con batch 200. El último caso de Automated Process es del 2026-10-05 18:07Z; desde las 18:14Z los `Case` y `Lectura_Vigente__c` nuevos los crea el usuario de integración (65 casos hasta las 21:48Z, contando los borrados en la limpieza). Con OWD Private, coordinador y gerente los ven por jerarquía.
-3. **T8.2**: en un solo deploy, `sharingModel` de `Account` Private, `Contact` ControlledByParent, `Opportunity` Private, `Case` Private, `Asset` ControlledByParent y `Umbral__c` ReadWrite. Después, redeploy de los roles con los niveles de la tabla de arriba.
-4. **Perfil**: pasar los cuatro usuarios persona a Minimum Access - Salesforce con `Nova_Casa_Lightning` (ver abajo).
-5. **T8.6**: repetir las consultas de la línea base y probar la pantalla y Apex con operador y un usuario con acceso insuficiente.
+3. **T8.2** (hecho, PR #38): en un solo deploy, `sharingModel` de `Account` Private, `Contact` ControlledByParent, `Opportunity` Private, `Case` Private, `Asset` ControlledByParent y `Umbral__c` ReadWrite. Después, redeploy de los roles con los niveles de la tabla de arriba.
+4. **Perfil** (hecho 2026-10-06): los cuatro usuarios persona en Minimum Access - Salesforce con `Nova_Casa_Lightning` (ver abajo).
+5. **T8.6** (hecho 2026-10-06): consultas repetidas antes y después del cambio de perfil, ver "Resultado (T8.6)".
 
-## Perfil Standard User
+## Perfil Minimum Access
 
-Los usuarios persona tienen hoy el perfil Standard User, que da CRED en `Account`, `Asset`, `Contact` y `Opportunity`, y CRE en `Case`. Los permission sets solo suman, así que hoy el operador puede editar o borrar edificios y editar casos aunque `Nova_Casa_Operator` sea de solo lectura. El plan es pasarlos a Minimum Access - Salesforce, que no da acceso a objetos pero tampoco Lightning Experience; `Nova_Casa_Lightning` (desplegado, sin asignar) agrega solo `LightningExperienceUser`. Antes del cambio hay que revisar las pestañas estándar `Account`, `Case` y `Asset`: solo `Nova_Casa_Gerente` las declara.
+Los usuarios persona tenían el perfil Standard User, que da CRED en `Account`, `Asset`, `Contact` y `Opportunity`, y CRE en `Case`. Los permission sets solo suman, así que el operador podía editar o borrar edificios aunque `Nova_Casa_Operator` sea de solo lectura. Ahora están en Minimum Access - Salesforce, que no da acceso a objetos ni Lightning Experience; `Nova_Casa_Lightning` agrega solo `LightningExperienceUser`. Las pestañas estándar `Account`, `Asset`, `Case` y Reports ya vienen en DefaultOn en ese perfil, así que no hace falta declararlas.
+
+El perfil y las asignaciones son datos del org, no metadata. Para reproducirlos (2026-10-06, en `novacasa.operador@`, `novacasa.coordinador@`, `novacasa.gerente@` y `novacasa.admin@`, todos `@novacasa-telemetria.demo`; `novacasa.integracion@` ya estaba en Minimum Access):
+
+```bash
+sf data update record -o novacasa_sprint_2 -s User -w "Username='<username>'" -v "ProfileId=<Id de Minimum Access - Salesforce>"
+sf org assign permset -o novacasa_sprint_2 -n Nova_Casa_Lightning -b <username>
+```
+
+Para revertir, el mismo `sf data update record` con el `ProfileId` de Standard User.
 
 ## Línea base (2026-10-05, OWD público)
 
-`MaxAccessLevel` de `UserRecordAccess` por usuario; "Esperado" es lo que T8.6 debe mostrar después de T8.2 y del cambio de perfil.
+`MaxAccessLevel` de `UserRecordAccess` por usuario; "Esperado" era el plan antes de T8.2. Lo verificado está en "Resultado (T8.6)".
 
 | Registro | Operador | Coordinador | Gerente | Admin | Esperado |
 |---|---|---|---|---|---|
@@ -134,23 +146,34 @@ Después de los dos deploys de T8.2 (objetos, luego roles), desde `main`.
    sf data query -o novacasa_sprint_2 -q "SELECT RecordId, MaxAccessLevel FROM UserRecordAccess WHERE UserId = '<UserId>' AND RecordId IN ('<Id1>','<Id2>')"
    ```
 
-Esperado justo después de T8.2, con el perfil Standard User todavía:
+## Resultado (T8.6)
 
-| Registro | Operador | Coordinador | Gerente |
-|---|---|---|---|
-| BLD-BOG-001, su `Asset` y su `Lectura_Vigente__c` | Read o más (dueño) | Read o más (jerarquía) | Read o más (jerarquía) |
-| BLD-BAQ-001, su `Asset` y su `Lectura_Vigente__c` | None | None | None |
-| `Case` de BOG (dueño integración) | Read (nivel del rol) | Edit o más | Read o más |
-| `Case` de BAQ (dueño integración) | None | Edit o más | Read o más |
-| `Umbral__c` sembrado por otro usuario | None | Edit | None |
+2026-10-06. "Antes" es con OWD Private y perfil Standard User; "Después", con Minimum Access + `Nova_Casa_Lightning` y el View All del gerente. Valor = `MaxAccessLevel`; (E/D) = `HasEditAccess` y `HasDeleteAccess` en true, (E) = solo Edit.
 
-Coordinador y gerente ven los `Case` de BAQ aunque no vean el edificio: el dueño del caso es el usuario de integración, que está bajo ellos en la jerarquía. Después del cambio de perfil (paso 4 del orden), los valores exactos son los de la columna "Esperado" de la línea base. Para cerrar: abrir "Activos del operador" con el operador (solo BLD-BOG-001) y correr todos nuestros tests.
+| Registro | Operador | Coordinador | Gerente | Admin |
+|---|---|---|---|---|
+| BLD-BOG-001 (`Account`, dueño operador) | All (E/D) → All | All (E/D) → All | All (E/D) → All | All (E/D), igual |
+| BLD-BAQ-001 (`Account`, dueño John) | None → None | Read → Read | Read → Read | All (E/D), igual |
+| `Asset` de BOG | Transfer (E/D) → Read | Transfer (E/D) → Read | Transfer (E/D) → Read | Transfer (E/D), igual |
+| `Asset` de BAQ | None → None | Read → Read | Read → Read | Transfer (E/D), igual |
+| `Lectura_Vigente__c` de BOG | Read → Read | Read → Read | Read → Read | Delete (E/D), igual |
+| `Lectura_Vigente__c` de BAQ | None → None | Read → Read | Read → Read | Delete (E/D), igual |
+| `Case` abierto de BOG (dueño John) | Read → Read | Read → Read | Read → Read | All (E/D), igual |
+| `Case` abierto de BAQ (dueño integración) | None → None | All (E) → All (E) | All (E) → All | All (E/D), igual |
+
+- **"All" sin (E/D)** es el nivel de sharing del dueño o de quien está sobre él en la jerarquía; el permiso de objeto lo deja en lectura (`HasAllAccess` true, `HasEditAccess`, `HasDeleteAccess` y `HasTransferAccess` false). Ninguna persona puede ya editar ni borrar edificios ni activos, y el gerente ya no puede editar casos.
+- **Coordinador y gerente ven BLD-BAQ-001** aunque no sean dueños: implicit parent sharing de los casos del usuario de integración (coordinador) y View All (gerente).
+- **View All del gerente**: en `salesforce.com`, un `Account` de John sin casos, el gerente tiene Read y operador y coordinador None.
+- **CRUD efectivo**: el perfil Minimum Access no aporta `ObjectPermissions` en estos objetos; solo cuentan los permission sets Nova Casa.
+- **Tests**: `ActivosOperadorControllerTest` e `IntervencionOperadorControllerTest`, 34/34 en verde (run `707ak00001y0oZd`).
+
+Pendiente: abrir "Activos del operador" con el operador en el navegador (debe salir solo BLD-BOG-001). `Umbral__c` y `Log_Senial__c` no se volvieron a medir.
 
 ## Riesgos
 
 - **Ingesta con OWD Private**: un `SYSTEM_MODE` dentro de una clase `with sharing` sigue aplicando sharing. El usuario de integración no es dueño de los edificios ni está sobre el operador en la jerarquía, así que necesita View All / Modify All en los objetos que lee y escribe, en su propio permission set (T2.10). Eso además deja la autorización de la ingesta explícita y separada del operador, como pide US-208.
 - **`Case.AccountId`**: el operador ve un caso porque es dueño de su `Account` (nivel del rol). Si la ingesta crea un caso sin `AccountId`, el operador no lo ve. Los casos actuales sí lo traen.
-- **Tests con `System.runAs`**: `ActivosOperadorControllerTest` e `IntervencionOperadorControllerTest` crean el edificio como el usuario que corre el test y consultan como otro usuario sin rol ni ownership. Con `Account` Private ese usuario no ve el edificio y los asserts de conteo fallan. Hay que poner `OwnerId` del usuario del `runAs` en sus datos de prueba (funciona también con el OWD público) antes de T8.6.
+- **Tests con `System.runAs`**: `ActivosOperadorControllerTest` e `IntervencionOperadorControllerTest` crean el edificio como el usuario que corre el test y consultan como otro usuario sin rol ni ownership. Con `Account` Private ese usuario no ve el edificio y los asserts de conteo fallan. Resuelto en PR #39: el edificio de prueba queda a nombre del usuario del `runAs`.
 - **Dueño del edificio**: `CatalogoService` no toca `OwnerId`; un edificio nuevo queda a nombre de quien corre la carga y hay que reasignarlo al operador a mano.
 
 ## Acciones de la pantalla (D020)
