@@ -12,7 +12,7 @@ T8.1. Quién ve y hace qué, y de dónde sale cada acceso (BR-208). El acceso ef
 | Coordinador | `novacasa.coordinador@…` | Coordinador de Mantenimiento | `Nova_Casa_Coordinator` | Role hierarchy: ve lo de Operador e Integración |
 | Gerente regional | `novacasa.gerente@…` | Gerente Regional de Operaciones | `Nova_Casa_Gerente` | Role hierarchy: ve todo lo de abajo |
 | Administrador (persona) | `novacasa.admin@…` | ninguno | `Nova_Casa_Admin`, `Nova_Casa_Operator` | View All / Modify All en los objetos Nova Casa |
-| Integración | usuario de T2.10 (pendiente) | Integración Telemetría | `Nova_Casa_Simulator_Integration` + permiso de ingesta (T2.10) | Es dueño de los `Case` y `Log_Senial__c` que crea |
+| Integración | `novacasa.integracion@…` | Integración Telemetría | `Nova_Casa_Simulator_Integration` + permiso de ingesta (T2.10) | Es dueño de los `Case` y `Log_Senial__c` que crea |
 
 El admin persona no lleva rol: View All / Modify All ya le da todos los registros, y un rol lo metería en la jerarquía operativa sin necesidad. La visibilidad de coordinador y gerente sale de la jerarquía, no de View All en sus permission sets.
 
@@ -80,8 +80,8 @@ C/R/E/D = Create/Read/Edit/Delete del permission set; después del punto, de dó
 
 ## Orden de pasos
 
-1. **T2.10**: crear el usuario de integración con rol Integración Telemetría y su permission set de ingesta.
-2. **T2.2**: `PlatformEventSubscriberConfig` para que el trigger corra como ese usuario. Hoy los casos los crea Automated Process, que no tiene rol: con OWD Private, coordinador y gerente no los verían.
+1. **T2.10** (hecho): crear el usuario de integración con rol Integración Telemetría y su permission set de ingesta. Verificado el 2026-10-06: `novacasa.integracion@novacasa-telemetria.demo`, activo, rol `Integracion_Telemetria`, perfil Minimum Access - Salesforce, con `Nova_Casa_Simulator_Integration` y `Nova_Casa_Procesamiento`.
+2. **T2.2** (hecho): `PlatformEventSubscriberConfig` para que el trigger corra como ese usuario. `Nova_Casa_Procesamiento` (PR #28) corre `SenialSensorTrigger` como ese usuario, con batch 200. El último caso de Automated Process es del 2026-10-05 18:07Z; desde las 18:14Z los `Case` y `Lectura_Vigente__c` nuevos los crea el usuario de integración (65 casos hasta las 21:48Z, contando los borrados en la limpieza). Con OWD Private, coordinador y gerente los ven por jerarquía.
 3. **T8.2**: en un solo deploy, `sharingModel` de `Account` Private, `Contact` ControlledByParent, `Opportunity` Private, `Case` Private, `Asset` ControlledByParent y `Umbral__c` ReadWrite. Después, redeploy de los roles con los niveles de la tabla de arriba.
 4. **Perfil**: pasar los cuatro usuarios persona a Minimum Access - Salesforce con `Nova_Casa_Lightning` (ver abajo).
 5. **T8.6**: repetir las consultas de la línea base y probar la pantalla y Apex con operador y un usuario con acceso insuficiente.
