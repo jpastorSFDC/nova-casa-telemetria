@@ -8,7 +8,7 @@
         <apexClass>ActivosOperadorController</apexClass>
         <enabled>true</enabled>
     </classAccesses>
-    <description>Read-only regional manager (BR-208, docs/acceso.md): View All on Account, Asset, Case, Lectura_Vigente__c to compare every building; read on Contact; read-only FLS; Run Reports, no export. No Log_Senial__c or Umbral__c.</description>
+    <description>Read-only regional manager (BR-208, D022, docs/acceso.md): read on Account, Asset, Case, Contact, Lectura_Vigente__c; visibility from the role hierarchy, not View All; read-only FLS; Run Reports, no export. No Log_Senial__c or Umbral__c.</description>
     <fieldPermissions>
         <editable>false</editable>
         <field>Account.External_Id__c</field>
@@ -93,7 +93,7 @@
         <allowRead>true</allowRead>
         <modifyAllRecords>false</modifyAllRecords>
         <object>Account</object>
-        <viewAllRecords>true</viewAllRecords>
+        <viewAllRecords>false</viewAllRecords>
     </objectPermissions>
     <objectPermissions>
         <allowCreate>false</allowCreate>
@@ -102,7 +102,7 @@
         <allowRead>true</allowRead>
         <modifyAllRecords>false</modifyAllRecords>
         <object>Asset</object>
-        <viewAllRecords>true</viewAllRecords>
+        <viewAllRecords>false</viewAllRecords>
     </objectPermissions>
     <objectPermissions>
         <allowCreate>false</allowCreate>
@@ -111,7 +111,7 @@
         <allowRead>true</allowRead>
         <modifyAllRecords>false</modifyAllRecords>
         <object>Case</object>
-        <viewAllRecords>true</viewAllRecords>
+        <viewAllRecords>false</viewAllRecords>
     </objectPermissions>
     <objectPermissions>
         <allowCreate>false</allowCreate>
@@ -129,7 +129,7 @@
         <allowRead>true</allowRead>
         <modifyAllRecords>false</modifyAllRecords>
         <object>Lectura_Vigente__c</object>
-        <viewAllRecords>true</viewAllRecords>
+        <viewAllRecords>false</viewAllRecords>
     </objectPermissions>
     <tabSettings>
         <tab>Activos_Operador</tab>
