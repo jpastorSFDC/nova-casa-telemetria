@@ -8,6 +8,9 @@
 public without sharing class OpenCaseCheck {
 
     public static Boolean existsFor(Id assetId) {
+        if (assetId == null) {
+            return false;
+        }
         Integer open = Database.countQueryWithBinds(
             'SELECT COUNT() FROM Case WHERE AssetId = :assetId AND IsClosed = false',
             new Map<String, Object>{ 'assetId' => assetId },
