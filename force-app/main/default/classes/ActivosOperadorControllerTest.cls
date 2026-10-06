@@ -3,6 +3,7 @@ private class ActivosOperadorControllerTest {
 
     private static final String OPERATOR_ROLE = 'Operador_Edificios';
     private static final String COORDINATOR_ROLE = 'Coordinador_Mantenimiento';
+    private static final String GERENTE_ROLE = 'Gerente_Regional_Operaciones';
     private static Integer keyCounter = 0;
 
     @testSetup
@@ -539,6 +540,75 @@ private class ActivosOperadorControllerTest {
         Assert.isTrue(umbralReadable, 'Nova_Casa_Coordinator grants Umbral__c read');
     }
 
+    @isTest
+    static void realGerentePermissionSetSeesOperatorBuildingThroughHierarchyOnly() {
+        // Given a user holding only Nova_Casa_Gerente, who owns nothing and sits two roles above the building's operator
+        User realGerente = newUserWithPermissionSet('nc207realgerente', 'Nova_Casa_Gerente', GERENTE_ROLE);
+        Account building = newAccount('Edificio Gerente Real');
+        Asset asset = newAsset('AST-REAL-GE', building, 'ENERGY_METER');
+        setExternalId(asset, 'AST-TST-GE');
+        newReading(asset, 'TEMPERATURE', 'CELSIUS', 60, baseTime(), 1);
+
+        // When that user loads assets and buildings
+        ActivosOperadorController.AssetPage page;
+        ActivosOperadorController.BuildingListResult buildings;
+        System.runAs(realGerente) {
+            page = ActivosOperadorController.getAssets(null, null, null);
+            buildings = ActivosOperadorController.getBuildings();
+        }
+
+        // Then the building, its asset and its reading are visible through the role hierarchy
+        Assert.areEqual(1, page.assets.size());
+        Assert.areEqual('AST-REAL-GE', page.assets[0].name);
+        Assert.areEqual('AST-TST-GE', page.assets[0].externalId, 'Nova_Casa_Gerente must grant Asset.External_Id__c');
+        Assert.areEqual(1, page.assets[0].readings.size());
+        Assert.areEqual(1, buildings.options.size());
+        Assert.areEqual(building.Id, buildings.options[0].value);
+    }
+
+    @isTest
+    static void operatorDoesNotSeeAnotherOperatorsBuildingButGerenteSeesBoth() {
+        // Given two operators (same role and permission set) and a Gerente above both
+        User operatorB = newUserWithPermissionSet('nc207operator2', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User gerente = newUserWithPermissionSet('nc207gerenteiso', 'Nova_Casa_Gerente', GERENTE_ROLE);
+        User operatorA = userLike('nc207operator');
+        Assert.areNotEqual(operatorA.Id, operatorB.Id, 'userLike must not resolve operator A to operator B');
+        Account buildingA = newAccount('Edificio Operador A', operatorA.Id);
+        Account buildingB = newAccount('Edificio Operador B', operatorB.Id);
+        newAsset('AST-ISO-A', buildingA, 'WATER_PUMP');
+        newAsset('AST-ISO-B', buildingB, 'WATER_PUMP');
+
+        // When each user loads assets and buildings
+        ActivosOperadorController.AssetPage pageB;
+        ActivosOperadorController.BuildingListResult buildingsB;
+        System.runAs(operatorB) {
+            pageB = ActivosOperadorController.getAssets(null, null, null);
+            buildingsB = ActivosOperadorController.getBuildings();
+        }
+        ActivosOperadorController.AssetPage pageA;
+        ActivosOperadorController.BuildingListResult buildingsA;
+        System.runAs(operatorA) {
+            pageA = ActivosOperadorController.getAssets(null, null, null);
+            buildingsA = ActivosOperadorController.getBuildings();
+        }
+        ActivosOperadorController.AssetPage pageG;
+        ActivosOperadorController.BuildingListResult buildingsG;
+        System.runAs(gerente) {
+            pageG = ActivosOperadorController.getAssets(null, null, null);
+            buildingsG = ActivosOperadorController.getBuildings();
+        }
+
+        // Then each operator sees only their own building, and the Gerente sees both
+        Assert.areEqual(new List<String>{ 'AST-ISO-B' }, names(pageB.assets), 'operator B must not see operator A building');
+        Assert.areEqual(1, buildingsB.options.size());
+        Assert.areEqual(buildingB.Id, buildingsB.options[0].value);
+        Assert.areEqual(new List<String>{ 'AST-ISO-A' }, names(pageA.assets), 'operator A must not see operator B building');
+        Assert.areEqual(1, buildingsA.options.size());
+        Assert.areEqual(buildingA.Id, buildingsA.options[0].value);
+        Assert.areEqual(new List<String>{ 'AST-ISO-A', 'AST-ISO-B' }, names(pageG.assets));
+        Assert.areEqual(2, buildingsG.options.size());
+    }
+
     // ---------- helpers ----------
 
     // Assigns a SHIPPED permission set (by Name) to a fresh user. Call before inserting data rows in the test.
@@ -601,7 +671,8 @@ private class ActivosOperadorControllerTest {
     }
 
     private static User userLike(String prefix) {
-        String pattern = prefix + '%';
+        // Usernames are prefix + '.' + suffix, so 'nc207operator.%' cannot match 'nc207operator2.…'.
+        String pattern = prefix + '.%';
         return [SELECT Id FROM User WHERE Username LIKE :pattern LIMIT 1];
     }
 

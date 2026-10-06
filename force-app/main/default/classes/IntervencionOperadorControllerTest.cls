@@ -8,6 +8,7 @@ private class IntervencionOperadorControllerTest {
     private static final String OPERATOR_ROLE = 'Operador_Edificios';
     private static final String COORDINATOR_ROLE = 'Coordinador_Mantenimiento';
     private static final String GERENTE_ROLE = 'Gerente_Regional_Operaciones';
+    private static final String INTEGRATION_ROLE = 'Integracion_Telemetria';
 
     // ─── Helpers ──────────────────────────────────────────────────────────
 
@@ -114,7 +115,10 @@ private class IntervencionOperadorControllerTest {
     static void shouldRefuseSecondIntervention_WhenOneIsAlreadyOpen() {
         User operator = newUserWithPermissionSet('ncmandup', 'Nova_Casa_Operator', OPERATOR_ROLE);
         Asset asset = newAssetWithReading('AST-MAN-2', 2, operator.Id);
-        Case existing = new Case(AssetId = asset.Id, Status = 'En curso', Origin = 'Telemetria', Subject = 'Ya abierta');
+        // As in production: the open Case belongs to the integration user (role Integracion_Telemetria), not to the operator.
+        User integration = newUserWithPermissionSet('ncmandupint', 'Nova_Casa_Procesamiento', INTEGRATION_ROLE);
+        Case existing = new Case(AssetId = asset.Id, AccountId = asset.AccountId, OwnerId = integration.Id,
+            Status = 'En curso', Origin = 'Telemetria', Subject = 'Ya abierta');
         insert existing;
         String caseNumber = [SELECT CaseNumber FROM Case WHERE Id = :existing.Id].CaseNumber;
 
@@ -350,6 +354,31 @@ private class IntervencionOperadorControllerTest {
         }, errors);
         Assert.areEqual('Closed', [SELECT Status FROM Case WHERE Id = :closed.Id].Status, 'A closed Case is not reopened');
         Assert.areEqual('En curso', [SELECT Status FROM Case WHERE Id = :noAsset.Id].Status);
+    }
+
+    @isTest
+    static void shouldRefuseFollowUpForLackOfPermissionNotVisibility_WhenGerenteSeesTheCaseThroughHierarchy() {
+        User operator = newUserWithPermissionSet('ncfupgeop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User gerente = newUserWithPermissionSet('ncfupge', 'Nova_Casa_Gerente', GERENTE_ROLE);
+        Asset asset = newAssetWithReading('AST-FUP-6', 2, operator.Id);
+        Case c = new Case(AssetId = asset.Id, AccountId = asset.AccountId, OwnerId = operator.Id,
+            Status = 'En curso', Origin = 'Telemetria', Subject = 'Abierta');
+        insert c;
+
+        Integer visible;
+        String error;
+        System.runAs(gerente) {
+            visible = [SELECT COUNT() FROM Case WHERE Id = :c.Id WITH USER_MODE];
+            try {
+                IntervencionOperadorController.actualizarSeguimiento(c.Id, 'Closed', null);
+            } catch (AuraHandledException e) {
+                error = e.getMessage();
+            }
+        }
+
+        Assert.areEqual(1, visible, 'The gerente sees the operator Case through the role hierarchy');
+        Assert.areEqual(IntervencionOperadorController.NO_PERMISSION_FOLLOW, error, 'Refused for permission, not CASE_NOT_FOUND');
+        Assert.areEqual('En curso', [SELECT Status FROM Case WHERE Id = :c.Id].Status);
     }
 
     // ─── Capabilities per role ────────────────────────────────────────────
