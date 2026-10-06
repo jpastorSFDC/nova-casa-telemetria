@@ -23,6 +23,16 @@
  * also checked against our own, more conservative local ceiling regardless of what the platform reports.
  * The cursor travels only as private state of the next job. It is never logged or stored in a record.
  *
+ * Resilience (T4.7). The simulator contract does not document these codes; they are the failures a long run
+ * meets in practice. A 429 or 5xx on a callout is retried as a new job for the SAME page (same cursor, same
+ * pagina) up to MAX_INTENTOS times: the callouts come before any DML, so a retry never repeats a write. If the
+ * session is rejected with 409/410 the job opens a new session once per page (retries included) and rereads; the new stream restarts from the
+ * beginning, which is safe only if the simulator replays the same source+messageId (unconfirmed, D023). pagina keeps counting
+ * across a reopen, so maxPaginas bounds the run, not the distinct pages read. Any other error
+ * still fails the job. Retries wait 1 minute, then 2; Retry-After is not read. The simulator's pollAfterMs is honored between pages with the only delay a Queueable has,
+ * MinimumQueueableDelayInMinutes (whole minutes, 1..10), so a page takes at least one minute; see D023.
+ * Every enqueue, retry or next page, counts against the chain depth (trabajos).
+ *
  * Access: without sharing + SYSTEM_MODE makes the DML independent of operator/admin object permissions
  * (AGENTS.md, BR-208). The CALLOUT is not independent: the user who calls iniciar() (the job runs as that
  * user) needs the Nova_Casa_Simulator_Integration permission set, which grants access to the Named
@@ -51,6 +61,11 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
     // backstop. A run asking for more than this (up to HARD_MAX_PAGINAS, 100) has not been empirically validated
     // past this ceiling yet; see docs/decisiones.md D013.
     private static final Integer PROFUNDIDAD_LOCAL_MAXIMA = 27;
+
+    // Callout failures worth another job: attempts per page (the first one included) and the delay cap.
+    @TestVisible
+    private static final Integer MAX_INTENTOS = 3;
+    private static final Integer MAX_RETRASO_MINUTOS = 10;
 
     // Field lengths of Log_Senial__c and Senial_Sensor__e.
     private static final Integer MAX_IDENTIDAD = 60;
@@ -88,6 +103,9 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
     // Replaces AsyncInfo.hasMaxStackDepth() when not null.
     @TestVisible
     private static Boolean profundidadForzada;
+    // With soloCapturar: the delay (minutes) each job in encolados was enqueued with, in the same order.
+    @TestVisible
+    private static List<Integer> retrasosCapturados = new List<Integer>();
     // Identities whose log row is sent with an invalid Resultado__c so the insert fails (not a duplicate).
     @TestVisible
     private static Set<String> identidadesConFalloDeLog = new Set<String>();
@@ -105,6 +123,14 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
     private Integer maxPaginas;
     @TestVisible
     private Resumen acumulado;
+    // Attempts already spent on this page (0 on the first try) and jobs enqueued so far in the chain.
+    @TestVisible
+    private Integer intento = 0;
+    @TestVisible
+    private Integer trabajos;
+    // True once this page already reopened its session, so retries of the same page do not reopen it again.
+    @TestVisible
+    private Boolean sesionReabierta = false;
 
     /** Counters only: no cursor, no token, no message content. */
     public class Resumen {
@@ -118,6 +144,8 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
         public Integer fallosPublicacion = 0;
         public Integer rechazados = 0; // messages/elements rejected here with a 'Rechazada' row
         public Integer descartados = 0; // subset of rechazados: non-object elements of "data"
+        public Integer reintentos = 0; // pages re-enqueued after a 429/5xx
+        public Integer sesionesReabiertas = 0; // sessions reopened after a 409/410
 
         public void sumar(Resumen otro) {
             recibidos += otro.recibidos;
@@ -143,6 +171,7 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
         this.pagina = pagina;
         this.maxPaginas = maxPaginas;
         this.acumulado = acumulado;
+        this.trabajos = pagina;
     }
 
     /**
@@ -165,10 +194,27 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
 
     public void execute(QueueableContext contexto) {
         // 1) Callouts, before any DML in this transaction.
-        if (String.isBlank(cursor)) {
-            cursor = SimuladorClient.abrirSesion(escenario);
+        SimuladorClient.Pagina leida;
+        try {
+            leida = leerPaginaConSesion();
+        } catch (SimuladorClient.SimuladorClientException e) {
+            if (esReintentable(e) && intento + 1 < MAX_INTENTOS && !profundidadAgotada()) {
+                System.debug(LoggingLevel.WARN, 'Ingesta: estado ' + e.statusCode + ' en la pagina ' + pagina
+                    + ', reintento ' + (intento + 1) + ' de ' + (MAX_INTENTOS - 1));
+                TelemetriaIngesta reintento = new TelemetriaIngesta(escenario, cursor, pagina, maxPaginas, acumulado);
+                reintento.intento = intento + 1;
+                reintento.sesionReabierta = sesionReabierta;
+                acumulado.reintentos++;
+                reintento.trabajos = trabajos + 1;
+                encolar(reintento, reintento.intento);
+                return;
+            }
+            if (esReintentable(e)) {
+                System.debug(LoggingLevel.WARN, 'Ingesta detenida: la pagina ' + pagina + ' agoto sus intentos (estado '
+                    + e.statusCode + '), ' + resumenComoTexto(acumulado));
+            }
+            throw e;
         }
-        SimuladorClient.Pagina leida = SimuladorClient.leerPagina(cursor, PAGE_SIZE);
 
         // 2) DML: log rows first, then the events.
         Resumen deEstaPagina = procesarPagina(leida.mensajes, leida.descartes, pagina);
@@ -191,19 +237,63 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
             return;
         }
         TelemetriaIngesta siguiente = new TelemetriaIngesta(escenario, leida.siguienteCursor, pagina + 1, maxPaginas, acumulado);
-        if (soloCapturar) {
-            encolados.add(siguiente);
-        } else {
-            AsyncOptions opciones = new AsyncOptions();
-            opciones.MaximumQueueableStackDepth = PROFUNDIDAD_COLA_SOLICITADA;
-            System.enqueueJob(siguiente, opciones);
+        siguiente.trabajos = trabajos + 1;
+        encolar(siguiente, minutosDeEspera(leida.pollAfterMs));
+    }
+
+    /**
+     * Opens the session when there is no cursor and reads this job's page. A 409/410 on the read means the
+     * session expired: open a new one once and read again (the cursor field is replaced so a later retry reuses it).
+     */
+    private SimuladorClient.Pagina leerPaginaConSesion() {
+        if (String.isBlank(cursor)) {
+            cursor = SimuladorClient.abrirSesion(escenario);
         }
+        try {
+            return SimuladorClient.leerPagina(cursor, PAGE_SIZE);
+        } catch (SimuladorClient.SimuladorClientException e) {
+            if ((e.statusCode != 409 && e.statusCode != 410) || sesionReabierta) {
+                throw e;
+            }
+            sesionReabierta = true;
+            acumulado.sesionesReabiertas++;
+            System.debug(LoggingLevel.WARN, 'Ingesta: sesion rechazada (' + e.statusCode + '), se abre una nueva en la pagina ' + pagina);
+            cursor = SimuladorClient.abrirSesion(escenario);
+            return SimuladorClient.leerPagina(cursor, PAGE_SIZE);
+        }
+    }
+
+    private static Boolean esReintentable(SimuladorClient.SimuladorClientException e) {
+        return e.statusCode != null && (e.statusCode == 429 || e.statusCode >= 500);
+    }
+
+    /** pollAfterMs rounded up to whole minutes (a Queueable cannot wait less), at most 10; 0 when there is none. */
+    @TestVisible
+    private static Integer minutosDeEspera(Integer pollAfterMs) {
+        if (pollAfterMs == null || pollAfterMs <= 0) {
+            return 0;
+        }
+        return Math.min(MAX_RETRASO_MINUTOS, (Integer) Math.ceil(pollAfterMs / 60000.0));
+    }
+
+    private static void encolar(TelemetriaIngesta trabajo, Integer minutosDeRetraso) {
+        if (soloCapturar) {
+            encolados.add(trabajo);
+            retrasosCapturados.add(minutosDeRetraso);
+            return;
+        }
+        AsyncOptions opciones = new AsyncOptions();
+        opciones.MaximumQueueableStackDepth = PROFUNDIDAD_COLA_SOLICITADA;
+        if (minutosDeRetraso > 0) {
+            opciones.MinimumQueueableDelayInMinutes = Math.min(minutosDeRetraso, MAX_RETRASO_MINUTOS);
+        }
+        System.enqueueJob(trabajo, opciones);
     }
 
     private Boolean profundidadAgotada() {
         // Local backstop first: independent of PROFUNDIDAD_COLA_SOLICITADA and of what the platform reports below,
         // so a bug or a real per-org cap lower than requested still stops the chain gracefully (see class comment).
-        if (pagina >= PROFUNDIDAD_LOCAL_MAXIMA) {
+        if (trabajos >= PROFUNDIDAD_LOCAL_MAXIMA) {
             return true;
         }
         if (profundidadForzada != null) {
@@ -457,7 +547,8 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
             + ', yaExistentes=' + r.yaExistentes + ', logsFallidos=' + r.logsFallidos
             + ', noPublicadosPorLog=' + r.noPublicadosPorLog + ', publicados=' + r.publicados
             + ', fallosPublicacion=' + r.fallosPublicacion + ', rechazados=' + r.rechazados
-            + ', descartados=' + r.descartados;
+            + ', descartados=' + r.descartados + ', reintentos=' + r.reintentos
+            + ', sesionesReabiertas=' + r.sesionesReabiertas;
     }
 
     private static Map<String, Object> mapa(Object valor) {

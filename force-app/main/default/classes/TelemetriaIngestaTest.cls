@@ -26,6 +26,8 @@ private class TelemetriaIngestaTest {
         public Integer estadoSesion = 200;
         public String cuerpoSesion = '{"cursor":"fake-session-cursor"}';
         public Integer estadoTelemetria = 200;
+        // Statuses for the first GET /telemetry calls, in order; once empty, estadoTelemetria applies.
+        public List<Integer> estadosTelemetriaEnOrden = new List<Integer>();
         public String cuerpoTelemetria = '{"data":[]}';
         public Integer llamadasSesion = 0;
         public Integer llamadasTelemetria = 0;
@@ -40,7 +42,7 @@ private class TelemetriaIngestaTest {
             } else {
                 llamadasTelemetria++;
                 ultimoCursorEnviado = request.getHeader(SimuladorClient.CURSOR_HEADER);
-                response.setStatusCode(estadoTelemetria);
+                response.setStatusCode(estadosTelemetriaEnOrden.isEmpty() ? estadoTelemetria : estadosTelemetriaEnOrden.remove(0));
                 response.setBody(cuerpoTelemetria);
             }
             return response;
@@ -243,7 +245,7 @@ private class TelemetriaIngestaTest {
     @isTest
     static void unEstadoDistintoDe200FallaSinEscribirNiEncolar() {
         Mock mock = new Mock();
-        mock.estadoTelemetria = 500;
+        mock.estadoTelemetria = 400;
         mock.cuerpoTelemetria = '{"error":"boom"}';
         Test.setMock(HttpCalloutMock.class, mock);
         Integer antes = [SELECT COUNT() FROM Log_Senial__c];
@@ -254,11 +256,167 @@ private class TelemetriaIngestaTest {
             trabajo.execute(null);
             Assert.fail('Expected the client exception to propagate so the job shows as failed');
         } catch (SimuladorClient.SimuladorClientException e) {
-            Assert.areEqual(500, e.statusCode);
+            Assert.areEqual(400, e.statusCode);
         }
 
         Assert.areEqual(antes, [SELECT COUNT() FROM Log_Senial__c]);
         Assert.isTrue(TelemetriaIngesta.encolados.isEmpty());
+    }
+
+    @isTest
+    static void un429ReintentaLaMismaPaginaSinEscribirNada() {
+        Mock mock = preparar(mensajes(2, 'r429-'), 'fake-cursor-3', true);
+        mock.estadosTelemetriaEnOrden = new List<Integer>{ 429 };
+        Integer antes = [SELECT COUNT() FROM Log_Senial__c];
+        TelemetriaIngesta trabajo = new TelemetriaIngesta(null, 'fake-cursor-2', 4, 5, new TelemetriaIngesta.Resumen());
+
+        Test.startTest(); // no stopTest: see the class note on event delivery
+        trabajo.execute(null);
+
+        Assert.areEqual(1, TelemetriaIngesta.encolados.size(), 'A 429 must schedule a retry of the same page');
+        TelemetriaIngesta reintento = TelemetriaIngesta.encolados[0];
+        Assert.areEqual(4, reintento.pagina, 'The retry reads the same page, not the next one');
+        Assert.areEqual('fake-cursor-2', reintento.cursor, 'The retry keeps the same cursor');
+        Assert.areEqual(1, reintento.intento);
+        Assert.areEqual(1, TelemetriaIngesta.retrasosCapturados[0], 'The retry waits a minute');
+        Assert.areEqual(antes, [SELECT COUNT() FROM Log_Senial__c], 'Nothing is written before the page is read');
+        Assert.areEqual(0, reintento.acumulado.paginas, 'A failed attempt does not count as a page');
+        Assert.areEqual(1, reintento.acumulado.reintentos, 'The retry is visible in the summary');
+
+        // Second failure of the same page: the delay grows to 2 minutes.
+        mock.estadosTelemetriaEnOrden = new List<Integer>{ 429 };
+        reintento.execute(null);
+        Assert.areEqual(2, TelemetriaIngesta.encolados[1].intento);
+        Assert.areEqual(2, TelemetriaIngesta.retrasosCapturados[1]);
+    }
+
+    @isTest
+    static void un503ReintentaYElReintentoLeeLaPagina() {
+        Mock mock = preparar(mensajes(2, 'r503-'), null, false);
+        mock.estadosTelemetriaEnOrden = new List<Integer>{ 503 };
+        TelemetriaIngesta trabajo = new TelemetriaIngesta(null, 'fake-cursor-2', 1, 5, new TelemetriaIngesta.Resumen());
+
+        Test.startTest(); // no stopTest: see the class note on event delivery
+        trabajo.execute(null);
+        TelemetriaIngesta reintento = TelemetriaIngesta.encolados[0];
+        TelemetriaIngesta.encolados.clear();
+        reintento.execute(null);
+
+        Assert.areEqual(2, mock.llamadasTelemetria);
+        Assert.areEqual(2, TelemetriaIngesta.ultimoResumen.publicados, 'The retried page is published once');
+        Assert.areEqual(1, TelemetriaIngesta.ultimoResumen.paginas);
+        Assert.isTrue(TelemetriaIngesta.encolados.isEmpty());
+    }
+
+    @isTest
+    static void alAgotarLosIntentosElTrabajoFalla() {
+        Mock mock = preparar(mensajes(1, 'agot-'), null, false);
+        mock.estadoTelemetria = 503;
+        TelemetriaIngesta trabajo = new TelemetriaIngesta(null, 'fake-cursor-2', 1, 5, new TelemetriaIngesta.Resumen());
+        trabajo.intento = TelemetriaIngesta.MAX_INTENTOS - 1;
+
+        Test.startTest(); // no stopTest: see the class note on event delivery
+        try {
+            trabajo.execute(null);
+            Assert.fail('The last attempt must fail the job, not retry again');
+        } catch (SimuladorClient.SimuladorClientException e) {
+            Assert.areEqual(503, e.statusCode);
+        }
+
+        Assert.isTrue(TelemetriaIngesta.encolados.isEmpty());
+    }
+
+    @isTest
+    static void unReintentoTambienCuentaParaLaProfundidadDeCola() {
+        Mock mock = preparar(mensajes(1, 'prof-'), null, false);
+        mock.estadoTelemetria = 429;
+        TelemetriaIngesta trabajo = new TelemetriaIngesta(null, 'fake-cursor-2', 2, 60, new TelemetriaIngesta.Resumen());
+        trabajo.trabajos = 27; // retries and pages share the same chain depth
+
+        Test.startTest(); // no stopTest: see the class note on event delivery
+        try {
+            trabajo.execute(null);
+            Assert.fail('At the local depth ceiling a retry cannot be enqueued');
+        } catch (SimuladorClient.SimuladorClientException e) {
+            Assert.areEqual(429, e.statusCode);
+        }
+
+        Assert.isTrue(TelemetriaIngesta.encolados.isEmpty());
+    }
+
+    @isTest
+    static void un409AbreUnaSesionNuevaYReleeLaPagina() {
+        Mock mock = preparar(mensajes(2, 'r409-'), null, false);
+        mock.estadosTelemetriaEnOrden = new List<Integer>{ 409 };
+        TelemetriaIngesta trabajo = new TelemetriaIngesta('QA_200', 'fake-expired-cursor', 3, 5, new TelemetriaIngesta.Resumen());
+
+        Test.startTest(); // no stopTest: see the class note on event delivery
+        trabajo.execute(null);
+
+        Assert.areEqual(1, mock.llamadasSesion, 'One new session');
+        Assert.areEqual(2, mock.llamadasTelemetria, 'The page is read again');
+        Assert.areEqual('fake-session-cursor', mock.ultimoCursorEnviado, 'The reread uses the new cursor');
+        Assert.areEqual(2, TelemetriaIngesta.ultimoResumen.publicados);
+        Assert.areEqual(1, TelemetriaIngesta.ultimoResumen.sesionesReabiertas, 'The reopen is visible in the summary');
+    }
+
+    @isTest
+    static void unaPaginaYaReabiertaNoReabreLaSesionEnUnReintento() {
+        Mock mock = preparar(mensajes(1, 'unavez-'), null, false);
+        mock.estadoTelemetria = 409;
+        TelemetriaIngesta trabajo = new TelemetriaIngesta(null, 'fake-expired-cursor', 1, 5, new TelemetriaIngesta.Resumen());
+        trabajo.sesionReabierta = true;
+
+        Test.startTest(); // no stopTest: see the class note on event delivery
+        try {
+            trabajo.execute(null);
+            Assert.fail('A page that already reopened its session must not reopen it again');
+        } catch (SimuladorClient.SimuladorClientException e) {
+            Assert.areEqual(409, e.statusCode);
+        }
+
+        Assert.areEqual(0, mock.llamadasSesion);
+    }
+
+    @isTest
+    static void un410SeguidoDeOtro410NoAbreUnaTerceraSesion() {
+        Mock mock = preparar(mensajes(1, 'r410-'), null, false);
+        mock.estadoTelemetria = 410;
+        TelemetriaIngesta trabajo = new TelemetriaIngesta(null, 'fake-expired-cursor', 1, 5, new TelemetriaIngesta.Resumen());
+
+        Test.startTest(); // no stopTest: see the class note on event delivery
+        try {
+            trabajo.execute(null);
+            Assert.fail('A session that is rejected again must fail the job');
+        } catch (SimuladorClient.SimuladorClientException e) {
+            Assert.areEqual(410, e.statusCode);
+        }
+
+        Assert.areEqual(1, mock.llamadasSesion, 'The session is reopened only once per attempt');
+        Assert.isTrue(TelemetriaIngesta.encolados.isEmpty(), 'A 410 is not retried as a job');
+    }
+
+    @isTest
+    static void laSiguientePaginaEsperaElPollAfterMsDelSimulador() {
+        preparar(mensajes(2, 'poll-'), 'fake-cursor-3', true); // the page carries pollAfterMs = 10000
+        TelemetriaIngesta trabajo = new TelemetriaIngesta(null, 'fake-cursor-2', 1, 5, new TelemetriaIngesta.Resumen());
+
+        Test.startTest(); // no stopTest: see the class note on event delivery
+        trabajo.execute(null);
+
+        Assert.areEqual(1, TelemetriaIngesta.encolados.size());
+        Assert.areEqual(1, TelemetriaIngesta.retrasosCapturados[0], '10 s round up to the 1-minute minimum');
+        Assert.areEqual(0, TelemetriaIngesta.encolados[0].intento, 'A new page starts with no failed attempts');
+    }
+
+    @isTest
+    static void losMinutosDeEsperaSeRedondeanHaciaArribaConTope() {
+        Assert.areEqual(0, TelemetriaIngesta.minutosDeEspera(null));
+        Assert.areEqual(0, TelemetriaIngesta.minutosDeEspera(0));
+        Assert.areEqual(1, TelemetriaIngesta.minutosDeEspera(10000));
+        Assert.areEqual(1, TelemetriaIngesta.minutosDeEspera(60000));
+        Assert.areEqual(2, TelemetriaIngesta.minutosDeEspera(60001));
+        Assert.areEqual(10, TelemetriaIngesta.minutosDeEspera(3600000));
     }
 
     @isTest
