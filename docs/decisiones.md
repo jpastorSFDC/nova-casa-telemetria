@@ -279,6 +279,18 @@ Copiar esta plantilla, numerar secuencialmente, y mantener el estado actualizado
 - **`Case.StatusReason` no se usa**; la conectividad de cámara va como `CAMERA_CONNECTIVITY` por segundos de brecha. Se revisa al desbloquear T1.7.
 - **89 % de `Atrasada`** en una corrida completa es el comportamiento esperado de D011 (h), no un defecto.
 
+## D021 — La comprobación de "ya hay una intervención abierta" corre en `OpenCaseCheck`, sin sharing y en `SYSTEM_MODE` explícito (US-207)
+
+- **Estado**: Propuesta
+- **Fecha**: 2026-10-06
+- **Contexto**: con `Case` en Private (T8.2), la comprobación de D020 punto 3 ("ya hay una abierta") no veía los casos de otros usuarios y dejaba crear una segunda intervención manual. Ni una consulta inline dentro de una clase `without sharing` ni una `WITH SYSTEM_MODE` dentro de una `with sharing` los contaba bajo `System.runAs`; sí lo hizo `Database.countQueryWithBinds(..., AccessLevel.SYSTEM_MODE)` (diagnosticado en `nova-cdo`, 2026-10-06).
+- **Decisión**: la comprobación vive en `OpenCaseCheck.existsFor(assetId)` (`without sharing`, consulta con `AccessLevel.SYSTEM_MODE`, devuelve solo un Boolean). `IntervencionOperadorController` la llama solo después de la custom permission y de comprobar en `USER_MODE` que el usuario ve el activo. Un `assetId` nulo devuelve `false`.
+- **Alternativa descartada**: hacer la clase interna del controlador (el sharing no cambió el resultado) o dar al operador visibilidad sobre los `Case` ajenos (abre datos que BR-208 quiere cerrados).
+- **Trade-off**: `OpenCaseCheck` es `public` y no hace sus propias comprobaciones de permiso; cualquier Apex de la org puede preguntar si un activo tiene un caso abierto. No es `@AuraEnabled`, así que el cliente no llega a ella.
+- **Riesgo / dependencia**: (1) `ALREADY_OPEN` le dice a quien ve el activo pero no el caso que existe una intervención abierta (sin número ni campos); no puede darle seguimiento (`CASE_NOT_FOUND`). Se acepta por ahora. (2) El bloqueo `FOR UPDATE` del activo serializa solo las creaciones manuales; una manual y una crítica de la ingesta pueden coincidir en un activo, lo que el baseline permite porque la manual no es un mensaje crítico. (3) Fuera de esta decisión, `highestLevel` usa `LIMIT 50` y trata un `Severidad_Nivel__c` nulo como 0; revisar si un activo puede tener más de 50 tipos de medición.
+- **Criterios de prueba**: `OpenCaseCheckTest` (abierto, solo cerrado, sin caso o activo nulo, abierto e invisible para el usuario que corre) e `IntervencionOperadorControllerTest.shouldRefuseSecondIntervention_WhenOneIsAlreadyOpen` y `shouldRefuseAsAssetNotFound_WhenTheAssetIsInvisibleEvenIfAnOpenCaseExists`; fallan si la consulta pierde el `SYSTEM_MODE` explícito.
+- **Siguiente acción**: confirmar con Juan Diego que el punto (1) se acepta.
+
 ## Pendientes heredados de la sección "Acuerdos" (abiertos desde Discovery, sin cerrar en Development)
 
 Estos puntos necesitaban una entrada D00X cada uno antes de cerrar el entregable 6 de Discovery. El entregable se aprobó y ya estamos en Development (ver `AGENTS.md`), pero solo el objeto de intervención (D001) y el empate de `occurredAt` (D003 arriba) están cerrados del todo; el edificio (D005 arriba) tiene entrada pero solo resuelve el campo de identidad, no el modelo de sharing. Siguen sin cerrar:
