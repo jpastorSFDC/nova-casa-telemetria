@@ -835,3 +835,31 @@ tbody tr:last-child td {
     cursor: not-allowed;
     opacity: 0.6;
 }
+
+/* Text for screen readers only (table captions). */
+.solo-lectores {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* History rows kept only as evidence (Atrasada / Superada): muted, and also tagged with text in the row. */
+.fila-evidencia td {
+    color: var(--nc-tinta-suave);
+    font-style: italic;
+}
+.fila-evidencia .celda-fuerte {
+    color: var(--nc-tinta-suave);
+    font-weight: 500;
+}
+.nota-leyenda {
+    margin: 0.6rem 0 0;
+    font-size: 0.75rem;
+    color: var(--nc-tinta-suave);
+}

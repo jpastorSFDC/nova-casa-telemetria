@@ -79,7 +79,7 @@ C/R/E/D = Create/Read/Edit/Delete del permission set; después del punto, de dó
 - **Coordinador**: lo del operador, más edición en `Umbral__c.Activo__c` y lectura en `Umbral__c.Severidad_Nivel__c`.
 - **Gerente**: lo del operador. Nada editable.
 - **Claves técnicas** (`Account.External_Id__c`, `Asset.External_Id__c`, `Lectura_Vigente__c.Clave__c`, `Identidad_Senal__c` en `Case` y `Lectura_Vigente__c`): solo lectura para todas las personas (alineado con PR #26); solo Admin las edita. La pantalla del operador consulta `Asset.External_Id__c` en `USER_MODE`, así que sin esa FLS muestra error de acceso; las otras cuatro son para los layouts de `Case`, `Account` y `Lectura_Vigente__c`.
-- **Solo Admin**: todo `Log_Senial__c`.
+- **Solo Admin**: todo `Log_Senial__c`. Excepción (D024): operador, coordinador y gerente ven en el detalle del activo el "Historial de señales" (tipo de señal, fecha de origen y resultado) de los activos que ya ven, leído por Apex sin darles permisos sobre el objeto.
 
 ## Acciones
 
@@ -89,6 +89,7 @@ C/R/E/D = Create/Read/Edit/Delete del permission set; después del punto, de dó
 | Seguir una intervención (editar `Case`) | Coordinador, Admin | Edit en `Case` en `Nova_Casa_Coordinator`; nadie la crea a mano, la crea la ingesta |
 | Cambiar umbrales | Coordinador (crear/editar), Admin (todo) | CRUD de `Umbral__c` en el permission set; requiere el OWD Public Read/Write de arriba |
 | Ver errores técnicos y motivo de rechazo | Admin | `Log_Senial__c` solo en `Nova_Casa_Admin` |
+| Ver el historial de señales de un activo (sin motivo ni detalle técnico) | Operador, Coordinador, Gerente, Admin | `ActivosOperadorController.getHistorial`: comprueba el activo en `USER_MODE` y lee el log en modo sistema; ver D024 |
 | Reintentar una señal | Admin | Edit en `Log_Senial__c` (`Reintento_Seguro__c`); el mecanismo de reintento es de BR-209 |
 | Ingestar señales | Usuario de integración | `Nova_Casa_Simulator_Integration` + permiso de ingesta propio (T2.10), separado del operador |
 
