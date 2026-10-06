@@ -5,6 +5,10 @@ private class PermisosProcesamientoTest {
     private static final String OCURRIDO = '2026-09-30T16:45:21.262Z';
     private static final String SALA = 'AST-BOG-TEMP-001';
     private static final String SALA_2 = 'AST-BOG-TEMP-002';
+    private static final String ROL_INTEGRACION = 'Integracion_Telemetria';
+    private static final String ROL_OPERADOR = 'Operador_Edificios';
+    private static final String ROL_COORDINADOR = 'Coordinador_Mantenimiento';
+    private static final String ROL_GERENTE = 'Gerente_Regional_Operaciones';
 
     @TestSetup
     static void crearCatalogoYUmbrales() {
@@ -90,13 +94,64 @@ private class PermisosProcesamientoTest {
         Assert.areEqual(2, [SELECT COUNT() FROM Lectura_Vigente__c], 'Se escribe una lectura vigente por activo');
     }
 
+    @IsTest
+    static void coordinadorYGerenteVenPorJerarquiaLoQueCreaLaIngesta() {
+        // Dado un operador dueño del edificio y el usuario de ingesta en el rol Integración Telemetría (como en producción)
+        User operador = crearUsuario('prmoperador', 'Nova_Casa_Operator', ROL_OPERADOR);
+        User coordinador = crearUsuario('prmcoord', 'Nova_Casa_Coordinator', ROL_COORDINADOR);
+        User gerente = crearUsuario('prmgerente', 'Nova_Casa_Gerente', ROL_GERENTE);
+        User usuario = crearUsuarioConSoloElConjunto();
+        update new Account(Id = [SELECT Id FROM Account WHERE External_Id__c = 'BLD-PRM-001'].Id, OwnerId = operador.Id);
+
+        // Cuando la ingesta procesa una señal crítica
+        Test.startTest();
+        System.runAs(usuario) {
+            new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_prm_jerarquia', SALA, '36') });
+        }
+        Test.stopTest();
+
+        // Entonces el Case y la lectura existen y pertenecen al usuario de ingesta, no a quien ve
+        Assert.areEqual(1, [SELECT COUNT() FROM Case WHERE OwnerId = :usuario.Id], 'El Case lo crea el usuario de ingesta');
+        Assert.areEqual(1, [SELECT COUNT() FROM Lectura_Vigente__c], 'La ingesta escribe la lectura vigente');
+        // y coordinador y gerente los ven por la jerarquía de roles, sin ser dueños de nada
+        for (User persona : new List<User>{ coordinador, gerente }) {
+            Integer casos;
+            Integer lecturas;
+            System.runAs(persona) {
+                casos = [SELECT COUNT() FROM Case WITH USER_MODE];
+                lecturas = [SELECT COUNT() FROM Lectura_Vigente__c WITH USER_MODE];
+            }
+            Assert.areEqual(1, casos, 'El Case de ingesta debe verse por jerarquía: ' + persona.LastName);
+            Assert.areEqual(1, lecturas, 'La lectura debe verse por jerarquía: ' + persona.LastName);
+        }
+    }
+
+    private static User crearUsuario(String prefijo, String conjuntoNombre, String rol) {
+        String sufijo = String.valueOf(Crypto.getRandomInteger()).replace('-', 'n');
+        User usuario = new User(
+            LastName = prefijo, Alias = prefijo.right(8), Email = prefijo + '@novacasa-test.example.com',
+            Username = prefijo + '.' + sufijo + '@novacasa-test.example.com',
+            ProfileId = [SELECT Id FROM Profile WHERE Name = 'Minimum Access - Salesforce' LIMIT 1].Id,
+            UserRoleId = [SELECT Id FROM UserRole WHERE DeveloperName = :rol LIMIT 1].Id,
+            TimeZoneSidKey = 'America/Bogota', LocaleSidKey = 'en_US', EmailEncodingKey = 'UTF-8', LanguageLocaleKey = 'en_US'
+        );
+        Id conjuntoId = [SELECT Id FROM PermissionSet WHERE Name = :conjuntoNombre LIMIT 1].Id;
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            insert usuario;
+            insert new PermissionSetAssignment(AssigneeId = usuario.Id, PermissionSetId = conjuntoId);
+        }
+        return usuario;
+    }
+
     private static User crearUsuarioConSoloElConjunto() {
         String sufijo = String.valueOf(Crypto.getRandomInteger()).replace('-', '');
         User usuario = new User(
             FirstName = 'Procesamiento', LastName = 'Permisos', Alias = 'prm' + sufijo.left(5),
             Email = 'prm' + sufijo + '@example.com', Username = 'prm' + sufijo + '@novacasa.test.invalid',
             ProfileId = [SELECT Id FROM Profile WHERE Name = 'Standard User' LIMIT 1].Id,
-            TimeZoneSidKey = 'America/Bogota', LocaleSidKey = 'es_CO', EmailEncodingKey = 'UTF-8', LanguageLocaleKey = 'en_US'
+            TimeZoneSidKey = 'America/Bogota', LocaleSidKey = 'es_CO', EmailEncodingKey = 'UTF-8', LanguageLocaleKey = 'en_US',
+            // Como en producción: bajo el Coordinador en la jerarquía, para que este vea lo que crea la ingesta.
+            UserRoleId = [SELECT Id FROM UserRole WHERE DeveloperName = :ROL_INTEGRACION LIMIT 1].Id
         );
         Id conjuntoId = [SELECT Id FROM PermissionSet WHERE Name = :CONJUNTO LIMIT 1].Id;
         // Objetos de configuración: se insertan aparte, en un contexto propio, para evitar MIXED_DML_OPERATION.
