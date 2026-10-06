@@ -5,9 +5,15 @@
 @isTest
 private class IntervencionOperadorControllerTest {
 
+    private static final String OPERATOR_ROLE = 'Operador_Edificios';
+    private static final String COORDINATOR_ROLE = 'Coordinador_Mantenimiento';
+    private static final String GERENTE_ROLE = 'Gerente_Regional_Operaciones';
+
     // ─── Helpers ──────────────────────────────────────────────────────────
 
-    private static User newUserWithPermissionSet(String prefix, String permissionSetName) {
+    // roleName may be null. With private sharing (BR-208) a coordinator or gerente sees a building only through the
+    // role hierarchy, above the operator who owns it.
+    private static User newUserWithPermissionSet(String prefix, String permissionSetName, String roleName) {
         User u;
         System.runAs(new User(Id = UserInfo.getUserId())) {
             List<PermissionSet> sets = [SELECT Id FROM PermissionSet WHERE Name = :permissionSetName];
@@ -23,7 +29,8 @@ private class IntervencionOperadorControllerTest {
                 TimeZoneSidKey = 'America/Bogota',
                 LocaleSidKey = 'en_US',
                 EmailEncodingKey = 'UTF-8',
-                LanguageLocaleKey = 'en_US'
+                LanguageLocaleKey = 'en_US',
+                UserRoleId = roleName == null ? null : roleId(roleName)
             );
             insert u;
             insert new PermissionSetAssignment(AssigneeId = u.Id, PermissionSetId = sets[0].Id);
@@ -31,8 +38,14 @@ private class IntervencionOperadorControllerTest {
         return u;
     }
 
-    private static Asset newAssetWithReading(String code, Integer level) {
-        Account building = new Account(Name = 'Edificio ' + code);
+    private static Id roleId(String developerName) {
+        List<UserRole> roles = [SELECT Id FROM UserRole WHERE DeveloperName = :developerName];
+        Assert.areEqual(1, roles.size(), developerName + ' must be deployed to the org');
+        return roles[0].Id;
+    }
+
+    private static Asset newAssetWithReading(String code, Integer level, Id ownerId) {
+        Account building = new Account(Name = 'Edificio ' + code, OwnerId = ownerId);
         insert building;
         Asset asset = new Asset(Name = 'Activo ' + code, AccountId = building.Id, Tipo_Activo__c = 'WATER_PUMP', External_Id__c = code);
         insert asset;
@@ -62,8 +75,8 @@ private class IntervencionOperadorControllerTest {
 
     @isTest
     static void shouldOpenManualCaseWithReasonAndPriorityFromSeverity_WhenOperatorHasPermission() {
-        Asset asset = newAssetWithReading('AST-MAN-1', 1);
-        User operator = newUserWithPermissionSet('ncmanop', 'Nova_Casa_Operator');
+        User operator = newUserWithPermissionSet('ncmanop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Asset asset = newAssetWithReading('AST-MAN-1', 1, operator.Id);
 
         IntervencionOperadorController.Resultado result;
         System.runAs(operator) {
@@ -84,9 +97,9 @@ private class IntervencionOperadorControllerTest {
 
     @isTest
     static void shouldMapCriticalAndNormalSeverityToPriority() {
-        Asset critical = newAssetWithReading('AST-MAN-C', 2);
-        Asset normal = newAssetWithReading('AST-MAN-N', 0);
-        User operator = newUserWithPermissionSet('ncmanprio', 'Nova_Casa_Operator');
+        User operator = newUserWithPermissionSet('ncmanprio', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Asset critical = newAssetWithReading('AST-MAN-C', 2, operator.Id);
+        Asset normal = newAssetWithReading('AST-MAN-N', 0, operator.Id);
 
         System.runAs(operator) {
             IntervencionOperadorController.crearIntervencion(critical.Id, 'motivo');
@@ -99,8 +112,8 @@ private class IntervencionOperadorControllerTest {
 
     @isTest
     static void shouldRefuseSecondIntervention_WhenOneIsAlreadyOpen() {
-        Asset asset = newAssetWithReading('AST-MAN-2', 2);
-        User operator = newUserWithPermissionSet('ncmandup', 'Nova_Casa_Operator');
+        User operator = newUserWithPermissionSet('ncmandup', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Asset asset = newAssetWithReading('AST-MAN-2', 2, operator.Id);
         Case existing = new Case(AssetId = asset.Id, Status = 'En curso', Origin = 'Telemetria', Subject = 'Ya abierta');
         insert existing;
         String caseNumber = [SELECT CaseNumber FROM Case WHERE Id = :existing.Id].CaseNumber;
@@ -117,8 +130,8 @@ private class IntervencionOperadorControllerTest {
 
     @isTest
     static void shouldOpenAgain_WhenThePreviousInterventionIsClosed() {
-        Asset asset = newAssetWithReading('AST-MAN-3', 1);
-        User operator = newUserWithPermissionSet('ncmanclosed', 'Nova_Casa_Operator');
+        User operator = newUserWithPermissionSet('ncmanclosed', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Asset asset = newAssetWithReading('AST-MAN-3', 1, operator.Id);
         insert new Case(AssetId = asset.Id, Status = 'Closed', Origin = 'Telemetria', Subject = 'Vieja');
 
         System.runAs(operator) {
@@ -130,8 +143,8 @@ private class IntervencionOperadorControllerTest {
 
     @isTest
     static void shouldBlockTheSecondClick_WhenTheSameUserCreatesTwice() {
-        Asset asset = newAssetWithReading('AST-MAN-4', 1);
-        User operator = newUserWithPermissionSet('ncmandbl', 'Nova_Casa_Operator');
+        User operator = newUserWithPermissionSet('ncmandbl', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Asset asset = newAssetWithReading('AST-MAN-4', 1, operator.Id);
 
         String second;
         System.runAs(operator) {
@@ -146,8 +159,8 @@ private class IntervencionOperadorControllerTest {
 
     @isTest
     static void shouldRefuse_WhenReasonIsBlankOrTooLong() {
-        Asset asset = newAssetWithReading('AST-MAN-5', 1);
-        User operator = newUserWithPermissionSet('ncmanreason', 'Nova_Casa_Operator');
+        User operator = newUserWithPermissionSet('ncmanreason', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Asset asset = newAssetWithReading('AST-MAN-5', 1, operator.Id);
 
         String blank;
         String nullReason;
@@ -166,8 +179,8 @@ private class IntervencionOperadorControllerTest {
 
     @isTest
     static void shouldRefuse_WhenAssetHasNoReadingsOrDoesNotExist() {
-        Asset noReadings = newAssetWithReading('AST-MAN-6', null);
-        User operator = newUserWithPermissionSet('ncmannoread', 'Nova_Casa_Operator');
+        User operator = newUserWithPermissionSet('ncmannoread', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Asset noReadings = newAssetWithReading('AST-MAN-6', null, operator.Id);
 
         String noReadingsError;
         String missingError;
@@ -186,8 +199,9 @@ private class IntervencionOperadorControllerTest {
 
     @isTest
     static void shouldRefuseWithoutCreating_WhenUserLacksTheCustomPermission() {
-        Asset asset = newAssetWithReading('AST-MAN-7', 2);
-        User gerente = newUserWithPermissionSet('ncmangte', 'Nova_Casa_Gerente');
+        User operator = newUserWithPermissionSet('ncmangteop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User gerente = newUserWithPermissionSet('ncmangte', 'Nova_Casa_Gerente', GERENTE_ROLE);
+        Asset asset = newAssetWithReading('AST-MAN-7', 2, operator.Id);
 
         String error;
         System.runAs(gerente) {
@@ -202,10 +216,11 @@ private class IntervencionOperadorControllerTest {
 
     @isTest
     static void shouldChangeStatusAndAppendComment_WhenCoordinatorFollowsUp() {
-        Asset asset = newAssetWithReading('AST-FUP-1', 2);
-        Case c = new Case(AssetId = asset.Id, Status = 'En curso', Origin = 'Telemetria', Subject = 'Abierta', Description = 'Original');
+        User operator = newUserWithPermissionSet('ncfupown', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User coordinator = newUserWithPermissionSet('ncfupcoord', 'Nova_Casa_Coordinator', COORDINATOR_ROLE);
+        Asset asset = newAssetWithReading('AST-FUP-1', 2, operator.Id);
+        Case c = new Case(AssetId = asset.Id, OwnerId = operator.Id, Status = 'En curso', Origin = 'Telemetria', Subject = 'Abierta', Description = 'Original');
         insert c;
-        User coordinator = newUserWithPermissionSet('ncfupcoord', 'Nova_Casa_Coordinator');
 
         System.runAs(coordinator) {
             IntervencionOperadorController.actualizarSeguimiento(c.Id, 'On Hold', 'Esperando repuesto');
@@ -219,10 +234,11 @@ private class IntervencionOperadorControllerTest {
 
     @isTest
     static void shouldChangeStatusWithoutComment_WhenCommentIsBlank() {
-        Asset asset = newAssetWithReading('AST-FUP-2', 2);
-        Case c = new Case(AssetId = asset.Id, Status = 'En curso', Origin = 'Telemetria', Subject = 'Abierta', Description = 'Original');
+        User operator = newUserWithPermissionSet('ncfupcloseop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User coordinator = newUserWithPermissionSet('ncfupclose', 'Nova_Casa_Coordinator', COORDINATOR_ROLE);
+        Asset asset = newAssetWithReading('AST-FUP-2', 2, operator.Id);
+        Case c = new Case(AssetId = asset.Id, OwnerId = operator.Id, Status = 'En curso', Origin = 'Telemetria', Subject = 'Abierta', Description = 'Original');
         insert c;
-        User coordinator = newUserWithPermissionSet('ncfupclose', 'Nova_Casa_Coordinator');
 
         System.runAs(coordinator) {
             IntervencionOperadorController.actualizarSeguimiento(c.Id, 'Closed', '  ');
@@ -235,10 +251,10 @@ private class IntervencionOperadorControllerTest {
 
     @isTest
     static void shouldRefuseFollowUp_WhenOperatorLacksThePermission() {
-        Asset asset = newAssetWithReading('AST-FUP-3', 2);
-        Case c = new Case(AssetId = asset.Id, Status = 'En curso', Origin = 'Telemetria', Subject = 'Abierta');
+        User operator = newUserWithPermissionSet('ncfupop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Asset asset = newAssetWithReading('AST-FUP-3', 2, operator.Id);
+        Case c = new Case(AssetId = asset.Id, OwnerId = operator.Id, Status = 'En curso', Origin = 'Telemetria', Subject = 'Abierta');
         insert c;
-        User operator = newUserWithPermissionSet('ncfupop', 'Nova_Casa_Operator');
 
         String error;
         System.runAs(operator) {
@@ -255,10 +271,11 @@ private class IntervencionOperadorControllerTest {
 
     @isTest
     static void shouldRefuseFollowUp_WhenStatusIsNotAllowedOrInputIsBad() {
-        Asset asset = newAssetWithReading('AST-FUP-4', 2);
-        Case c = new Case(AssetId = asset.Id, Status = 'En curso', Origin = 'Telemetria', Subject = 'Abierta');
+        User operator = newUserWithPermissionSet('ncfupbadop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User coordinator = newUserWithPermissionSet('ncfupbad', 'Nova_Casa_Coordinator', COORDINATOR_ROLE);
+        Asset asset = newAssetWithReading('AST-FUP-4', 2, operator.Id);
+        Case c = new Case(AssetId = asset.Id, OwnerId = operator.Id, Status = 'En curso', Origin = 'Telemetria', Subject = 'Abierta');
         insert c;
-        User coordinator = newUserWithPermissionSet('ncfupbad', 'Nova_Casa_Coordinator');
 
         List<String> errors = new List<String>();
         System.runAs(coordinator) {
@@ -290,14 +307,17 @@ private class IntervencionOperadorControllerTest {
 
     @isTest
     static void shouldRefuseFollowUp_WhenCaseIsClosedOrHasNoAsset() {
-        Asset asset = newAssetWithReading('AST-FUP-5', 2);
-        Case closed = new Case(AssetId = asset.Id, Status = 'Closed', Origin = 'Telemetria', Subject = 'Cerrada');
-        Case noAsset = new Case(Status = 'En curso', Origin = 'Email', Subject = 'Sin activo');
+        User operator = newUserWithPermissionSet('ncfupscopeop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User coordinator = newUserWithPermissionSet('ncfupscope', 'Nova_Casa_Coordinator', COORDINATOR_ROLE);
+        Asset asset = newAssetWithReading('AST-FUP-5', 2, operator.Id);
+        Case closed = new Case(AssetId = asset.Id, OwnerId = operator.Id, Status = 'Closed', Origin = 'Telemetria', Subject = 'Cerrada');
+        Case noAsset = new Case(OwnerId = operator.Id, Status = 'En curso', Origin = 'Email', Subject = 'Sin activo');
         insert new List<Case>{ closed, noAsset };
-        User coordinator = newUserWithPermissionSet('ncfupscope', 'Nova_Casa_Coordinator');
 
+        Integer visible;
         List<String> errors = new List<String>();
         System.runAs(coordinator) {
+            visible = [SELECT COUNT() FROM Case WHERE Id IN :new Set<Id>{ closed.Id, noAsset.Id } WITH USER_MODE];
             for (Case c : new List<Case>{ closed, noAsset }) {
                 try {
                     IntervencionOperadorController.actualizarSeguimiento(c.Id, 'En curso', null);
@@ -308,6 +328,7 @@ private class IntervencionOperadorControllerTest {
             }
         }
 
+        Assert.areEqual(2, visible, 'The coordinator can see both Cases, so not-found comes from the filter, not from sharing');
         Assert.areEqual(new List<String>{
             IntervencionOperadorController.CASE_NOT_FOUND, IntervencionOperadorController.CASE_NOT_FOUND
         }, errors);
@@ -318,7 +339,7 @@ private class IntervencionOperadorControllerTest {
     // ─── Capabilities per role ────────────────────────────────────────────
 
     private static ActivosOperadorController.Capacidades capsOf(String prefix, String permissionSet) {
-        User u = newUserWithPermissionSet(prefix, permissionSet);
+        User u = newUserWithPermissionSet(prefix, permissionSet, null);
         ActivosOperadorController.Capacidades caps;
         System.runAs(u) {
             caps = ActivosOperadorController.getCapacidades();

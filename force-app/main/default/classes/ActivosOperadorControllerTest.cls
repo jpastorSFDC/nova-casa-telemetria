@@ -1,6 +1,8 @@
 @isTest
 private class ActivosOperadorControllerTest {
 
+    private static final String OPERATOR_ROLE = 'Operador_Edificios';
+    private static final String COORDINATOR_ROLE = 'Coordinador_Mantenimiento';
     private static Integer keyCounter = 0;
 
     @testSetup
@@ -54,6 +56,8 @@ private class ActivosOperadorControllerTest {
             User restricted = newUser(p.Id, 'nc207restricted', suffix);
             User operator = newUser(p.Id, 'nc207operator', suffix);
             User noFls = newUser(p.Id, 'nc207nofls', suffix);
+            // The coordinator sees this operator's buildings through the role hierarchy.
+            operator.UserRoleId = roleId(OPERATOR_ROLE);
             insert new List<User>{ restricted, operator, noFls };
 
             insert new List<PermissionSetAssignment>{
@@ -334,7 +338,7 @@ private class ActivosOperadorControllerTest {
     @isTest
     static void userWithoutObjectAccessIsDeniedWithASafeError() {
         // Given data that exists and that an admin can see
-        Account building = newAccount('Edificio Privado');
+        Account building = newAccount('Edificio Privado', UserInfo.getUserId());
         Asset asset = newAsset('AST-PRIV', building, 'WATER_PUMP');
         newReading(asset, 'TEMPERATURE', 'CELSIUS', 95, baseTime(), 2);
         newCase(asset, 'New', 'Secret case');
@@ -365,8 +369,8 @@ private class ActivosOperadorControllerTest {
 
     @isTest
     static void userMissingFieldAccessGetsAnErrorInsteadOfPartialData() {
-        // Given data and a user who can read the objects but not Asset.Tipo_Activo__c
-        Account building = newAccount('Edificio FLS');
+        // Given data owned by a user who can read the objects but not Asset.Tipo_Activo__c
+        Account building = newAccount('Edificio FLS', userLike('nc207nofls').Id);
         Asset asset = newAsset('AST-FLS', building, 'WATER_PUMP');
         newReading(asset, 'TEMPERATURE', 'CELSIUS', 95, baseTime(), 2);
 
@@ -471,8 +475,8 @@ private class ActivosOperadorControllerTest {
     @isTest
     static void realOperatorPermissionSetCanReadTheListButNotThresholds() {
         // Given a user holding only the shipped Nova_Casa_Operator permission set
-        User realOperator = newUserWithPermissionSet('nc207realop', 'Nova_Casa_Operator');
-        Account building = newAccount('Edificio Operador Real');
+        User realOperator = newUserWithPermissionSet('nc207realop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Account building = newAccount('Edificio Operador Real', realOperator.Id);
         Asset asset = newAsset('AST-REAL-OP', building, 'WATER_PUMP');
         setExternalId(asset, 'AST-TST-OP');
         newReading(asset, 'TEMPERATURE', 'CELSIUS', 95, baseTime(), 2);
@@ -507,8 +511,8 @@ private class ActivosOperadorControllerTest {
 
     @isTest
     static void realCoordinatorPermissionSetCanReadTheListAndThresholds() {
-        // Given a user holding only the shipped Nova_Casa_Coordinator permission set
-        User realCoordinator = newUserWithPermissionSet('nc207realcoord', 'Nova_Casa_Coordinator');
+        // Given a user holding only the shipped Nova_Casa_Coordinator permission set, above the building's operator
+        User realCoordinator = newUserWithPermissionSet('nc207realcoord', 'Nova_Casa_Coordinator', COORDINATOR_ROLE);
         Account building = newAccount('Edificio Coordinador Real');
         Asset asset = newAsset('AST-REAL-CO', building, 'ENERGY_METER');
         setExternalId(asset, 'AST-TST-CO');
@@ -538,13 +542,14 @@ private class ActivosOperadorControllerTest {
     // ---------- helpers ----------
 
     // Assigns a SHIPPED permission set (by Name) to a fresh user. Call before inserting data rows in the test.
-    private static User newUserWithPermissionSet(String prefix, String permissionSetName) {
+    private static User newUserWithPermissionSet(String prefix, String permissionSetName, String roleName) {
         User u;
         System.runAs(new User(Id = UserInfo.getUserId())) {
             List<PermissionSet> sets = [SELECT Id FROM PermissionSet WHERE Name = :permissionSetName];
             Assert.areEqual(1, sets.size(), permissionSetName + ' must be deployed to the org');
             Profile p = [SELECT Id FROM Profile WHERE Name = 'Minimum Access - Salesforce' LIMIT 1];
             u = newUser(p.Id, prefix, String.valueOf(Crypto.getRandomInteger()).replace('-', 'n'));
+            u.UserRoleId = roleId(roleName);
             insert u;
             insert new PermissionSetAssignment(AssigneeId = u.Id, PermissionSetId = sets[0].Id);
         }
@@ -600,6 +605,12 @@ private class ActivosOperadorControllerTest {
         return [SELECT Id FROM User WHERE Username LIKE :pattern LIMIT 1];
     }
 
+    private static Id roleId(String developerName) {
+        List<UserRole> roles = [SELECT Id FROM UserRole WHERE DeveloperName = :developerName];
+        Assert.areEqual(1, roles.size(), developerName + ' must be deployed to the org');
+        return roles[0].Id;
+    }
+
     private static PermissionSet newPermissionSet(String name) {
         return new PermissionSet(Name = name, Label = name);
     }
@@ -618,8 +629,13 @@ private class ActivosOperadorControllerTest {
         );
     }
 
+    // Owned by the operator: with private Account sharing (BR-208) only the owner and the roles above it see a building.
     private static Account newAccount(String name) {
-        Account acc = new Account(Name = name);
+        return newAccount(name, userLike('nc207operator').Id);
+    }
+
+    private static Account newAccount(String name, Id ownerId) {
+        Account acc = new Account(Name = name, OwnerId = ownerId);
         insert acc;
         return acc;
     }
@@ -650,8 +666,10 @@ private class ActivosOperadorControllerTest {
         return r;
     }
 
+    // Owned by the building's owner, so with private Case sharing whoever sees the asset also sees its cases.
     private static Case newCase(Asset asset, String status, String subject) {
-        Case c = new Case(AssetId = asset.Id, Status = status, Subject = subject, Origin = 'Web');
+        Id ownerId = [SELECT Account.OwnerId FROM Asset WHERE Id = :asset.Id].Account.OwnerId;
+        Case c = new Case(AssetId = asset.Id, OwnerId = ownerId, Status = status, Subject = subject, Origin = 'Web');
         insert c;
         return c;
     }
