@@ -373,6 +373,51 @@
                         </tbody>
                     </table>
                 </section>
+
+                <section class="card-extra" aria-label="Historial de señales" aria-busy={historyLoading}>
+                    <h3>Historial de señales</h3>
+                    <template if:true={historyLoading}>
+                        <p class="nota" role="status">Cargando historial…</p>
+                    </template>
+                    <template if:true={showHistoryError}>
+                        <p class="nota nota-error" role="alert">{historyErrorMessage}</p>
+                    </template>
+                    <template if:true={showHistoryEmpty}>
+                        <p class="nota" role="status">Este activo todavía no tiene señales registradas.</p>
+                    </template>
+                    <template if:true={showHistoryTable}>
+                        <table>
+                            <caption class="solo-lectores">Señales recientes del activo, de la más nueva a la más antigua</caption>
+                            <thead>
+                                <tr>
+                                    <th scope="col">Tipo de señal</th>
+                                    <th scope="col">Fecha de origen</th>
+                                    <th scope="col">Resultado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template for:each={historyRows} for:item="h">
+                                    <tr key={h.key} class={h.rowClass}>
+                                        <td class="celda-fuerte">{h.typeLabel}</td>
+                                        <td class="num">{h.occurredText}</td>
+                                        <td>
+                                            {h.resultado}
+                                            <template if:true={h.isEvidence}>
+                                                <span class="celda-sub"> (solo evidencia)</span>
+                                            </template>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </template>
+                    <template if:true={showHistoryTable}>
+                        <p class="nota nota-leyenda">Es un registro de las señales recibidas, no las lecturas actuales. Las marcadas como Atrasada o Superada se guardan como evidencia y no cambian el estado actual del activo.</p>
+                    </template>
+                    <template if:true={showHistoryTruncated}>
+                        <p class="nota" role="status">{historyTruncatedText}</p>
+                    </template>
+                </section>
             </div>
         </template>
     </div>
