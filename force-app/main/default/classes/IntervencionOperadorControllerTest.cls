@@ -129,6 +129,22 @@ private class IntervencionOperadorControllerTest {
     }
 
     @isTest
+    static void shouldRefuseAsAssetNotFound_WhenTheAssetIsInvisibleEvenIfAnOpenCaseExists() {
+        User operator = newUserWithPermissionSet('ncmaninv', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User otherOwner = newUserWithPermissionSet('ncmanown', 'Nova_Casa_Operator', null);
+        Asset hidden = newAssetWithReading('AST-MAN-H', 2, otherOwner.Id);
+        insert new Case(AssetId = hidden.Id, Status = 'En curso', Origin = 'Telemetria', Subject = 'Ya abierta');
+
+        String error;
+        System.runAs(operator) {
+            error = errorOf(hidden.Id, 'intento');
+        }
+
+        Assert.areEqual(IntervencionOperadorController.ASSET_NOT_FOUND, error, 'No oracle about Cases on assets the user cannot see');
+        Assert.areEqual(1, caseCount(hidden.Id), 'No second Case');
+    }
+
+    @isTest
     static void shouldOpenAgain_WhenThePreviousInterventionIsClosed() {
         User operator = newUserWithPermissionSet('ncmanclosed', 'Nova_Casa_Operator', OPERATOR_ROLE);
         Asset asset = newAssetWithReading('AST-MAN-3', 1, operator.Id);
