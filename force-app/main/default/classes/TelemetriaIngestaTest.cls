@@ -32,15 +32,19 @@ private class TelemetriaIngestaTest {
         public Integer llamadasSesion = 0;
         public Integer llamadasTelemetria = 0;
         public String ultimoCursorEnviado;
+        public String ultimoCuerpoSesion;
+        public String ultimaUrlTelemetria;
 
         public HttpResponse respond(HttpRequest request) {
             HttpResponse response = new HttpResponse();
             if (request.getEndpoint().contains('/session')) {
                 llamadasSesion++;
+                ultimoCuerpoSesion = request.getBody();
                 response.setStatusCode(estadoSesion);
                 response.setBody(cuerpoSesion);
             } else {
                 llamadasTelemetria++;
+                ultimaUrlTelemetria = request.getEndpoint();
                 ultimoCursorEnviado = request.getHeader(SimuladorClient.CURSOR_HEADER);
                 response.setStatusCode(estadosTelemetriaEnOrden.isEmpty() ? estadoTelemetria : estadosTelemetriaEnOrden.remove(0));
                 response.setBody(cuerpoTelemetria);
@@ -407,6 +411,86 @@ private class TelemetriaIngestaTest {
         Assert.areEqual(1, TelemetriaIngesta.encolados.size());
         Assert.areEqual(1, TelemetriaIngesta.retrasosCapturados[0], '10 s round up to the 1-minute minimum');
         Assert.areEqual(0, TelemetriaIngesta.encolados[0].intento, 'A new page starts with no failed attempts');
+    }
+
+    @isTest
+    static void laSemillaYElTamanoDeLoteViajanEnLaSesionYEnLaLectura() {
+        Mock mock = preparar(mensajes(2, 'param-'), 'fake-cursor-3', true);
+        TelemetriaIngesta trabajo = new TelemetriaIngesta('QA_200', 3);
+        trabajo.semilla = 42;
+        trabajo.tamanoLote = 50;
+
+        Test.startTest(); // no stopTest: see the class note on event delivery
+        trabajo.execute(null);
+
+        Map<String, Object> cuerpo = (Map<String, Object>) JSON.deserializeUntyped(mock.ultimoCuerpoSesion);
+        Assert.areEqual(42, cuerpo.get('seed'));
+        Assert.areEqual(50, cuerpo.get('batchSize'));
+        Assert.isTrue(mock.ultimaUrlTelemetria.endsWith('limit=50'), 'The page is requested with the batch size');
+        TelemetriaIngesta siguiente = TelemetriaIngesta.encolados[0];
+        Assert.areEqual(42, siguiente.semilla, 'The next page keeps the seed');
+        Assert.areEqual(50, siguiente.tamanoLote, 'The next page keeps the batch size');
+    }
+
+    @isTest
+    static void unaSesionReabiertaPideLoMismoQueLaOriginal() {
+        Mock mock = preparar(mensajes(1, 'reabre-'), null, false);
+        mock.estadosTelemetriaEnOrden = new List<Integer>{ 410 };
+        TelemetriaIngesta trabajo = new TelemetriaIngesta('QA_200', 'fake-expired-cursor', 2, 5, new TelemetriaIngesta.Resumen());
+        trabajo.semilla = 42;
+        trabajo.tamanoLote = 50;
+
+        Test.startTest(); // no stopTest: see the class note on event delivery
+        trabajo.execute(null);
+
+        Map<String, Object> cuerpo = (Map<String, Object>) JSON.deserializeUntyped(mock.ultimoCuerpoSesion);
+        Assert.areEqual(42, cuerpo.get('seed'), 'A replay asks for the same sequence');
+        Assert.areEqual(50, cuerpo.get('batchSize'));
+    }
+
+    @isTest
+    static void unReintentoConservaLaSemillaYElTamanoDeLote() {
+        Mock mock = preparar(mensajes(1, 'reint-'), null, false);
+        mock.estadosTelemetriaEnOrden = new List<Integer>{ 429 };
+        TelemetriaIngesta trabajo = new TelemetriaIngesta(null, 'fake-cursor-2', 1, 5, new TelemetriaIngesta.Resumen());
+        trabajo.semilla = 42;
+        trabajo.tamanoLote = 50;
+
+        Test.startTest(); // no stopTest: see the class note on event delivery
+        trabajo.execute(null);
+
+        Assert.areEqual(42, TelemetriaIngesta.encolados[0].semilla);
+        Assert.areEqual(50, TelemetriaIngesta.encolados[0].tamanoLote);
+    }
+
+    @isTest
+    static void elTamanoDeLoteSeValidaYPorDefectoEs200() {
+        Assert.areEqual(200, TelemetriaIngesta.validarTamanoLote(null));
+        Assert.areEqual(1, TelemetriaIngesta.validarTamanoLote(1));
+        Assert.areEqual(200, TelemetriaIngesta.validarTamanoLote(200));
+        for (Integer invalido : new List<Integer>{ 0, -5, 201 }) {
+            try {
+                TelemetriaIngesta.validarTamanoLote(invalido);
+                Assert.fail('Expected IllegalArgumentException for ' + invalido);
+            } catch (IllegalArgumentException e) {
+                Assert.isTrue(e.getMessage().contains('between 1 and 200'));
+            }
+        }
+        Assert.areEqual(200, new TelemetriaIngesta('QA_200', 3).tamanoLote, 'A job built without parameters asks for 200');
+    }
+
+    @isTest
+    static void iniciarRechazaUnTamanoDeLoteInvalidoSinEncolar() {
+        Test.startTest();
+        try {
+            TelemetriaIngesta.iniciar('QA_200', 42, 500, 3);
+            Assert.fail('Expected IllegalArgumentException');
+        } catch (IllegalArgumentException e) {
+            Assert.isTrue(e.getMessage().contains('500'));
+        }
+        Test.stopTest();
+
+        Assert.areEqual(0, [SELECT COUNT() FROM AsyncApexJob WHERE ApexClass.Name = 'TelemetriaIngesta'], 'Nothing was enqueued');
     }
 
     @isTest

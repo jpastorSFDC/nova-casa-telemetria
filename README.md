@@ -78,6 +78,14 @@ It's safe to run more than once: a building or asset already in the org (matched
 TelemetriaIngesta.iniciar('QA_200', 5); // scenario, max pages (default 25, cap 100)
 ```
 
+To repeat a sequence or use smaller pages, pass a seed and a batch size (1 to 200, default 200; anything else is refused before anything is enqueued):
+
+```apex
+TelemetriaIngesta.iniciar('QA_200', 42, 50, 5); // scenario, seed, batch size, max pages
+```
+
+Both go in the `POST /session` body (`seed`, `batchSize`) and the batch size is also the `limit` of every page; a reopened session or a retry asks for the same seed. The simulator decides whether it honors them: `QA_200` was seen returning 200 per page whatever the session asked.
+
 Admins can also start it from the operator screen: **Traer señales** (needs the `Nova_Casa_Traer_Senales` custom permission and `Nova_Casa_Simulator_Integration`). It refuses to start while another run is queued or running, and shows the log rows written by result.
 
 Follow it in Setup > Apex Jobs. The run ends on `hasMore = false`, an empty page or the page cap. Processing is the subscriber's job; a row stays `Publicada` until it has handled the event. The simulator token lives only in Setup; the session cursor is never logged or stored (see D013).
