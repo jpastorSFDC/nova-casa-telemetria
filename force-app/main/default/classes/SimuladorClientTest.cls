@@ -228,6 +228,27 @@ private class SimuladorClientTest {
     }
 
     @isTest
+    static void abrirSesionEnviaSemillaYTamanoDeLoteSoloSiSePiden() {
+        Mock mock = preparar(200, '{"cursor":"fake-session-cursor"}');
+        Test.startTest();
+        SimuladorClient.abrirSesion('QA_200', 42, 50);
+        Map<String, Object> conTodo = (Map<String, Object>) JSON.deserializeUntyped(mock.ultima.getBody());
+        SimuladorClient.abrirSesion('QA_200', null, null);
+        Map<String, Object> soloEscenario = (Map<String, Object>) JSON.deserializeUntyped(mock.ultima.getBody());
+        SimuladorClient.abrirSesion(null, 7, null);
+        Map<String, Object> soloSemilla = (Map<String, Object>) JSON.deserializeUntyped(mock.ultima.getBody());
+        Test.stopTest();
+
+        Assert.areEqual('QA_200', conTodo.get('scenario'));
+        Assert.areEqual(42, conTodo.get('seed'));
+        Assert.areEqual(50, conTodo.get('batchSize'));
+        Assert.areEqual(1, soloEscenario.size(), 'Without seed or batch size only the scenario is sent');
+        Assert.isFalse(soloEscenario.containsKey('seed') || soloEscenario.containsKey('batchSize'));
+        Assert.areEqual(7, soloSemilla.get('seed'));
+        Assert.isFalse(soloSemilla.containsKey('scenario') || soloSemilla.containsKey('batchSize'));
+    }
+
+    @isTest
     static void abrirSesionSinEscenarioNoEnviaCuerpo() {
         Mock mock = preparar(201, '{"cursor":"fake-session-cursor"}');
         Test.startTest();

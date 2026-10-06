@@ -46,21 +46,40 @@ public inherited sharing class SimuladorClient {
         public Integer pollAfterMs;
     }
 
+    /** Starts a session with the simulator's defaults for seed and batch size. */
+    public static String abrirSesion(String escenario) {
+        return abrirSesion(escenario, null, null);
+    }
+
     /**
      * Starts a simulator session.
-     * @param escenario Optional scenario name (for example QA_200). Blank sends no body.
+     * @param escenario Optional scenario name (for example QA_200). Blank sends no scenario.
+     * @param semilla Optional seed to repeat a sequence; null sends none
+     * @param tamanoLote Optional batch size (T4.2); null sends none. The simulator decides whether it honors it
+     *        (QA_200 was seen returning 200 per page whatever the session asked), so the page limit of
+     *        leerPagina is the reliable bound.
      * @return The session cursor to use for the first page. Sensitive: do not log.
      * @throws SimuladorClientException on callout failure, non-200/201 status or a response without a cursor
      */
-    public static String abrirSesion(String escenario) {
+    public static String abrirSesion(String escenario, Integer semilla, Integer tamanoLote) {
         HttpRequest request = new HttpRequest();
         request.setEndpoint(BASE_ENDPOINT + '/session');
         request.setMethod('POST');
         request.setTimeout(TIMEOUT_MS);
         request.setHeader('Accept', 'application/json');
+        Map<String, Object> cuerpoPeticion = new Map<String, Object>();
         if (String.isNotBlank(escenario)) {
+            cuerpoPeticion.put('scenario', escenario);
+        }
+        if (semilla != null) {
+            cuerpoPeticion.put('seed', semilla);
+        }
+        if (tamanoLote != null) {
+            cuerpoPeticion.put('batchSize', tamanoLote);
+        }
+        if (!cuerpoPeticion.isEmpty()) {
             request.setHeader('Content-Type', 'application/json');
-            request.setBody(JSON.serialize(new Map<String, Object>{ 'scenario' => escenario }));
+            request.setBody(JSON.serialize(cuerpoPeticion));
         } else {
             request.setBody('');
         }

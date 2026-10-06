@@ -128,6 +128,13 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
     private Integer intento = 0;
     @TestVisible
     private Integer trabajos;
+    // Session parameters (T4.2). semilla null lets the simulator pick; tamanoLote is the page size asked for.
+    // Both travel to every job of the chain and to a reopened session; with a seed a replay asks for the same
+    // stream, without one a reopened session may start a different stream (see D023).
+    @TestVisible
+    private Integer semilla;
+    @TestVisible
+    private Integer tamanoLote = PAGE_SIZE;
     // True once this page already reopened its session, so retries of the same page do not reopen it again.
     @TestVisible
     private Boolean sesionReabierta = false;
@@ -184,7 +191,40 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
      * TelemetriaIngesta.iniciar('QA_200', 5);
      */
     public static Id iniciar(String escenario, Integer maxPaginas) {
-        return System.enqueueJob(new TelemetriaIngesta(escenario, topeDePaginas(maxPaginas)));
+        return iniciar(escenario, null, null, maxPaginas);
+    }
+
+    /**
+     * Same as iniciar(escenario, maxPaginas) with the session parameters.
+     * @param semilla Seed to repeat a sequence; null lets the simulator choose
+     * @param tamanoLote Records per page, 1 to 200; null means 200
+     * @throws IllegalArgumentException when tamanoLote is outside 1..200
+     * @example
+     * TelemetriaIngesta.iniciar('QA_200', 42, 50, 5);
+     */
+    public static Id iniciar(String escenario, Integer semilla, Integer tamanoLote, Integer maxPaginas) {
+        TelemetriaIngesta trabajo = new TelemetriaIngesta(escenario, topeDePaginas(maxPaginas));
+        trabajo.semilla = semilla;
+        trabajo.tamanoLote = validarTamanoLote(tamanoLote);
+        return System.enqueueJob(trabajo);
+    }
+
+    @TestVisible
+    private static Integer validarTamanoLote(Integer pedido) {
+        if (pedido == null) {
+            return PAGE_SIZE;
+        }
+        if (pedido < 1 || pedido > PAGE_SIZE) {
+            throw new IllegalArgumentException('tamanoLote must be between 1 and ' + PAGE_SIZE + ' (received ' + pedido + ')');
+        }
+        return pedido;
+    }
+
+    /** The job for another page (or a retry) keeps this run's session parameters. */
+    private TelemetriaIngesta conParametrosDeSesion(TelemetriaIngesta otro) {
+        otro.semilla = semilla;
+        otro.tamanoLote = tamanoLote;
+        return otro;
     }
 
     @TestVisible
@@ -201,7 +241,8 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
             if (esReintentable(e) && intento + 1 < MAX_INTENTOS && !profundidadAgotada()) {
                 System.debug(LoggingLevel.WARN, 'Ingesta: estado ' + e.statusCode + ' en la pagina ' + pagina
                     + ', reintento ' + (intento + 1) + ' de ' + (MAX_INTENTOS - 1));
-                TelemetriaIngesta reintento = new TelemetriaIngesta(escenario, cursor, pagina, maxPaginas, acumulado);
+                TelemetriaIngesta reintento = conParametrosDeSesion(
+                    new TelemetriaIngesta(escenario, cursor, pagina, maxPaginas, acumulado));
                 reintento.intento = intento + 1;
                 reintento.sesionReabierta = sesionReabierta;
                 acumulado.reintentos++;
@@ -236,7 +277,8 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
             System.debug(LoggingLevel.WARN, 'Ingesta detenida: profundidad maxima de cola alcanzada, ' + resumenComoTexto(acumulado));
             return;
         }
-        TelemetriaIngesta siguiente = new TelemetriaIngesta(escenario, leida.siguienteCursor, pagina + 1, maxPaginas, acumulado);
+        TelemetriaIngesta siguiente = conParametrosDeSesion(
+            new TelemetriaIngesta(escenario, leida.siguienteCursor, pagina + 1, maxPaginas, acumulado));
         siguiente.trabajos = trabajos + 1;
         encolar(siguiente, minutosDeEspera(leida.pollAfterMs));
     }
@@ -247,10 +289,10 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
      */
     private SimuladorClient.Pagina leerPaginaConSesion() {
         if (String.isBlank(cursor)) {
-            cursor = SimuladorClient.abrirSesion(escenario);
+            cursor = SimuladorClient.abrirSesion(escenario, semilla, tamanoLote);
         }
         try {
-            return SimuladorClient.leerPagina(cursor, PAGE_SIZE);
+            return SimuladorClient.leerPagina(cursor, tamanoLote);
         } catch (SimuladorClient.SimuladorClientException e) {
             if ((e.statusCode != 409 && e.statusCode != 410) || sesionReabierta) {
                 throw e;
@@ -258,8 +300,8 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
             sesionReabierta = true;
             acumulado.sesionesReabiertas++;
             System.debug(LoggingLevel.WARN, 'Ingesta: sesion rechazada (' + e.statusCode + '), se abre una nueva en la pagina ' + pagina);
-            cursor = SimuladorClient.abrirSesion(escenario);
-            return SimuladorClient.leerPagina(cursor, PAGE_SIZE);
+            cursor = SimuladorClient.abrirSesion(escenario, semilla, tamanoLote);
+            return SimuladorClient.leerPagina(cursor, tamanoLote);
         }
     }
 
