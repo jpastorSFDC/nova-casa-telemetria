@@ -61,10 +61,11 @@ C/R/E/D = Create/Read/Edit/Delete del permission set; después del punto, de dó
 ## Campos (FLS)
 
 - **Todos los que ven `Lectura_Vigente__c`** ven sus campos requeridos (`Asset__c`, `Tipo_Medicion__c`, `Valor__c`, `Unidad__c`, `Occurred_At__c`): la plataforma no permite FLS sobre campos requeridos.
-- **Operador**: lectura en `Asset.AccountId`, `Asset.Tipo_Activo__c`, `Case.AssetId`, `Case.Subject`, `Lectura_Vigente__c.Sensor_Id__c`, `Lectura_Vigente__c.Severidad_Nivel__c`. No ve los resúmenes de `Asset` (`Severidad_Actual__c`, `Severidad_Nivel__c`, `Ultima_Senal__c`): la pantalla calcula la severidad desde las lecturas, pero la página estándar del activo no los muestra.
+- **Operador**: lectura en `Asset.AccountId`, `Asset.Tipo_Activo__c`, los resúmenes de `Asset` (`Severidad_Actual__c`, `Severidad_Nivel__c`, `Ultima_Senal__c`), `Case.AssetId`, `Case.Subject`, `Lectura_Vigente__c.Sensor_Id__c`, `Lectura_Vigente__c.Severidad_Nivel__c`, `Lectura_Vigente__c.Severidad__c` y las claves técnicas.
 - **Coordinador**: lo del operador, más edición en `Umbral__c.Activo__c` y lectura en `Umbral__c.Severidad_Nivel__c`.
-- **Gerente**: lo del operador, más lectura en los resúmenes de `Asset` y en `Lectura_Vigente__c.Severidad__c`. Nada editable.
-- **Solo Admin**: las claves técnicas (`Account.External_Id__c`, `Asset.External_Id__c`, `Lectura_Vigente__c.Clave__c`, `Identidad_Senal__c` en `Case` y `Lectura_Vigente__c`) y todo `Log_Senial__c`.
+- **Gerente**: lo del operador. Nada editable.
+- **Claves técnicas** (`Account.External_Id__c`, `Asset.External_Id__c`, `Lectura_Vigente__c.Clave__c`, `Identidad_Senal__c` en `Case` y `Lectura_Vigente__c`): solo lectura para todas las personas (alineado con PR #26); solo Admin las edita. La pantalla del operador consulta `Asset.External_Id__c` en `USER_MODE`, así que sin esa FLS muestra error de acceso; las otras cuatro son para los layouts de `Case`, `Account` y `Lectura_Vigente__c`.
+- **Solo Admin**: todo `Log_Senial__c`.
 
 ## Acciones
 
@@ -87,7 +88,7 @@ C/R/E/D = Create/Read/Edit/Delete del permission set; después del punto, de dó
 
 ## Perfil Standard User
 
-Los usuarios persona tienen hoy el perfil Standard User, que da CRED en `Account`, `Asset`, `Contact` y `Opportunity`, y CRE en `Case`. Los permission sets solo suman, así que hoy el operador puede editar o borrar edificios y editar casos aunque `Nova_Casa_Operator` sea de solo lectura. El plan es pasarlos a Minimum Access - Salesforce, que no da acceso a objetos pero tampoco Lightning Experience; `Nova_Casa_Lightning` (desplegado, sin asignar) agrega solo `LightningExperienceUser`. Antes del cambio hay que revisar las pestañas estándar `Case` y `Asset`: solo `Nova_Casa_Gerente` las declara.
+Los usuarios persona tienen hoy el perfil Standard User, que da CRED en `Account`, `Asset`, `Contact` y `Opportunity`, y CRE en `Case`. Los permission sets solo suman, así que hoy el operador puede editar o borrar edificios y editar casos aunque `Nova_Casa_Operator` sea de solo lectura. El plan es pasarlos a Minimum Access - Salesforce, que no da acceso a objetos pero tampoco Lightning Experience; `Nova_Casa_Lightning` (desplegado, sin asignar) agrega solo `LightningExperienceUser`. Antes del cambio hay que revisar las pestañas estándar `Account`, `Case` y `Asset`: solo `Nova_Casa_Gerente` las declara.
 
 ## Línea base (2026-10-05, OWD público)
 
