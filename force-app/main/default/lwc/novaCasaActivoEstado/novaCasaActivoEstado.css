@@ -50,7 +50,47 @@ td {
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
 }
-.estado {
+.caso {
+    border: 1px solid var(--nc-linea);
+    border-left: 4px solid var(--nc-critico);
+    border-radius: 8px;
+    padding: 0.65rem 0.85rem;
+    background: var(--nc-papel);
+}
+.caso-cabecera {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+.caso-glifo {
+    color: var(--nc-critico);
+}
+.caso-enlace {
+    font-weight: 800;
+    font-size: 0.95rem;
+}
+.caso-estado {
+    margin-left: auto;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--nc-info);
+    border: 1px solid var(--nc-info);
+    border-radius: 999px;
+    padding: 0.18rem 0.55rem;
+    white-space: nowrap;
+}
+.caso-asunto {
+    margin: 0.35rem 0 0;
+    font-size: 0.9rem;
+}
+.caso-mas {
+    margin: 0.5rem 0 0;
+    padding-top: 0.45rem;
+    border-top: 1px dashed var(--nc-linea);
+    font-size: 0.8rem;
     color: var(--nc-tinta-media);
 }
 .nota {
