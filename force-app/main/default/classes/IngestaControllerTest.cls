@@ -41,7 +41,7 @@ private class IngestaControllerTest {
 
     private static String startError(String scenario, Integer pages) {
         try {
-            IngestaController.traerSenales(scenario, pages);
+            IngestaController.traerSenales(scenario, pages, false);
         } catch (AuraHandledException e) {
             return e.getMessage();
         }
@@ -64,7 +64,7 @@ private class IngestaControllerTest {
         String second;
         IngestaController.Estado state;
         System.runAs(admin) {
-            started = IngestaController.traerSenales('CRITICAL_BURST', 3);
+            started = IngestaController.traerSenales('CRITICAL_BURST', 3, false);
             second = startError('QA_200', null);
             state = IngestaController.estadoIngesta(started.iniciadaEn);
         }
@@ -110,6 +110,133 @@ private class IngestaControllerTest {
         Assert.areEqual(IngestaController.NO_PERMISSION, startErr);
         Assert.areEqual(IngestaController.NO_PERMISSION, statusErr);
         Assert.areEqual(0, [SELECT COUNT() FROM AsyncApexJob WHERE ApexClass.Name = 'TelemetriaIngesta']);
+    }
+
+    @isTest
+    static void shouldKeepTheSavedSession_WhenRestartIsNotAsked() {
+        User admin = newUserWithPermissionSet('ncingrst', 'Nova_Casa_Admin');
+        Test.setMock(HttpCalloutMock.class, new EmptySimulatorMock());
+        String key = SesionSimulador.clave('QA_200', null, 200);
+        SesionSimulador.memoriaDePrueba = new Map<String, String>{ key => 'fake-saved-cursor' };
+
+        System.runAs(admin) {
+            IngestaController.traerSenales('QA_200', 1, false);
+        }
+        Assert.areEqual('fake-saved-cursor', SesionSimulador.memoriaDePrueba.get(key), 'Without restart the session is kept');
+    }
+
+    @isTest
+    static void shouldClearTheSavedSession_WhenRestartIsAsked() {
+        User admin = newUserWithPermissionSet('ncingrs2', 'Nova_Casa_Admin');
+        Test.setMock(HttpCalloutMock.class, new EmptySimulatorMock());
+        String key = SesionSimulador.clave('QA_200', null, 200);
+        String otherKey = SesionSimulador.clave('MIXED', null, 200);
+        SesionSimulador.memoriaDePrueba = new Map<String, String>{ key => 'fake-saved-cursor', otherKey => 'fake-other-cursor' };
+
+        System.runAs(admin) {
+            IngestaController.traerSenales('QA_200', 1, true);
+        }
+
+        Assert.isFalse(SesionSimulador.memoriaDePrueba.containsKey(key), 'Restart clears the session of that scenario');
+        Assert.isTrue(SesionSimulador.memoriaDePrueba.containsKey(otherKey), 'Other scenarios keep theirs');
+    }
+
+    @isTest
+    static void shouldNotClearAnything_WhenRestartIsRefused() {
+        User coordinator = newUserWithPermissionSet('ncingrs3', 'Nova_Casa_Coordinator');
+        String key = SesionSimulador.clave('QA_200', null, 200);
+        SesionSimulador.memoriaDePrueba = new Map<String, String>{ key => 'fake-saved-cursor' };
+
+        String error;
+        System.runAs(coordinator) {
+            try {
+                IngestaController.traerSenales('QA_200', 1, true);
+            } catch (AuraHandledException e) {
+                error = e.getMessage();
+            }
+        }
+
+        Assert.areEqual(IngestaController.NO_PERMISSION, error);
+        Assert.areEqual('fake-saved-cursor', SesionSimulador.memoriaDePrueba.get(key), 'The permission check comes before the restart');
+    }
+
+    @isTest
+    static void shouldExplainARunWithNoNewSignals_WithTheCountersOfTheLastRun() {
+        User admin = newUserWithPermissionSet('ncingdet', 'Nova_Casa_Admin');
+        String secret = 'SECRET-CURSOR-XYZ';
+        SesionSimulador.memoriaDePrueba = new Map<String, String>{ SesionSimulador.clave('QA_200', null, 200) => secret };
+        TelemetriaIngesta.Resumen run = new TelemetriaIngesta.Resumen();
+        run.paginas = 2;
+        run.recibidos = 400;
+        run.yaExistentes = 400;
+        run.sesionContinuada = true;
+        run.actualizadoEn = Datetime.now();
+        SesionSimulador.guardarResumen(JSON.serialize(run));
+
+        IngestaController.Estado state;
+        System.runAs(admin) {
+            state = IngestaController.estadoIngesta(Datetime.now().addMinutes(-5));
+        }
+
+        Assert.areEqual(0, state.total, 'Duplicates create no new log row');
+        Assert.isNotNull(state.detalle);
+        Assert.areEqual(2, state.detalle.paginas);
+        Assert.areEqual(400, state.detalle.recibidos);
+        Assert.areEqual(400, state.detalle.yaExistentes, 'The skipped duplicates are reported');
+        Assert.isTrue(state.detalle.sesionContinuada);
+        Assert.isFalse(JSON.serialize(state).contains(secret), 'The status never carries the cursor');
+    }
+
+    @isTest
+    static void shouldReportFailedLogsAndPublishes_AndThatTheCursorDidNotAdvance() {
+        User admin = newUserWithPermissionSet('ncingfal', 'Nova_Casa_Admin');
+        SesionSimulador.memoriaDePrueba = new Map<String, String>();
+        TelemetriaIngesta.Resumen run = new TelemetriaIngesta.Resumen();
+        run.logsFallidos = 2;
+        run.fallosPublicacion = 1;
+        run.cursorSinAvanzar = true;
+        run.actualizadoEn = Datetime.now();
+        SesionSimulador.guardarResumen(JSON.serialize(run));
+
+        IngestaController.Estado state;
+        System.runAs(admin) {
+            state = IngestaController.estadoIngesta(Datetime.now().addMinutes(-5));
+        }
+
+        Assert.areEqual(2, state.detalle.logsFallidos);
+        Assert.areEqual(1, state.detalle.fallosPublicacion);
+        Assert.isTrue(state.detalle.cursorSinAvanzar);
+    }
+
+    @isTest
+    static void shouldIgnoreTheSummaryOfAnEarlierRun() {
+        User admin = newUserWithPermissionSet('ncingold', 'Nova_Casa_Admin');
+        SesionSimulador.memoriaDePrueba = new Map<String, String>();
+        TelemetriaIngesta.Resumen earlier = new TelemetriaIngesta.Resumen();
+        earlier.yaExistentes = 400;
+        earlier.actualizadoEn = Datetime.now().addHours(-2);
+        SesionSimulador.guardarResumen(JSON.serialize(earlier));
+
+        IngestaController.Estado state;
+        System.runAs(admin) {
+            state = IngestaController.estadoIngesta(Datetime.now().addMinutes(-5));
+        }
+
+        Assert.isNull(state.detalle, 'A summary older than the run being watched is not shown');
+    }
+
+    @isTest
+    static void shouldAnswerWithoutDetail_WhenThereIsNoCache() {
+        User admin = newUserWithPermissionSet('ncingnoc', 'Nova_Casa_Admin');
+        SesionSimulador.simularNoDisponible = true;
+
+        IngestaController.Estado state;
+        System.runAs(admin) {
+            state = IngestaController.estadoIngesta(null);
+        }
+
+        Assert.isNull(state.detalle);
+        Assert.areEqual(0, state.total);
     }
 
     @isTest
