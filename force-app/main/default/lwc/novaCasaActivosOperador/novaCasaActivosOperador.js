@@ -208,6 +208,7 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     ingestOpen = false;
     scenario = 'MIXED';
     ingestPages = String(DEFAULT_INGEST_PAGES);
+    ingestRestart = false;
     ingestStarting = false;
     ingestError = '';
     ingestState = null;
@@ -952,6 +953,47 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         return `${head} · ${plural(st.total, 'señal registrada', 'señales registradas')}${parts.length ? ' · ' + parts.join(' · ') : ''}`;
     }
 
+    // What the last run did, so a run with no new signals is explained (duplicates, saved session, end of stream).
+    get ingestDetail() {
+        const d = this.ingestState && this.ingestState.detalle;
+        if (!d) {
+            return '';
+        }
+        const parts = [`Leyó ${plural(d.paginas, 'página', 'páginas')} (${plural(d.recibidos, 'mensaje', 'mensajes')})`];
+        if (d.yaExistentes > 0) {
+            parts.push(`${plural(d.yaExistentes, 'ya existía', 'ya existían')} y se omitieron`);
+        }
+        if (d.sesionReiniciada) {
+            parts.push('sesión reiniciada: empezó desde el primer mensaje del simulador');
+        } else if (d.sesionContinuada) {
+            parts.push('continuó la sesión guardada');
+        } else if (d.cacheNoDisponible) {
+            parts.push('sin caché de plataforma: abrió una sesión nueva y releyó desde el inicio');
+        } else {
+            parts.push('abrió una sesión nueva');
+        }
+        if (d.flujoTerminado) {
+            parts.push('el simulador no tiene más mensajes en esta sesión; usa «Reiniciar sesión» para empezar de nuevo');
+        }
+        if (d.interrumpidaPorEstado !== null && d.interrumpidaPorEstado !== undefined) {
+            parts.push(`se interrumpió por un error del simulador (estado ${d.interrumpidaPorEstado}); la próxima corrida sigue desde ahí`);
+        }
+        if (d.logsFallidos > 0 || d.fallosPublicacion > 0 || d.noPublicadosPorLog > 0) {
+            const failed = [];
+            if (d.logsFallidos > 0) {
+                failed.push(`${plural(d.logsFallidos, 'registro de log falló', 'registros de log fallaron')}`);
+            }
+            if (d.fallosPublicacion > 0) {
+                failed.push(`${plural(d.fallosPublicacion, 'publicación falló', 'publicaciones fallaron')}`);
+            }
+            parts.push(`${failed.join(' y ')}; el cursor guardado no avanzó y la próxima corrida volverá a leer esos mensajes`);
+        }
+        return `${parts.join(' · ')}.`;
+    }
+    get hasIngestDetail() {
+        return Boolean(this.ingestDetail);
+    }
+
     toggleIngest() {
         this.ingestOpen = !this.ingestOpen;
     }
@@ -960,6 +1002,9 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     }
     handleIngestPages(event) {
         this.ingestPages = event.target.value;
+    }
+    handleIngestRestart(event) {
+        this.ingestRestart = event.target.checked;
     }
 
     async handleStartIngest() {
@@ -970,7 +1015,13 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         this.ingestError = '';
         try {
             const pages = Number.parseInt(this.ingestPages, 10);
-            const started = await traerSenales({ escenario: this.scenario, paginas: Number.isNaN(pages) ? null : pages });
+            const started = await traerSenales({
+                escenario: this.scenario,
+                paginas: Number.isNaN(pages) ? null : pages,
+                reiniciar: this.ingestRestart
+            });
+            // A restart is a one-off: the next press continues the session again.
+            this.ingestRestart = false;
             this._ingestSince = started.iniciadaEn;
             this.ingestState = { enCurso: true, total: 0, porResultado: {} };
             this.startIngestPolling();

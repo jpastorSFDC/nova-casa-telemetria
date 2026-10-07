@@ -25,11 +25,16 @@
                         </select>
                         <label class="filtro-label" for="i-paginas">Páginas (1 a 25)</label>
                         <input class="campo" id="i-paginas" type="number" min="1" max="25" value={ingestPages} disabled={ingestRunning} onchange={handleIngestPages} />
+                        <input id="i-reiniciar" type="checkbox" checked={ingestRestart} disabled={ingestRunning} onchange={handleIngestRestart} />
+                        <label class="filtro-label" for="i-reiniciar">Reiniciar sesión</label>
                         <button type="button" class="boton urgente" disabled={ingestRunning} onclick={handleStartIngest}>Traer señales</button>
                     </div>
-                    <p class="nota">Crea lecturas, registros de log y casos reales. Una sola corrida a la vez; avisa al equipo antes de lanzarla.</p>
+                    <p class="nota">Crea lecturas, registros de log y casos reales. Una sola corrida a la vez; avisa al equipo antes de lanzarla. Cada corrida continúa donde quedó la anterior; marca «Reiniciar sesión» para empezar otra vez desde el primer mensaje del simulador.</p>
                     <template if:true={hasIngestState}>
                         <p class="nota" role="status" aria-live="polite">{ingestSummary}</p>
+                        <template if:true={hasIngestDetail}>
+                            <p class="nota" role="status" aria-live="polite">{ingestDetail}</p>
+                        </template>
                     </template>
                     <template if:true={ingestError}>
                         <p class="nota nota-error" role="alert">{ingestError}</p>
