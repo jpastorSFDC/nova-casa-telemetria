@@ -369,7 +369,7 @@ private class CatalogoServiceTest {
         ];
 
         // No city: BillingCity is not grantable in a permission set, so this user would fail on Account first.
-        Test.setMock(HttpCalloutMock.class, new CatalogSimulatorMock(200, ONE_BUILDING_CATALOG_JSON.remove('"city":"Bogotá",')));
+        Test.setMock(HttpCalloutMock.class, new CatalogSimulatorMock(200, ONE_BUILDING_CATALOG_JSON.replaceAll('"city":"[^"]*",', '')));
 
         // When/Then
         System.runAs(restrictedUser) {
