@@ -57,15 +57,17 @@
                 <section class="bloque" aria-label="Intervención abierta">
                     <h3 class="titulo">Intervención abierta</h3>
                     <template if:true={hasIntervention}>
-                        <p>
-                            <span aria-hidden="true">&#9650;</span>
-                            <a href="#" onclick={handleCaseClick}>{caseTitle}</a>
-                            <span> · {caseSubject}</span>
-                            <span class="estado"> · Estado: {intervention.status}</span>
-                        </p>
-                        <template if:true={hasMoreInterventions}>
-                            <p class="nota">{moreInterventionsText}</p>
-                        </template>
+                        <div class="caso">
+                            <div class="caso-cabecera">
+                                <span class="caso-glifo" aria-hidden="true">&#9650;</span>
+                                <a class="caso-enlace" href="#" onclick={handleCaseClick}>{caseTitle}</a>
+                                <span class="caso-estado">Estado: {intervention.status}</span>
+                            </div>
+                            <p class="caso-asunto">{caseSubject}</p>
+                            <template if:true={hasMoreInterventions}>
+                                <p class="caso-mas">{moreInterventionsText}</p>
+                            </template>
+                        </div>
                     </template>
                     <template if:false={hasIntervention}>
                         <p class="nota" role="status">Este activo no tiene intervenciones abiertas.</p>
