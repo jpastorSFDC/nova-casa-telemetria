@@ -6,6 +6,7 @@ import ASSET_OBJECT from '@salesforce/schema/Asset';
 import TIPO_ACTIVO from '@salesforce/schema/Asset.Tipo_Activo__c';
 import getAssets from '@salesforce/apex/ActivosOperadorController.getAssets';
 import getBuildings from '@salesforce/apex/ActivosOperadorController.getBuildings';
+import getHistorial from '@salesforce/apex/ActivosOperadorController.getHistorial';
 import getCapacidades from '@salesforce/apex/ActivosOperadorController.getCapacidades';
 import crearIntervencion from '@salesforce/apex/IntervencionOperadorController.crearIntervencion';
 import actualizarSeguimiento from '@salesforce/apex/IntervencionOperadorController.actualizarSeguimiento';
@@ -60,6 +61,14 @@ const MEASUREMENT_LABELS = {
 };
 // Active measurement types: the detail table lists the ones an asset has no reading for as "Sin lecturas".
 const MEASUREMENT_TYPES = Object.keys(MEASUREMENT_LABELS);
+
+// Log_Senial__c.Message_Type__c values; unknown ones fall back to the raw value.
+const SIGNAL_TYPE_LABELS = {
+    MEASUREMENT: 'Medición',
+    CONNECTIVITY: 'Conectividad'
+};
+const HISTORY_LIMIT = 20;
+const EVIDENCE_RESULTS = ['Atrasada', 'Superada'];
 
 // Asset.Tipo_Activo__c values that have their own icon; any other type gets the neutral icon.
 const ICON_PUMP = 'WATER_PUMP';
@@ -130,6 +139,11 @@ function formatUtcTime(value) {
 function formatValue(value, unit) {
     const number = value === null || value === undefined ? '—' : NUMBER_FORMAT.format(value);
     return unit ? `${number} ${unit}` : number;
+}
+
+function formatUtcDateTime(value) {
+    const ms = toMillis(value);
+    return ms === null ? '—' : `${new Date(ms).toISOString().slice(0, 16).replace('T', ' ')} UTC`;
 }
 
 function severityUi(level, hasReadings) {
@@ -269,6 +283,70 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         if (data || error) {
             this.isRefreshing = false;
         }
+    }
+
+    // Signal history of the open detail. Undefined (not null) while no asset is open, so the wire does not fire.
+    historyData;
+    historyError;
+    historyLoaded = false;
+
+    get historyAssetId() {
+        return this.selectedAssetId || undefined;
+    }
+    get historyLimit() {
+        return HISTORY_LIMIT;
+    }
+
+    @wire(getHistorial, { assetId: '$historyAssetId', limite: '$historyLimit' })
+    wiredHistory({ data, error }) {
+        if (data) {
+            this.historyData = data;
+            this.historyError = undefined;
+            this.historyLoaded = true;
+        } else if (error) {
+            // Only the history section shows the error; the rest of the detail is unaffected.
+            this.historyData = undefined;
+            this.historyError = error;
+            this.historyLoaded = true;
+        } else {
+            this.historyData = undefined;
+            this.historyError = undefined;
+            this.historyLoaded = false;
+        }
+    }
+
+    get historyLoading() {
+        return !this.historyLoaded && !this.historyError;
+    }
+    get showHistoryError() {
+        return Boolean(this.historyError);
+    }
+    get historyErrorMessage() {
+        return reduceError(this.historyError);
+    }
+    get historyRows() {
+        const signals = this.historyData?.signals || [];
+        return signals.map((s, i) => ({
+            key: `${i}-${s.occurredAt}`,
+            typeLabel: SIGNAL_TYPE_LABELS[s.messageType] || s.messageType || '—',
+            occurredText: formatUtcDateTime(s.occurredAt),
+            resultado: s.resultado || '—',
+            // Evidence only: these never change the asset's current state. Muted and tagged with text, not color alone.
+            isEvidence: EVIDENCE_RESULTS.includes(s.resultado),
+            rowClass: EVIDENCE_RESULTS.includes(s.resultado) ? 'fila-evidencia' : ''
+        }));
+    }
+    get showHistoryTable() {
+        return !this.historyError && this.historyRows.length > 0;
+    }
+    get showHistoryEmpty() {
+        return this.historyLoaded && !this.historyError && this.historyRows.length === 0;
+    }
+    get showHistoryTruncated() {
+        return this.showHistoryTable && Boolean(this.historyData?.truncated);
+    }
+    get historyTruncatedText() {
+        return `Mostrando las ${this.historyRows.length} señales más recientes.`;
     }
 
     @wire(getBuildings)
@@ -750,6 +828,9 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             return;
         }
         this.selectedAssetId = assetId;
+        this.historyData = undefined;
+        this.historyError = undefined;
+        this.historyLoaded = false;
         this.formMode = null;
         this.actionError = '';
         this._focusTarget = 'detail';

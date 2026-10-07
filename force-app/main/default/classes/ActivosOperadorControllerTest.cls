@@ -609,6 +609,206 @@ private class ActivosOperadorControllerTest {
         Assert.areEqual(2, buildingsG.options.size());
     }
 
+    @isTest
+    static void historyIsNewestFirstAndRespectsTheLimitAndItsClamp() {
+        // Given an asset with 3 signals inserted out of order
+        Account building = newAccount('Edificio Historial');
+        Asset asset = newAsset('AST-HIST', building, 'WATER_PUMP');
+        Datetime now = baseTime();
+        newLog(asset, 'MEASUREMENT', 'Procesada', now.addMinutes(-30), null, null);
+        newLog(asset, 'CONNECTIVITY', 'Atrasada', now, null, null);
+        newLog(asset, 'MEASUREMENT', 'Duplicada', now.addMinutes(-10), null, null);
+        User operator = userLike('nc207operator');
+
+        // When the operator asks for the history
+        ActivosOperadorController.HistoryResult all = history(operator, asset.Id, null);
+        ActivosOperadorController.HistoryResult two = history(operator, asset.Id, 2);
+        ActivosOperadorController.HistoryResult floor = history(operator, asset.Id, 0);
+        ActivosOperadorController.HistoryResult negative = history(operator, asset.Id, -5);
+
+        // Then it is newest first, the default fits everything, and the limit cuts and flags truncation
+        Assert.areEqual(3, all.signals.size());
+        Assert.areEqual(ActivosOperadorController.HISTORY_DEFAULT_LIMIT, all.limite);
+        Assert.isFalse(all.truncated);
+        Assert.areEqual(now, all.signals[0].occurredAt);
+        Assert.areEqual('CONNECTIVITY', all.signals[0].messageType);
+        Assert.areEqual('Atrasada', all.signals[0].resultado);
+        Assert.areEqual(now.addMinutes(-10), all.signals[1].occurredAt);
+        Assert.areEqual(now.addMinutes(-30), all.signals[2].occurredAt);
+        Assert.areEqual(2, two.signals.size());
+        Assert.isTrue(two.truncated);
+        Assert.areEqual(now, two.signals[0].occurredAt);
+        Assert.areEqual(now.addMinutes(-10), two.signals[1].occurredAt);
+        Assert.areEqual(1, floor.limite, 'limit below 1 is clamped to 1');
+        Assert.areEqual(1, floor.signals.size());
+        Assert.areEqual(1, negative.limite);
+    }
+
+    @isTest
+    static void historyLimitIsCappedAtFifty() {
+        // Given an asset with 55 signals
+        Account building = newAccount('Edificio Historial Grande');
+        Asset asset = newAsset('AST-HIST-BIG', building, 'WATER_PUMP');
+        Datetime now = baseTime();
+        List<Log_Senial__c> logs = new List<Log_Senial__c>();
+        for (Integer i = 0; i < 55; i++) {
+            logs.add(logRow(asset, 'MEASUREMENT', 'Procesada', now.addMinutes(-i), null, null));
+        }
+        insert logs;
+
+        // When 500 rows are requested
+        ActivosOperadorController.HistoryResult result = history(userLike('nc207operator'), asset.Id, 500);
+
+        // Then only 50 come back, the newest ones, flagged as truncated
+        Assert.areEqual(50, result.limite);
+        Assert.areEqual(50, result.signals.size());
+        Assert.isTrue(result.truncated);
+        Assert.areEqual(now, result.signals[0].occurredAt);
+        Assert.areEqual(now.addMinutes(-49), result.signals[49].occurredAt);
+    }
+
+    @isTest
+    static void historyOnlyReturnsRowsOfTheRequestedAsset() {
+        // Given two assets, each with its own signals
+        Account building = newAccount('Edificio Dos Activos');
+        Asset a = newAsset('AST-HIST-A', building, 'WATER_PUMP');
+        Asset b = newAsset('AST-HIST-B', building, 'WATER_PUMP');
+        Datetime now = baseTime();
+        newLog(a, 'MEASUREMENT', 'Procesada', now, null, null);
+        newLog(b, 'CONNECTIVITY', 'Rechazada', now.addMinutes(1), null, null);
+        newLog(b, 'CONNECTIVITY', 'Rechazada', now.addMinutes(2), null, null);
+
+        // When the history of A is requested
+        ActivosOperadorController.HistoryResult result = history(userLike('nc207operator'), a.Id, null);
+
+        // Then B's rows are not returned
+        Assert.areEqual(1, result.signals.size());
+        Assert.areEqual('MEASUREMENT', result.signals[0].messageType);
+        Assert.areEqual('Procesada', result.signals[0].resultado);
+    }
+
+    @isTest
+    static void historyIsDeniedForAnAssetTheUserCannotSeeButWorksForTheGerente() {
+        // Given two operators, a Gerente above both, and a signal on operator A's asset
+        User operatorB = newUserWithPermissionSet('nc207operator2', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User gerente = newUserWithPermissionSet('nc207gerenteiso', 'Nova_Casa_Gerente', GERENTE_ROLE);
+        User operatorA = userLike('nc207operator');
+        Account buildingA = newAccount('Edificio Hist A', operatorA.Id);
+        Account buildingB = newAccount('Edificio Hist B', operatorB.Id);
+        Asset assetA = newAsset('AST-HIST-ISO-A', buildingA, 'WATER_PUMP');
+        Asset assetB = newAsset('AST-HIST-ISO-B', buildingB, 'WATER_PUMP');
+        newLog(assetA, 'MEASUREMENT', 'Procesada', baseTime(), null, null);
+        newLog(assetB, 'MEASUREMENT', 'Procesada', baseTime(), null, null);
+
+        // When operator B asks for A's history
+        String denied;
+        System.runAs(operatorB) {
+            try {
+                ActivosOperadorController.getHistorial(assetA.Id, null);
+                Assert.fail('operator B must not read the history of an asset it cannot see');
+            } catch (AuraHandledException e) {
+                denied = e.getMessage();
+            }
+        }
+
+        // Then it fails with the safe message; each operator sees their own and the Gerente sees both
+        Assert.areEqual(ActivosOperadorController.HISTORY_ASSET_MESSAGE, denied);
+        Assert.areEqual(1, history(operatorA, assetA.Id, null).signals.size());
+        Assert.areEqual(1, history(operatorB, assetB.Id, null).signals.size());
+        Assert.areEqual(1, history(gerente, assetA.Id, null).signals.size());
+        Assert.areEqual(1, history(gerente, assetB.Id, null).signals.size());
+    }
+
+    @isTest
+    static void historyRejectsANullOrUnknownAssetWithASafeMessage() {
+        // Given a user and an Id that is not an existing asset
+        User operator = userLike('nc207operator');
+        Account building = newAccount('Edificio Hist Borrado');
+        Asset gone = newAsset('AST-HIST-GONE', building, 'WATER_PUMP');
+        Id goneId = gone.Id;
+        delete gone;
+
+        // When asking with null and with a deleted asset
+        List<Id> ids = new List<Id>{ null, goneId };
+        for (Id candidate : ids) {
+            System.runAs(operator) {
+                try {
+                    ActivosOperadorController.getHistorial(candidate, 10);
+                    Assert.fail('expected a rejection for ' + candidate);
+                } catch (AuraHandledException e) {
+                    // Then the message is the static one
+                    Assert.areEqual(ActivosOperadorController.HISTORY_ASSET_MESSAGE, e.getMessage());
+                }
+            }
+        }
+    }
+
+    @isTest
+    static void historyExposesNoTechnicalFieldsOrValues() {
+        // Given a signal whose technical columns carry recognizable secrets
+        Account building = newAccount('Edificio Hist Tecnico');
+        Asset asset = newAsset('AST-HIST-TECH', building, 'WATER_PUMP');
+        newLog(asset, 'MEASUREMENT', 'Rechazada', baseTime(), 'MOTIVO-SECRETO-XYZ', 'HUELLA-SECRETA-XYZ');
+
+        // When the operator reads the history
+        ActivosOperadorController.HistoryResult result = history(userLike('nc207operator'), asset.Id, null);
+
+        // Then neither the values nor any extra key are in the serialized payload
+        String payload = JSON.serialize(result);
+        Assert.isFalse(payload.contains('SECRETO'), 'Motivo/Huella values must not leave the controller');
+        Assert.isFalse(payload.contains('SECRETA'), 'Motivo/Huella values must not leave the controller');
+        Assert.isFalse(payload.contains('TEST-MSG-'), 'Message_Id__c must not leave the controller');
+        Assert.isFalse(payload.contains('test-src'), 'Source__c must not leave the controller');
+        Map<String, Object> top = (Map<String, Object>) JSON.deserializeUntyped(payload);
+        List<Object> signals = (List<Object>) top.get('signals');
+        Map<String, Object> first = (Map<String, Object>) signals[0];
+        Assert.areEqual(new Set<String>{ 'messageType', 'occurredAt', 'resultado' }, first.keySet());
+    }
+
+    @isTest
+    static void historyRejectsAnIdOfAnotherObjectWithTheSameSafeMessage() {
+        // Given a Case Id (a real record the operator can see)
+        Account building = newAccount('Edificio Hist Caso');
+        Asset asset = newAsset('AST-HIST-CASE', building, 'WATER_PUMP');
+        Case c = newCase(asset, 'New', 'Caso de prueba');
+
+        // When it is passed as the asset Id
+        System.runAs(userLike('nc207operator')) {
+            try {
+                ActivosOperadorController.getHistorial(c.Id, 10);
+                Assert.fail('a non-Asset Id must be rejected');
+            } catch (AuraHandledException e) {
+                // Then it is the same static message
+                Assert.areEqual(ActivosOperadorController.HISTORY_ASSET_MESSAGE, e.getMessage());
+            }
+        }
+    }
+
+    @isTest
+    static void historyReadsTheLogEvenThoughTheOperatorCannotQueryItDirectly() {
+        // Given an operator with the shipped permission set, which grants no access to Log_Senial__c
+        User operator = newUserWithPermissionSet('nc207operatorlog', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Account building = newAccount('Edificio Hist Premisa', operator.Id);
+        Asset asset = newAsset('AST-HIST-PREMISE', building, 'WATER_PUMP');
+        newLog(asset, 'MEASUREMENT', 'Procesada', baseTime(), null, null);
+
+        // When the operator queries the log directly in USER_MODE and through the controller
+        Boolean directBlocked = false;
+        ActivosOperadorController.HistoryResult result;
+        System.runAs(operator) {
+            try {
+                Database.query('SELECT Id FROM Log_Senial__c LIMIT 1', AccessLevel.USER_MODE);
+            } catch (QueryException e) {
+                directBlocked = true;
+            }
+            result = ActivosOperadorController.getHistorial(asset.Id, null);
+        }
+
+        // Then the direct query is denied (premise of the system-mode read) but the history still comes back
+        Assert.isTrue(directBlocked, 'operator must have no access to Log_Senial__c');
+        Assert.areEqual(1, result.signals.size());
+    }
+
     // ---------- helpers ----------
 
     // Assigns a SHIPPED permission set (by Name) to a fresh user. Call before inserting data rows in the test.
@@ -636,6 +836,34 @@ private class ActivosOperadorControllerTest {
             result = ActivosOperadorController.getAssets(accountId, severity, type);
         }
         return result;
+    }
+
+    private static ActivosOperadorController.HistoryResult history(User runAs, Id assetId, Integer limite) {
+        ActivosOperadorController.HistoryResult result;
+        System.runAs(runAs) {
+            result = ActivosOperadorController.getHistorial(assetId, limite);
+        }
+        return result;
+    }
+
+    private static Log_Senial__c logRow(Asset asset, String messageType, String resultado, Datetime at, String motivo, String huella) {
+        keyCounter++;
+        return new Log_Senial__c(
+            Asset__c = asset.Id,
+            Message_Id__c = 'TEST-MSG-' + keyCounter,
+            Source__c = 'test-src',
+            Message_Type__c = messageType,
+            Resultado__c = resultado,
+            Occurred_At__c = at,
+            Motivo__c = motivo,
+            Huella__c = huella
+        );
+    }
+
+    private static Log_Senial__c newLog(Asset asset, String messageType, String resultado, Datetime at, String motivo, String huella) {
+        Log_Senial__c l = logRow(asset, messageType, resultado, at, motivo, huella);
+        insert l;
+        return l;
     }
 
     private static List<String> names(List<ActivosOperadorController.AssetView> views) {

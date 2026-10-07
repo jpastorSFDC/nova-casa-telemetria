@@ -14,6 +14,9 @@ public with sharing class ActivosOperadorController {
     @TestVisible private static final String ACCESS_MESSAGE = 'No tienes acceso a toda la información necesaria para esta lista.';
     @TestVisible private static final String SEVERITY_FILTER_MESSAGE = 'El filtro de severidad no es válido.';
     @TestVisible private static final String BUILDING_FILTER_MESSAGE = 'El filtro de edificio no es válido.';
+    @TestVisible private static final String HISTORY_ASSET_MESSAGE = 'El activo no es válido o no tienes acceso a él.';
+    @TestVisible private static final Integer HISTORY_DEFAULT_LIMIT = 20;
+    @TestVisible private static final Integer HISTORY_MAX_LIMIT = 50;
     @TestVisible private static final String LOAD_MESSAGE = 'No se pudo cargar la información. Inténtalo de nuevo más tarde.';
 
     public class Option {
@@ -232,6 +235,85 @@ public with sharing class ActivosOperadorController {
                 page.add(new AssetView(a, readings, cases));
             }
             return new AssetPage(page, total, pageSize, truncated || total > shown || capped[0]);
+        } catch (AuraHandledException e) {
+            throw e;
+        } catch (Exception e) {
+            throw failure(e);
+        }
+    }
+
+    /**
+     * One signal of the asset history. Deliberately minimal: no Motivo__c, Huella__c, Identidad__c, Message_Id__c,
+     * Source__c or Delivery_Id__c. Technical and error detail stays Admin-only (docs/acceso.md).
+     */
+    public class SignalView {
+        // Log_Senial__c.Message_Type__c: MEASUREMENT or CONNECTIVITY (not the physical measurement type).
+        @AuraEnabled public String messageType { get; private set; }
+        @AuraEnabled public Datetime occurredAt { get; private set; }
+        // Log_Senial__c.Resultado__c, e.g. Procesada, Atrasada, Duplicada.
+        @AuraEnabled public String resultado { get; private set; }
+
+        public SignalView(Log_Senial__c l) {
+            this.messageType = l.Message_Type__c;
+            this.occurredAt = l.Occurred_At__c;
+            this.resultado = l.Resultado__c;
+        }
+    }
+
+    public class HistoryResult {
+        @AuraEnabled public List<SignalView> signals { get; private set; }
+        // Rows requested (after clamping).
+        @AuraEnabled public Integer limite { get; private set; }
+        // True when the asset has more signals than were returned.
+        @AuraEnabled public Boolean truncated { get; private set; }
+        public HistoryResult(List<SignalView> signals, Integer limite, Boolean truncated) {
+            this.signals = signals;
+            this.limite = limite;
+            this.truncated = truncated;
+        }
+    }
+
+    // Log_Senial__c is Private and operators have no access to it. The read is system-mode on purpose (the log is
+    // read without the caller's CRUD/FLS/sharing), and `without sharing` because SYSTEM_MODE alone still honors the
+    // class sharing keyword. It is only reachable after getHistorial proved the asset is visible in USER_MODE.
+    private without sharing class HistoryReader {
+        List<Log_Senial__c> read(Id assetId, Integer fetch) {
+            return [
+                SELECT Message_Type__c, Occurred_At__c, Resultado__c
+                FROM Log_Senial__c
+                WHERE Asset__c = :assetId
+                WITH SYSTEM_MODE
+                ORDER BY Occurred_At__c DESC, Id DESC
+                LIMIT :fetch
+            ];
+        }
+    }
+
+    /**
+     * Recent signals (newest first) of an asset the running user can see.
+     * Authorization: the asset is first queried WITH USER_MODE; if the user cannot see it the call fails and the log is never read.
+     * The log rows themselves are then read in system mode and only three non-technical fields are returned.
+     * @param assetId Asset Id
+     * @param limite max rows; clamped to 1..50, null means 20
+     */
+    @AuraEnabled(cacheable=true)
+    public static HistoryResult getHistorial(Id assetId, Integer limite) {
+        try {
+            if (assetId == null || assetId.getSobjectType() != Asset.SObjectType) {
+                throw safeError(HISTORY_ASSET_MESSAGE);
+            }
+            List<Asset> visible = [SELECT Id FROM Asset WHERE Id = :assetId WITH USER_MODE LIMIT 1];
+            if (visible.isEmpty()) {
+                throw safeError(HISTORY_ASSET_MESSAGE);
+            }
+            Integer cap = limite == null ? HISTORY_DEFAULT_LIMIT : Math.min(Math.max(limite, 1), HISTORY_MAX_LIMIT);
+            List<Log_Senial__c> rows = new HistoryReader().read(assetId, cap + 1);
+            Boolean truncated = rows.size() > cap;
+            List<SignalView> signals = new List<SignalView>();
+            for (Integer i = 0; i < Math.min(rows.size(), cap); i++) {
+                signals.add(new SignalView(rows[i]));
+            }
+            return new HistoryResult(signals, cap, truncated);
         } catch (AuraHandledException e) {
             throw e;
         } catch (Exception e) {
