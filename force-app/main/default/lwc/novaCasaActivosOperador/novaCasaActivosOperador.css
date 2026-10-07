@@ -824,6 +824,10 @@ tbody tr:last-child td {
     display: flex;
     gap: 0.55rem;
 }
+.acciones-int {
+    flex-wrap: wrap;
+    margin-top: 0.6rem;
+}
 .panel-ingesta {
     margin: 0 0 1rem;
     padding: 0.7rem 0.85rem 0.3rem;

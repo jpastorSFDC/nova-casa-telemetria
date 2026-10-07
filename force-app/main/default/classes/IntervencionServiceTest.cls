@@ -138,6 +138,26 @@ private class IntervencionServiceTest {
     }
 
     @isTest
+    static void shouldReturnSameCaseWithoutReopeningIt_WhenSameIdentityIsResentAfterTheCaseWasClosed() {
+        Asset a = asset('AST-INT-001');
+        String identity = 'SIM|msg-closed';
+        IntervencionService.Resultado first = IntervencionService.abrir(
+            new List<IntervencionService.Solicitud>{ solicitud(identity, a, 'WATER_PRESSURE', 'original cause') });
+        Id caseId = first.casoPorIdentidad.get(identity);
+        update new Case(Id = caseId, Status = 'Closed');
+
+        Test.startTest();
+        IntervencionService.Resultado second = IntervencionService.abrir(
+            new List<IntervencionService.Solicitud>{ solicitud(identity, a, 'WATER_PRESSURE', 'original cause') });
+        Test.stopTest();
+
+        Assert.areEqual(1, caseCount(), 'A resend after the close must not open a second Case');
+        Assert.areEqual(caseId, second.casoPorIdentidad.get(identity), 'The closed Case is the existing result');
+        Assert.isTrue(second.errorPorIdentidad.isEmpty());
+        Assert.isTrue([SELECT IsClosed FROM Case WHERE Id = :caseId].IsClosed, 'The resend does not reopen the Case');
+    }
+
+    @isTest
     static void shouldCreateTwoCases_WhenDifferentIdentitiesShareAssetAndMeasurement() {
         Asset a = asset('AST-INT-001');
 

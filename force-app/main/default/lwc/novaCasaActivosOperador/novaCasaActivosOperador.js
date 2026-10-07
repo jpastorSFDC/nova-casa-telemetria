@@ -9,6 +9,7 @@ import getBuildings from '@salesforce/apex/ActivosOperadorController.getBuilding
 import getCapacidades from '@salesforce/apex/ActivosOperadorController.getCapacidades';
 import crearIntervencion from '@salesforce/apex/IntervencionOperadorController.crearIntervencion';
 import actualizarSeguimiento from '@salesforce/apex/IntervencionOperadorController.actualizarSeguimiento';
+import cerrarIntervencionesDelActivo from '@salesforce/apex/IntervencionOperadorController.cerrarIntervencionesDelActivo';
 import traerSenales from '@salesforce/apex/IngestaController.traerSenales';
 import estadoIngesta from '@salesforce/apex/IngestaController.estadoIngesta';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
@@ -31,6 +32,8 @@ const FOLLOW_UP_OPTIONS = [
 // staleMinutes default in novaCasaActivosOperador.js-meta.xml.
 const DEFAULT_STALE_MINUTES = 15;
 const RECORD_ID_PATTERN = /^[a-zA-Z0-9]{15,18}$/;
+// Cases the server closes per call; keep in sync with BULK_CLOSE_MAX in IntervencionOperadorController.
+const BULK_CLOSE_MAX = 200;
 
 // Severity filter labels follow the prototype (Crítico / Precaución / Estable). Values are the controller's levels.
 const SEVERITY_OPTIONS = [
@@ -149,7 +152,7 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     // What the user may do; all false until getCapacidades answers (and if it fails). The server re-checks each action.
     caps = {};
 
-    // Inline forms of the detail view: null, 'crear' or 'seguir'.
+    // Inline forms of the detail view: null, 'crear', 'seguir' or 'cerrar-todas'.
     formMode = null;
     motivo = '';
     nuevoEstado = 'En curso';
@@ -643,7 +646,15 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             moreInterventionsText: `y ${count - 1} intervención(es) abierta(s) más`,
             noInterventionText: this.noInterventionText(level, hasReadings),
             canCreate: Boolean(this.caps.puedeCrearIntervencion) && hasReadings && !inv,
-            canFollow: Boolean(this.caps.puedeSeguirIntervencion) && Boolean(inv)
+            canFollow: Boolean(this.caps.puedeSeguirIntervencion) && Boolean(inv),
+            openCount: count,
+            canCloseAll: Boolean(this.caps.puedeSeguirIntervencion) && count > 1,
+            closeAllLabel: count > BULK_CLOSE_MAX ? `Cerrar hasta ${BULK_CLOSE_MAX} de las ${count} abiertas` : `Cerrar las ${count} abiertas`,
+            closeAllWarning:
+                (count > BULK_CLOSE_MAX
+                    ? `Se cerrarán hasta ${BULK_CLOSE_MAX} de las ${count} intervenciones abiertas de este activo por vez.`
+                    : `Se cerrarán ${plural(count, 'intervención abierta', 'intervenciones abiertas')} de este activo.`) +
+                ' Solo las que tu usuario puede editar. Desde aquí no se pueden reabrir.'
         };
     }
 
@@ -755,6 +766,12 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     get isFollowing() {
         return this.formMode === 'seguir';
     }
+    get isClosingAll() {
+        return this.formMode === 'cerrar-todas';
+    }
+    get saveLabel() {
+        return this.isClosingAll ? 'Cerrar todas' : 'Guardar';
+    }
     get followUpOptions() {
         return FOLLOW_UP_OPTIONS.map((o) => ({ ...o, selected: o.value === this.nuevoEstado }));
     }
@@ -787,6 +804,24 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         this.dispatchEvent(new ShowToastEvent({ title, message, variant }));
     }
 
+    // Says how many were closed, and warns when some failed or the server stopped at its per-call limit.
+    toastCloseAll(result) {
+        const closed = plural(result.cerradas, 'intervención cerrada', 'intervenciones cerradas');
+        const notes = [];
+        if (result.fallidas > 0) {
+            notes.push(`${plural(result.fallidas, 'no se pudo cerrar', 'no se pudieron cerrar')}.`);
+        }
+        if (result.hayMas) {
+            // Failed Cases stay first in line, so pressing again would retry the same ones.
+            notes.push(
+                result.fallidas > 0
+                    ? 'Quedan más abiertas; revisa las que fallaron antes de volver a pulsar.'
+                    : 'Quedan más abiertas: vuelve a pulsar el botón.'
+            );
+        }
+        this.toast(closed, notes.join(' '), notes.length ? 'warning' : 'success');
+    }
+
     async handleSaveForm() {
         if (this.saveDisabled || !this.selectedRow) {
             return;
@@ -797,6 +832,14 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             if (this.isCreating) {
                 const result = await crearIntervencion({ assetId: this.selectedRow.assetId, motivo: this.motivo });
                 this.toast('Intervención creada', `Caso ${result.caseNumber}`, 'success');
+            } else if (this.isClosingAll) {
+                // `esperadas` is the number shown on the button: if it changed, the server closes nothing and asks again.
+                const result = await cerrarIntervencionesDelActivo({
+                    assetId: this.selectedRow.assetId,
+                    esperadas: this.selectedRow.openCount,
+                    comentario: this.comentario
+                });
+                this.toastCloseAll(result);
             } else {
                 await actualizarSeguimiento({
                     caseId: this.selectedRow.caseId,

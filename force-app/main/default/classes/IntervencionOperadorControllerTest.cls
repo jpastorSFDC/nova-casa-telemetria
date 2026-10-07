@@ -381,6 +381,254 @@ private class IntervencionOperadorControllerTest {
         Assert.areEqual('En curso', [SELECT Status FROM Case WHERE Id = :c.Id].Status);
     }
 
+    // ─── cerrarIntervencionesDelActivo ────────────────────────────────────
+
+    private static String closeAllError(Id assetId, String comment) {
+        return closeAllError(assetId, null, comment);
+    }
+
+    private static String closeAllError(Id assetId, Integer expected, String comment) {
+        try {
+            IntervencionOperadorController.cerrarIntervencionesDelActivo(assetId, expected, comment);
+        } catch (AuraHandledException e) {
+            return e.getMessage();
+        }
+        return null;
+    }
+
+    private static Case openCase(Asset asset, Id ownerId, String status, String description) {
+        return new Case(AssetId = asset.Id, AccountId = asset.AccountId, OwnerId = ownerId,
+            Status = status, Origin = 'Telemetria', Subject = 'Abierta', Description = description);
+    }
+
+    @isTest
+    static void shouldCloseEveryOpenCaseOfTheAssetAndOnlyOfThatAsset_WhenCoordinatorClosesAll() {
+        User operator = newUserWithPermissionSet('nccloseallop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User coordinator = newUserWithPermissionSet('nccloseall', 'Nova_Casa_Coordinator', COORDINATOR_ROLE);
+        Asset asset = newAssetWithReading('AST-ALL-1', 2, operator.Id);
+        Asset other = newAssetWithReading('AST-ALL-2', 2, operator.Id);
+        Case inProgress = openCase(asset, operator.Id, 'En curso', 'Original');
+        Case onHold = openCase(asset, operator.Id, 'On Hold', null);
+        Case alreadyClosed = openCase(asset, operator.Id, 'Closed', 'Cerrada antes');
+        Case otherAssetCase = openCase(other, operator.Id, 'En curso', null);
+        insert new List<Case>{ inProgress, onHold, alreadyClosed, otherAssetCase };
+
+        IntervencionOperadorController.CierreResultado result;
+        System.runAs(coordinator) {
+            result = IntervencionOperadorController.cerrarIntervencionesDelActivo(asset.Id, 2, '  Prueba terminada  ');
+        }
+
+        Assert.areEqual(2, result.cerradas);
+        Assert.areEqual(0, result.fallidas);
+        Assert.isFalse(result.hayMas);
+        Map<Id, Case> after = new Map<Id, Case>([SELECT Status, IsClosed, Description FROM Case WHERE AssetId IN :new Set<Id>{ asset.Id, other.Id }]);
+        Assert.isTrue(after.get(inProgress.Id).IsClosed);
+        Assert.isTrue(after.get(onHold.Id).IsClosed);
+        Assert.isTrue(after.get(inProgress.Id).Description.startsWith('Original\n['), 'The line is appended, the original kept');
+        Assert.isTrue(after.get(inProgress.Id).Description.endsWith('Cierre en bloque: Prueba terminada'));
+        Assert.isTrue(after.get(onHold.Id).Description.startsWith('['), 'A Case with no description gets just the line');
+        Assert.areEqual('Cerrada antes', after.get(alreadyClosed.Id).Description, 'A Case that was already closed is not touched');
+        Assert.isFalse(after.get(otherAssetCase.Id).IsClosed, 'Another asset keeps its open intervention');
+    }
+
+    @isTest
+    static void shouldStillLeaveALine_WhenTheCommentIsBlank() {
+        User operator = newUserWithPermissionSet('nccloseblkop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User coordinator = newUserWithPermissionSet('nccloseblk', 'Nova_Casa_Coordinator', COORDINATOR_ROLE);
+        Asset asset = newAssetWithReading('AST-ALL-3', 2, operator.Id);
+        Case c = openCase(asset, operator.Id, 'En curso', 'Original');
+        insert c;
+
+        System.runAs(coordinator) {
+            IntervencionOperadorController.cerrarIntervencionesDelActivo(asset.Id, null, '   ');
+        }
+
+        Case after = [SELECT IsClosed, Description FROM Case WHERE Id = :c.Id];
+        Assert.isTrue(after.IsClosed);
+        Assert.isTrue(after.Description.endsWith('] Cierre en bloque'), 'The bulk close is traceable even without a comment');
+    }
+
+    @isTest
+    static void shouldRefuseCloseAll_WhenOperatorLacksThePermission() {
+        User operator = newUserWithPermissionSet('nccloseallnoperm', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Asset asset = newAssetWithReading('AST-ALL-4', 2, operator.Id);
+        insert new List<Case>{ openCase(asset, operator.Id, 'En curso', null), openCase(asset, operator.Id, 'En curso', null) };
+
+        String error;
+        System.runAs(operator) {
+            error = closeAllError(asset.Id, null);
+        }
+
+        Assert.areEqual(IntervencionOperadorController.NO_PERMISSION_FOLLOW, error);
+        Assert.areEqual(2, [SELECT COUNT() FROM Case WHERE AssetId = :asset.Id AND IsClosed = false]);
+    }
+
+    @isTest
+    static void shouldRefuseCloseAllForLackOfPermissionNotVisibility_WhenGerenteSeesTheAsset() {
+        User operator = newUserWithPermissionSet('ncclosegeop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User gerente = newUserWithPermissionSet('ncclosege', 'Nova_Casa_Gerente', GERENTE_ROLE);
+        Asset asset = newAssetWithReading('AST-ALL-5', 2, operator.Id);
+        insert openCase(asset, operator.Id, 'En curso', null);
+
+        Integer visible;
+        String error;
+        System.runAs(gerente) {
+            visible = [SELECT COUNT() FROM Case WHERE AssetId = :asset.Id WITH USER_MODE];
+            error = closeAllError(asset.Id, null);
+        }
+
+        Assert.areEqual(1, visible, 'The gerente sees the Case through the role hierarchy');
+        Assert.areEqual(IntervencionOperadorController.NO_PERMISSION_FOLLOW, error);
+        Assert.areEqual(1, [SELECT COUNT() FROM Case WHERE AssetId = :asset.Id AND IsClosed = false]);
+    }
+
+    @isTest
+    static void shouldRefuseCloseAll_WhenInputIsBadTheAssetIsInvisibleOrNothingIsOpen() {
+        User operator = newUserWithPermissionSet('ncclosebadop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User coordinator = newUserWithPermissionSet('ncclosebad', 'Nova_Casa_Coordinator', COORDINATOR_ROLE);
+        User stranger = newUserWithPermissionSet('ncclosestr', 'Nova_Casa_Operator', null);
+        Asset hidden = newAssetWithReading('AST-ALL-6', 2, stranger.Id);
+        Case hiddenCase = openCase(hidden, stranger.Id, 'En curso', null);
+        Asset quiet = newAssetWithReading('AST-ALL-7', 2, operator.Id);
+        insert new List<Case>{ hiddenCase, openCase(quiet, operator.Id, 'Closed', null) };
+
+        List<String> errors = new List<String>();
+        System.runAs(coordinator) {
+            errors.add(closeAllError(null, null));
+            errors.add(closeAllError(Id.valueOf('02i000000000000AAA'), null));
+            errors.add(closeAllError(hidden.Id, null));
+            errors.add(closeAllError(quiet.Id, 'x'.repeat(IntervencionOperadorController.COMMENT_MAX + 1)));
+            errors.add(closeAllError(quiet.Id, null));
+        }
+
+        Assert.areEqual(new List<String>{
+            IntervencionOperadorController.ASSET_NOT_FOUND,
+            IntervencionOperadorController.ASSET_NOT_FOUND,
+            IntervencionOperadorController.ASSET_NOT_FOUND,
+            IntervencionOperadorController.COMMENT_TOO_LONG,
+            IntervencionOperadorController.NOTHING_TO_CLOSE
+        }, errors);
+        Assert.isFalse([SELECT IsClosed FROM Case WHERE Id = :hiddenCase.Id].IsClosed, 'An asset the user cannot see is not touched');
+    }
+
+    @isTest
+    static void shouldKeepOpenTheCasesTheUserCanOnlyRead_AndCountThemAsFailed() {
+        User operator = newUserWithPermissionSet('nccloserowop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User coordinator = newUserWithPermissionSet('nccloserow', 'Nova_Casa_Coordinator', COORDINATOR_ROLE);
+        User stranger = newUserWithPermissionSet('nccloserowstr', 'Nova_Casa_Operator', null);
+        Asset asset = newAssetWithReading('AST-ALL-9', 2, operator.Id);
+        Case editable = openCase(asset, operator.Id, 'En curso', null);
+        // No AccountId and a foreign owner: the coordinator reaches this Case only through the manual Read share.
+        Case readOnly = new Case(AssetId = asset.Id, OwnerId = stranger.Id, Status = 'En curso', Origin = 'Telemetria', Subject = 'Solo lectura');
+        insert new List<Case>{ editable, readOnly };
+        insert new CaseShare(CaseId = readOnly.Id, UserOrGroupId = coordinator.Id, CaseAccessLevel = 'Read', RowCause = 'Manual');
+
+        IntervencionOperadorController.CierreResultado result;
+        System.runAs(coordinator) {
+            result = IntervencionOperadorController.cerrarIntervencionesDelActivo(asset.Id, null, null);
+        }
+
+        Assert.areEqual(1, result.cerradas);
+        Assert.areEqual(1, result.fallidas, 'The Case the user cannot edit is counted, not closed');
+        Assert.isFalse(result.hayMas);
+        Assert.isTrue([SELECT IsClosed FROM Case WHERE Id = :editable.Id].IsClosed, 'One failure does not undo the rest');
+        Assert.isFalse([SELECT IsClosed FROM Case WHERE Id = :readOnly.Id].IsClosed, 'A read-only Case stays open');
+    }
+
+    @isTest
+    static void shouldCloseNothingAndAskAgain_WhenTheOpenCountChangedSinceTheUserConfirmed() {
+        User operator = newUserWithPermissionSet('ncclosecntop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User coordinator = newUserWithPermissionSet('ncclosecnt', 'Nova_Casa_Coordinator', COORDINATOR_ROLE);
+        Asset asset = newAssetWithReading('AST-ALL-10', 2, operator.Id);
+        insert new List<Case>{ openCase(asset, operator.Id, 'En curso', null), openCase(asset, operator.Id, 'En curso', null),
+            openCase(asset, operator.Id, 'En curso', null) };
+
+        String stale;
+        System.runAs(coordinator) {
+            stale = closeAllError(asset.Id, 2, null);
+        }
+
+        Assert.areEqual(IntervencionOperadorController.COUNT_CHANGED, stale, 'The user confirmed 2 but 3 are open');
+        Assert.areEqual(3, [SELECT COUNT() FROM Case WHERE AssetId = :asset.Id AND IsClosed = false], 'A new critical one is not closed unseen');
+
+        System.runAs(coordinator) {
+            Assert.areEqual(3, IntervencionOperadorController.cerrarIntervencionesDelActivo(asset.Id, 3, null).cerradas);
+        }
+    }
+
+    @isTest
+    static void shouldWriteASingleAuditLineThatSurvivesAFullDescription_WhenTheCommentHasLineBreaks() {
+        User operator = newUserWithPermissionSet('ncclosefmtop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User coordinator = newUserWithPermissionSet('ncclosefmt', 'Nova_Casa_Coordinator', COORDINATOR_ROLE);
+        Asset asset = newAssetWithReading('AST-ALL-11', 2, operator.Id);
+        Case full = openCase(asset, operator.Id, 'En curso', 'x'.repeat(IntervencionOperadorController.DESCRIPTION_MAX));
+        insert full;
+
+        System.runAs(coordinator) {
+            IntervencionOperadorController.cerrarIntervencionesDelActivo(asset.Id, null, 'uno\r\n[2026-01-01 00:00 Otra Persona] falso');
+        }
+
+        String description = [SELECT Description FROM Case WHERE Id = :full.Id].Description;
+        Assert.areEqual(IntervencionOperadorController.DESCRIPTION_MAX, description.length());
+        Assert.isTrue(description.endsWith('Cierre en bloque: uno [2026-01-01 00:00 Otra Persona] falso'), 'The new line is kept and flat');
+        Assert.isFalse(description.contains('\n[2026-01-01 00:00 Otra Persona]'), 'A typed line break cannot forge an audit line');
+    }
+
+    @isTest
+    static void shouldCloseNothing_WhenTheUserHoldsTheCustomPermissionButCannotEditCases() {
+        User operator = newUserWithPermissionSet('ncclosenoed', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            PermissionSet onlyKey = new PermissionSet(Name = 'NcTestSeguirSinEdit', Label = 'NcTestSeguirSinEdit');
+            insert onlyKey;
+            insert new SetupEntityAccess(
+                ParentId = onlyKey.Id,
+                SetupEntityId = [SELECT Id FROM CustomPermission WHERE DeveloperName = 'Nova_Casa_Seguir_Intervencion'].Id
+            );
+            insert new PermissionSetAssignment(AssigneeId = operator.Id, PermissionSetId = onlyKey.Id);
+        }
+        Asset asset = newAssetWithReading('AST-ALL-12', 2, operator.Id);
+        insert new List<Case>{ openCase(asset, operator.Id, 'En curso', null), openCase(asset, operator.Id, 'En curso', null) };
+
+        IntervencionOperadorController.CierreResultado result;
+        String error;
+        System.runAs(operator) {
+            try {
+                result = IntervencionOperadorController.cerrarIntervencionesDelActivo(asset.Id, null, null);
+            } catch (AuraHandledException e) {
+                error = e.getMessage();
+            }
+        }
+
+        // The key alone is not enough: either the call is refused or every Case is reported as failed.
+        Assert.isTrue(error != null || (result.cerradas == 0 && result.fallidas == 2), 'Nothing may be closed without Edit on Case');
+        Assert.areEqual(2, [SELECT COUNT() FROM Case WHERE AssetId = :asset.Id AND IsClosed = false]);
+    }
+
+    @isTest
+    static void shouldCloseTheCapPerCallAndReportThereAreMore_WhenManyAreOpen() {
+        User operator = newUserWithPermissionSet('ncclosecapop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User coordinator = newUserWithPermissionSet('ncclosecap', 'Nova_Casa_Coordinator', COORDINATOR_ROLE);
+        Asset asset = newAssetWithReading('AST-ALL-8', 2, operator.Id);
+        List<Case> many = new List<Case>();
+        for (Integer i = 0; i < IntervencionOperadorController.BULK_CLOSE_MAX + 1; i++) {
+            many.add(openCase(asset, operator.Id, 'En curso', null));
+        }
+        insert many;
+
+        IntervencionOperadorController.CierreResultado first;
+        IntervencionOperadorController.CierreResultado second;
+        System.runAs(coordinator) {
+            first = IntervencionOperadorController.cerrarIntervencionesDelActivo(asset.Id, null, null);
+            second = IntervencionOperadorController.cerrarIntervencionesDelActivo(asset.Id, null, null);
+        }
+
+        Assert.areEqual(IntervencionOperadorController.BULK_CLOSE_MAX, first.cerradas);
+        Assert.isTrue(first.hayMas, 'One is left, so the caller must ask again');
+        Assert.areEqual(1, second.cerradas);
+        Assert.isFalse(second.hayMas);
+        Assert.areEqual(0, [SELECT COUNT() FROM Case WHERE AssetId = :asset.Id AND IsClosed = false]);
+    }
+
     // ─── Capabilities per role ────────────────────────────────────────────
 
     private static ActivosOperadorController.Capacidades capsOf(String prefix, String permissionSet) {
