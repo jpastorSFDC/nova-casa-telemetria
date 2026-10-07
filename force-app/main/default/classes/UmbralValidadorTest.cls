@@ -368,6 +368,24 @@ private class UmbralValidadorTest {
         }
     }
 
+    @IsTest
+    static void unaFilaConVariosContrariosRecibeUnSoloError() {
+        // Una Advertencia GT 40 contra 3 Críticas (GT 35, 30, 20): contradice a las tres.
+        List<Umbral__c> lote = new List<Umbral__c>{
+            umbral('Advertencia', 'GT', 40),
+            umbral('Critica', 'GT', 35), umbral('Critica', 'GT', 30), umbral('Critica', 'GT', 20)
+        };
+
+        Database.SaveResult[] resultados = Database.insert(lote, false);
+
+        for (Integer i = 0; i < resultados.size(); i++) {
+            assertRechazado(resultados[i], 'Fila #' + i);
+            Assert.areEqual(1, resultados[i].getErrors().size(),
+                'La fila #' + i + ' debe tener un solo error, tuvo ' + resultados[i].getErrors().size());
+        }
+        Assert.isTrue(mensaje(resultados[0]).contains('Regla GT/GE'), 'El error conserva el texto de la regla');
+    }
+
     // ─── (11) Null-safety ────────────────────────────────────────────────
 
     @IsTest

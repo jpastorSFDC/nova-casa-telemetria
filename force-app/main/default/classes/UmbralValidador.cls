@@ -70,7 +70,10 @@ public with sharing class UmbralValidador {
                 Umbral__c cri = umbral.Severidad__c == ADVERTENCIA ? otro : umbral;
                 if (adv.Severidad__c == ADVERTENCIA && cri.Severidad__c == CRITICA
                     && advertenciaInalcanzable(adv, cri)) {
+                    // Un error por fila (el del primer contrario): construir el mensaje por cada par
+                    // agotaba el CPU con lotes grandes y contradictorios entre sí.
                     umbral.addError(mensaje(adv, cri));
+                    break;
                 }
             }
         }
