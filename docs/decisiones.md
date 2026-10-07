@@ -399,6 +399,18 @@ Copiar esta plantilla, numerar secuencialmente, y mantener el estado actualizado
 - **Criterios de prueba**: `TelemetriaIngestaTest` (publica un evento por mensaje y deja la fila `Publicada` antes), `SenialSensorHandlerTest.publicarElEventoPersisteATravesDelTrigger` (el trigger procesa el evento publicado).
 - **Siguiente acción**: preguntar al facilitador si la ingesta manual cuenta como recepción real y si la publicación desde Apex cumple el criterio 1; mover a Aceptada o replantear.
 
+## D031 — Qué es una señal "inválida" y qué queda como evidencia (BR-202, US-202)
+
+- **Estado**: Propuesta (pendiente de confirmar con el facilitador de MDSS)
+- **Fecha**: 2026-10-07
+- **Contexto**: BR-202 pide que una señal inválida no detenga a las demás y que quede evidencia de cuál falló y por qué, pero el brief no define "inválida". El handler ya aplica reglas concretas que hasta hoy no estaban escritas en un solo lugar.
+- **Decisión**: una señal es inválida, y queda `Rechazada` con `Motivo__c`, cuando: (1) falta o no es numérico el valor, o falta o no es ISO 8601 `occurredAt`; (2) su activo no existe en el catálogo; (3) su edificio no es el del activo (D030, BR-201); (4) no hay umbral activo para su tipo de activo y medición; (5) su unidad no es la esperada; (6) algún campo excede el largo permitido o `Message_Type` no es un valor permitido; (7) el valor cae en un umbral de severidad `Invalida` (rango físico). Las demás señales del lote siguen. La evidencia es la fila de `Log_Senial__c` con su identidad `source|messageId`. Una señal sin `source` o sin `messageId`, o con identidad demasiado larga, no puede tener fila (la identidad es la clave): solo se cuenta en `senialesSinIdentidad` y `rechazadasSinLog`.
+- **Alternativa descartada**: crear una fila de log también sin identidad (con una identidad inventada). Rompería el acuerdo "identidad = source + messageId" y permitiría duplicados.
+- **Trade-off**: las señales sin identidad dejan evidencia solo agregada (conteo), no individual.
+- **Riesgo / dependencia**: el facilitador puede tener otra definición de "inválido"; si cambia, se ajustan las reglas y las pruebas (`SenialSensorHandlerTest`).
+- **Criterios de prueba**: `SenialSensorHandlerTest` (lote mixto de 200 con tres motivos, unidad incompatible, edificio ajeno, identidad larga y sin identidad).
+- **Siguiente acción**: preguntar al facilitador por esta lista; pasar a Aceptada o ajustar.
+
 ## Pendientes heredados de la sección "Acuerdos" (abiertos desde Discovery, sin cerrar en Development)
 
 Estos puntos necesitaban una entrada D00X cada uno antes de cerrar el entregable 6 de Discovery. El entregable se aprobó y ya estamos en Development (ver `AGENTS.md`), pero solo el objeto de intervención (D001) y el empate de `occurredAt` (D003 arriba) están cerrados del todo; el edificio (D005 arriba) tiene entrada pero solo resuelve el campo de identidad, no el modelo de sharing. Siguen sin cerrar:
