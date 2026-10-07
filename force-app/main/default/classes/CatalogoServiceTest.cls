@@ -368,8 +368,7 @@ private class CatalogoServiceTest {
             LIMIT 1
         ];
 
-        // No city: BillingCity is not grantable in a permission set, so this user would fail on Account first.
-        Test.setMock(HttpCalloutMock.class, new CatalogSimulatorMock(200, ONE_BUILDING_CATALOG_JSON.remove('"city":"Bogotá",')));
+        Test.setMock(HttpCalloutMock.class, new CatalogSimulatorMock(200, ONE_BUILDING_CATALOG_JSON));
 
         // When/Then
         System.runAs(restrictedUser) {
@@ -401,7 +400,8 @@ private class CatalogoServiceTest {
             WHERE Username LIKE 'nothresholds.catalog.test%@novacasatelemetria.invalid'
             LIMIT 1
         ];
-        Test.setMock(HttpCalloutMock.class, new CatalogSimulatorMock(200, ONE_BUILDING_CATALOG_JSON));
+        // No city: BillingCity is not grantable in a permission set, so this user would fail on Account first.
+        Test.setMock(HttpCalloutMock.class, new CatalogSimulatorMock(200, ONE_BUILDING_CATALOG_JSON.replaceAll('"city":"[^"]*",', '')));
 
         // When/Then
         System.runAs(noUmbralUser) {
