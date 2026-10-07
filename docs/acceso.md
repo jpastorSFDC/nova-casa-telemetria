@@ -2,7 +2,7 @@
 
 T8.1. Quién ve y hace qué, y de dónde sale cada acceso (BR-208). El acceso efectivo es siempre la intersección de dos cosas: el permiso de objeto/campo (permission set o perfil) y el acceso al registro (OWD, ownership, role hierarchy o View All). El modelo de edificio como `Account` viene de [D005](decisiones.md#d005--el-edificio-es-account-external_id__c-para-upsert-del-catálogo).
 
-**Estado al 2026-10-06**: OWD Private aplicado (T8.2, PR #38), los usuarios persona en Minimum Access - Salesforce y cada edificio a nombre de un operador ([D022](decisiones.md#d022--coordinador-y-gerente-ven-por-role-hierarchy-cada-edificio-es-de-un-operador-personas-en-minimum-access-us-208)). En el org el gerente todavía tiene View All: el deploy de `Nova_Casa_Gerente` sin View All espera el OK de John (dry-run `0Afak00000nUWcXCAW`). Ver "Jerarquía en vez de View All (D022)".
+**Estado al 2026-10-06**: OWD Private aplicado (T8.2, PR #38), los usuarios persona en Minimum Access - Salesforce y cada edificio a nombre de un operador ([D022](decisiones.md#d022--coordinador-y-gerente-ven-por-role-hierarchy-cada-edificio-es-de-un-operador-personas-en-minimum-access-us-208)). `Nova_Casa_Gerente` ya está desplegado sin View All: el 2026-10-07 una consulta a `ObjectPermissions` en `nova-cdo` devolvió solo lectura (`PermissionsViewAllRecords`, `ModifyAll`, `Edit`, `Create` y `Delete` en false) en `Account`, `Asset`, `Case`, `Contact` y `Lectura_Vigente__c`. Falta repetir las consultas de visibilidad de "Jerarquía en vez de View All (D022)" con el gerente.
 
 ## Personas
 
@@ -101,7 +101,7 @@ C/R/E/D = Create/Read/Edit/Delete del permission set; después del punto, de dó
 4. **Perfil** (hecho 2026-10-06): los cuatro usuarios persona en Minimum Access - Salesforce con `Nova_Casa_Lightning` (ver abajo).
 5. **T8.6** (hecho 2026-10-06): consultas repetidas antes y después del cambio de perfil, ver "Resultado (T8.6)".
 6. **Segundo operador y dueños** (hecho 2026-10-06, D022): `novacasa.operador2@` creado y dueño de BLD-BAQ-001; BLD-TEST-NOAUT creado como edificio fuera de la jerarquía.
-7. **Gerente sin View All** (pendiente del OK de John): deploy de `Nova_Casa_Gerente`, dry-run `0Afak00000nUWcXCAW`; después repetir las consultas de "Jerarquía en vez de View All (D022)".
+7. **Gerente sin View All** (permisos hechos, verificado 2026-10-07): `Nova_Casa_Gerente` desplegado con el resto de `main`; la consulta a `ObjectPermissions` confirma solo lectura. Pendiente: repetir las consultas de visibilidad de "Jerarquía en vez de View All (D022)" (el gerente debe ver None en BLD-TEST-NOAUT).
 
 ## Perfil Minimum Access
 
