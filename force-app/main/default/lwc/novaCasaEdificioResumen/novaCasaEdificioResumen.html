@@ -27,6 +27,11 @@
 
             <template if:true={showSummary}>
                 <p class="slds-text-color_weak slds-var-m-bottom_small">{totalText}</p>
+                <template if:true={isTruncated}>
+                    <p class="slds-text-color_error slds-var-m-bottom_small" role="status">
+                        <span aria-hidden="true">&#9650;</span> Resumen parcial: el edificio tiene más activos de los contados; las cifras son "al menos".
+                    </p>
+                </template>
                 <ul class="grilla" aria-label="Activos por severidad">
                     <template for:each={items} for:item="it">
                         <li key={it.key} class="tarjeta">

@@ -414,13 +414,19 @@ public with sharing class ActivosOperadorController {
      * Counts for the Account record page of a building (HP-07). Deliberately minimal: no Log_Senial__c data and no
      * technical fields. Every number is what the running user can see.
      */
+    @TestVisible private static Integer maxSummaryAssets = 2000;
+
     public class EdificioResumen {
         @AuraEnabled public Integer totalActivos { get; private set; }
         @AuraEnabled public Integer activosCriticos { get; private set; }
         @AuraEnabled public Integer activosEnAlerta { get; private set; }
         @AuraEnabled public Integer activosNormales { get; private set; }
-        // No reading yet (Ultima_Senal__c empty) or readings without a severity level: never counted as normal.
+        // No signal at all (Ultima_Senal__c empty): never counted as normal.
         @AuraEnabled public Integer activosSinLectura { get; private set; }
+        // Has a signal but no severity level (Severidad_Nivel__c empty): never counted as normal either.
+        @AuraEnabled public Integer activosSinNivel { get; private set; }
+        // True when the building has more visible assets than maxSummaryAssets: every count covers only the first ones.
+        @AuraEnabled public Boolean truncated { get; private set; }
         @AuraEnabled public Integer casosAbiertos { get; private set; }
         // Newest Asset.Ultima_Senal__c of the visible assets; null when none has a signal.
         @AuraEnabled public Datetime ultimaSenal { get; private set; }
@@ -431,6 +437,8 @@ public with sharing class ActivosOperadorController {
             this.activosEnAlerta = 0;
             this.activosNormales = 0;
             this.activosSinLectura = 0;
+            this.activosSinNivel = 0;
+            this.truncated = false;
             this.casosAbiertos = 0;
         }
     }
@@ -439,7 +447,8 @@ public with sharing class ActivosOperadorController {
      * Severity counts, open interventions and last signal of one building, as the running user sees them.
      * Asset and Case are read WITH USER_MODE, so a building whose assets the user cannot see yields zeros for them;
      * a building the user cannot see at all is rejected. Severity uses the Asset roll-ups (same rule as the list):
-     * 2 critical, 1 warning, 0 normal, and no signal or no level counts as "sin lectura".
+     * 2 critical, 1 warning, 0 normal; no signal is "sin lectura" and a signal without level is "sin nivel".
+     * At most maxSummaryAssets assets are counted; beyond that `truncated` is set.
      * Open cases are those linked through Case.AssetId to an asset of the building.
      * @param accountId building (Account Id)
      */
@@ -454,15 +463,24 @@ public with sharing class ActivosOperadorController {
                 throw safeError(BUILDING_SUMMARY_MESSAGE);
             }
             EdificioResumen resumen = new EdificioResumen();
+            Integer fetch = maxSummaryAssets + 1;
             for (Asset a : [
                 SELECT Id, Severidad_Nivel__c, Ultima_Senal__c
                 FROM Asset
                 WHERE AccountId = :accountId
                 WITH USER_MODE
+                ORDER BY Id
+                LIMIT :fetch
             ]) {
+                if (resumen.totalActivos >= maxSummaryAssets) {
+                    resumen.truncated = true;
+                    break;
+                }
                 resumen.totalActivos++;
-                if (a.Ultima_Senal__c == null || a.Severidad_Nivel__c == null) {
+                if (a.Ultima_Senal__c == null) {
                     resumen.activosSinLectura++;
+                } else if (a.Severidad_Nivel__c == null) {
+                    resumen.activosSinNivel++;
                 } else if (a.Severidad_Nivel__c >= 2) {
                     resumen.activosCriticos++;
                 } else if (a.Severidad_Nivel__c >= 1) {

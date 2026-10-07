@@ -23,7 +23,7 @@ export default class NovaCasaEdificioResumen extends LightningElement {
             this.loaded = true;
         } else if (error) {
             this.resumen = undefined;
-            this.errorMessage = error.body && error.body.message ? error.body.message : GENERIC_ERROR;
+            this.errorMessage = reduceError(error) || GENERIC_ERROR;
             this.loaded = true;
         }
     }
@@ -47,6 +47,9 @@ export default class NovaCasaEdificioResumen extends LightningElement {
     }
     get showSummary() {
         return this.hasData && this.resumen.totalActivos > 0;
+    }
+    get isTruncated() {
+        return !!this.resumen && this.resumen.truncated === true;
     }
     get hasLastSignal() {
         return !!this.resumen && !!this.resumen.ultimaSenal;
@@ -78,7 +81,8 @@ export default class NovaCasaEdificioResumen extends LightningElement {
             { key: 'critico', label: 'Crítico', glyph: '●', count: r.activosCriticos, cls: 'sev sev-critico' },
             { key: 'advertencia', label: 'Precaución', glyph: '▲', count: r.activosEnAlerta, cls: 'sev sev-advertencia' },
             { key: 'normal', label: 'Estable', glyph: '○', count: r.activosNormales, cls: 'sev sev-normal' },
-            { key: 'sinlectura', label: 'Sin lecturas', glyph: '?', count: r.activosSinLectura, cls: 'sev sev-nivel' }
+            { key: 'sinlectura', label: 'Sin lecturas', glyph: '?', count: r.activosSinLectura, cls: 'sev sev-nivel' },
+            { key: 'sinnivel', label: 'Señal sin nivel', glyph: '◇', count: r.activosSinNivel, cls: 'sev sev-nivel' }
         ];
     }
 }

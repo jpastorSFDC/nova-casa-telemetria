@@ -20,7 +20,7 @@
 
             <template if:true={hasData}>
                 <template if:true={isTruncated}>
-                    <p class="nota" role="status">Hay más lecturas de las que se muestran.</p>
+                    <p class="nota">{truncatedText}</p>
                 </template>
                 <section class="bloque" aria-label="Lecturas actuales">
                     <h3 class="titulo">Lecturas actuales</h3>
@@ -43,6 +43,12 @@
                                         <td><span class={r.sevClass}><span aria-hidden="true">{r.sevGlyph}</span> {r.sevLabel}</span></td>
                                         <td class="num">
                                             <lightning-formatted-date-time value={r.occurredAt} year="numeric" month="short" day="2-digit" hour="2-digit" minute="2-digit" second="2-digit" time-zone="UTC"></lightning-formatted-date-time> UTC
+                                            <template if:true={r.ageKnown}>
+                                                <span class="edad">({r.ageText})</span>
+                                            </template>
+                                            <template if:true={r.isStale}>
+                                                <span class="antiguo"><span aria-hidden="true">&#9201;</span> Dato antiguo</span>
+                                            </template>
                                         </td>
                                     </tr>
                                 </template>
@@ -50,7 +56,7 @@
                         </table>
                     </template>
                     <template if:false={hasReadings}>
-                        <p class="nota" role="status">Este activo todavía no tiene lecturas.</p>
+                        <p class="nota">Este activo todavía no tiene lecturas.</p>
                     </template>
                 </section>
 
@@ -65,12 +71,12 @@
                             </div>
                             <p class="caso-asunto">{caseSubject}</p>
                             <template if:true={hasMoreInterventions}>
-                                <p class="caso-mas">{moreInterventionsText}</p>
+                                <p class="caso-mas"><button type="button" class="enlace-boton" onclick={handleMoreClick}>{moreInterventionsText}</button></p>
                             </template>
                         </div>
                     </template>
                     <template if:false={hasIntervention}>
-                        <p class="nota" role="status">Este activo no tiene intervenciones abiertas.</p>
+                        <p class="nota">Este activo no tiene intervenciones abiertas.</p>
                     </template>
                 </section>
 

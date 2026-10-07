@@ -44,3 +44,30 @@ export function reduceError(error) {
     }
     return GENERIC_ERROR;
 }
+
+export const STALE_AFTER_MINUTES = 60;
+
+// Relative age of an origin time (BR-207). Pure: takes epoch ms for the reading and for "now".
+// An origin time ahead of now (simulator clock) is never shown as a negative age.
+// Returns { text, isFuture, isStale, isKnown }.
+export function relativeAge(ms, nowMs) {
+    if (typeof ms !== 'number' || typeof nowMs !== 'number' || Number.isNaN(ms) || Number.isNaN(nowMs)) {
+        return { text: '', isFuture: false, isStale: false, isKnown: false };
+    }
+    const diff = nowMs - ms;
+    if (diff < 0) {
+        return { text: 'hora del simulador', isFuture: true, isStale: false, isKnown: true };
+    }
+    const minutes = Math.floor(diff / 60000);
+    let text;
+    if (minutes < 1) {
+        text = 'hace menos de 1 min';
+    } else if (minutes < 60) {
+        text = `hace ${minutes} min`;
+    } else if (minutes < 1440) {
+        text = `hace ${Math.floor(minutes / 60)} h`;
+    } else {
+        text = `hace ${Math.floor(minutes / 1440)} d`;
+    }
+    return { text, isFuture: false, isStale: minutes > STALE_AFTER_MINUTES, isKnown: true };
+}
