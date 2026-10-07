@@ -1,0 +1,103 @@
+:host {
+    --nc-tinta: #12141a;
+    --nc-tinta-media: #5c6470;
+    --nc-linea: #d8dee8;
+    --nc-papel: #ffffff;
+    --nc-hueco: #e4e8ef;
+    --nc-critico: #e11d48;
+    --nc-advertencia: #c2410c;
+    --nc-normal: #15803d;
+    --nc-info: #2563eb;
+    color: var(--nc-tinta);
+}
+:focus-visible {
+    outline: 3px solid var(--nc-info);
+    outline-offset: 2px;
+}
+.bloque {
+    margin-bottom: 1.1rem;
+}
+.titulo {
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 800;
+    color: var(--nc-tinta-media);
+    margin: 0 0 0.4rem;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+th {
+    text-align: left;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--nc-tinta-media);
+    padding: 0.35rem 0.5rem;
+    border-bottom: 1px solid var(--nc-linea);
+}
+td {
+    padding: 0.4rem 0.5rem;
+    border-bottom: 1px solid var(--nc-linea);
+}
+.fuerte {
+    font-weight: 700;
+}
+.num {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+.estado {
+    color: var(--nc-tinta-media);
+}
+.nota {
+    margin: 0.25rem 0 0;
+    font-size: 0.85rem;
+    color: var(--nc-tinta-media);
+}
+
+/* Severity badge: glyph + text, never color alone */
+.sev {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    border-radius: 999px;
+    padding: 0.18rem 0.55rem;
+    white-space: nowrap;
+}
+.sev-critico {
+    background: var(--nc-critico);
+    color: #fff;
+}
+.sev-advertencia {
+    background: var(--nc-papel);
+    color: var(--nc-advertencia);
+    border: 1px solid var(--nc-advertencia);
+}
+.sev-normal {
+    background: transparent;
+    color: var(--nc-normal);
+    border: 1px solid #86efac;
+}
+.sev-nivel {
+    background: var(--nc-papel);
+    color: var(--nc-tinta-media);
+    border: 1px dashed #8b93a0;
+}
+.hueso {
+    height: 4rem;
+    background: var(--nc-hueco);
+    border-radius: 12px;
+}
+@media (prefers-reduced-motion: reduce) {
+    * {
+        transition: none !important;
+    }
+}

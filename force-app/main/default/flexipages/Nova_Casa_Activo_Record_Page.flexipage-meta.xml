@@ -25,6 +25,12 @@
     <flexiPageRegions>
         <itemInstances>
             <componentInstance>
+                <componentName>c:novaCasaActivoEstado</componentName>
+                <identifier>c_novaCasaActivoEstado</identifier>
+            </componentInstance>
+        </itemInstances>
+        <itemInstances>
+            <componentInstance>
                 <componentName>flexipage:tabset</componentName>
                 <identifier>flexipage_tabset</identifier>
                 <componentInstanceProperties>

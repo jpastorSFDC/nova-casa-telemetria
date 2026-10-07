@@ -18,6 +18,7 @@ public with sharing class ActivosOperadorController {
     @TestVisible private static final Integer HISTORY_DEFAULT_LIMIT = 20;
     @TestVisible private static final Integer HISTORY_MAX_LIMIT = 50;
     @TestVisible private static final String BUILDING_SUMMARY_MESSAGE = 'El edificio no es válido o no tienes acceso a él.';
+    @TestVisible private static final String ASSET_STATE_MESSAGE = 'El activo no es válido o no tienes acceso a él.';
     @TestVisible private static final String LOAD_MESSAGE = 'No se pudo cargar la información. Inténtalo de nuevo más tarde.';
 
     public class Option {
@@ -315,6 +316,93 @@ public with sharing class ActivosOperadorController {
                 signals.add(new SignalView(rows[i]));
             }
             return new HistoryResult(signals, cap, truncated);
+        } catch (AuraHandledException e) {
+            throw e;
+        } catch (Exception e) {
+            throw failure(e);
+        }
+    }
+
+    /** One latest reading (asset + measurement type) on the Asset record page. No sensor or other technical fields. */
+    public class EstadoLectura {
+        @AuraEnabled public String measurementType { get; private set; }
+        @AuraEnabled public Decimal value { get; private set; }
+        @AuraEnabled public String unit { get; private set; }
+        @AuraEnabled public Datetime occurredAt { get; private set; }
+        // 0 normal, 1 warning, 2 critical; null when the reading carries no level (shown as "Sin dato").
+        @AuraEnabled public Integer severityLevel { get; private set; }
+
+        public EstadoLectura(Lectura_Vigente__c r) {
+            this.measurementType = r.Tipo_Medicion__c;
+            this.value = r.Valor__c;
+            this.unit = r.Unidad__c;
+            this.occurredAt = r.Occurred_At__c;
+            this.severityLevel = levelOf(r);
+        }
+    }
+
+    public class EstadoIntervencion {
+        @AuraEnabled public Id caseId { get; private set; }
+        @AuraEnabled public String caseNumber { get; private set; }
+        @AuraEnabled public String subject { get; private set; }
+        @AuraEnabled public String status { get; private set; }
+
+        public EstadoIntervencion(Case c) {
+            this.caseId = c.Id;
+            this.caseNumber = c.CaseNumber;
+            this.subject = c.Subject;
+            this.status = c.Status;
+        }
+    }
+
+    /** What the Asset record page shows (HP-07): latest reading per type and the open intervention. */
+    public class EstadoActivo {
+        // One per measurement type, ordered by type.
+        @AuraEnabled public List<EstadoLectura> readings { get; private set; }
+        // Newest open intervention; null when none.
+        @AuraEnabled public EstadoIntervencion openIntervention { get; private set; }
+        @AuraEnabled public Integer openInterventionCount { get; private set; }
+        // True when a row cap cut the readings or the cases, so the figures above may be incomplete.
+        @AuraEnabled public Boolean truncated { get; private set; }
+
+        public EstadoActivo(List<EstadoLectura> readings, List<Case> openCases, Boolean truncated) {
+            this.truncated = truncated;
+            this.readings = readings;
+            this.openInterventionCount = openCases.size();
+            this.openIntervention = openCases.isEmpty() ? null : new EstadoIntervencion(openCases[0]);
+        }
+    }
+
+    /**
+     * Latest reading per measurement type and open interventions of one asset, as the running user sees them.
+     * The asset is first queried WITH USER_MODE (an operator only sees their own assets, BR-208); if not visible the call
+     * fails with the same static message as a non-existent asset. Readings and cases are read WITH USER_MODE and use the
+     * same latest-per-type rule as the list (latestReadings / isBetter). The signal history is not here: use getHistorial.
+     * @param assetId Asset Id
+     */
+    @AuraEnabled(cacheable=true)
+    public static EstadoActivo getEstadoActivo(Id assetId) {
+        try {
+            if (assetId == null || assetId.getSobjectType() != Asset.SObjectType) {
+                throw safeError(ASSET_STATE_MESSAGE);
+            }
+            List<Asset> visible = [SELECT Id FROM Asset WHERE Id = :assetId WITH USER_MODE LIMIT 1];
+            if (visible.isEmpty()) {
+                throw safeError(ASSET_STATE_MESSAGE);
+            }
+            Set<Id> ids = new Set<Id>{ assetId };
+            List<Boolean> capped = new List<Boolean>{ false };
+            Map<String, Lectura_Vigente__c> byType = latestReadings(ids, capped).get(assetId);
+            List<EstadoLectura> readings = new List<EstadoLectura>();
+            if (byType != null) {
+                List<String> types = new List<String>(byType.keySet());
+                types.sort();
+                for (String t : types) {
+                    readings.add(new EstadoLectura(byType.get(t)));
+                }
+            }
+            List<Case> cases = openInterventions(ids, capped).get(assetId);
+            return new EstadoActivo(readings, cases == null ? new List<Case>() : cases, capped[0]);
         } catch (AuraHandledException e) {
             throw e;
         } catch (Exception e) {

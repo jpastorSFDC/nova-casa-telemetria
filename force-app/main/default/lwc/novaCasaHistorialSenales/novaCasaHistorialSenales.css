@@ -1,0 +1,61 @@
+:host {
+    --nc-tinta: #12141a;
+    --nc-tinta-media: #5c6470;
+    --nc-linea: #d8dee8;
+    --nc-critico: #e11d48;
+    --nc-info: #2563eb;
+    color: var(--nc-tinta);
+}
+:focus-visible {
+    outline: 3px solid var(--nc-info);
+    outline-offset: 2px;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+th {
+    text-align: left;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--nc-tinta-media);
+    padding: 0.35rem 0.5rem;
+    border-bottom: 1px solid var(--nc-linea);
+}
+td {
+    padding: 0.4rem 0.5rem;
+    border-bottom: 1px solid var(--nc-linea);
+}
+.celda-fuerte {
+    font-weight: 700;
+}
+.num {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+.celda-sub {
+    color: var(--nc-tinta-media);
+    font-size: 0.8rem;
+}
+.fila-evidencia {
+    color: var(--nc-tinta-media);
+}
+.nota {
+    margin: 0.5rem 0 0;
+    font-size: 0.8rem;
+    color: var(--nc-tinta-media);
+}
+.nota-error {
+    color: var(--nc-critico);
+    font-weight: 700;
+}
+.solo-lectores {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
