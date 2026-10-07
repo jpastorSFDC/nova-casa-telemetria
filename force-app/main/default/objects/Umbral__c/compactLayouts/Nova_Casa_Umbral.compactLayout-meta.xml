@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CompactLayout xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Nova_Casa_Umbral</fullName>
+    <fields>Name</fields>
+    <fields>Tipo_Medicion__c</fields>
+    <fields>Operador__c</fields>
+    <fields>Valor__c</fields>
+    <fields>Severidad__c</fields>
+    <label>Nova Casa Umbral</label>
+</CompactLayout>

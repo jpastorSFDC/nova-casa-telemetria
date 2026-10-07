@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Latencia_Procesamiento_Seg__c</fullName>
+    <label>Latencia de procesamiento (s)</label>
+    <description>Segundos entre Publicado_At__c y Procesado_At__c (HP-07, BR-209). Vacío si falta alguno de los dos. Solo lectura.</description>
+    <inlineHelpText>Segundos entre que se publicó el evento y se procesó.</inlineHelpText>
+    <type>Number</type>
+    <precision>18</precision>
+    <scale>0</scale>
+    <formula><![CDATA[IF(OR(ISBLANK(Publicado_At__c), ISBLANK(Procesado_At__c)), null, ROUND((Procesado_At__c - Publicado_At__c) * 86400, 0))]]></formula>
+    <formulaTreatBlanksAs>BlankAsZero</formulaTreatBlanksAs>
+</CustomField>

@@ -6,7 +6,7 @@
     <columns>Tipo_Activo__c</columns>
     <columns>Severidad_Actual__c</columns>
     <columns>Ultima_Senal__c</columns>
-    <columns>External_Id__c</columns>
+    <columns>Minutos_Sin_Senal__c</columns>
     <filterScope>Everything</filterScope>
     <label>Nova Casa - Activos</label>
 </ListView>

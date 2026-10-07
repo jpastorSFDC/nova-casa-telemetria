@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Tiempo_Abierto_Horas__c</fullName>
+    <label>Horas abierta</label>
+    <description>Horas desde CreatedDate hasta ahora mientras la intervención no esté cerrada (HP-07). Vacío si está cerrada. Solo lectura.</description>
+    <inlineHelpText>Horas que lleva abierta la intervención. Vacío si ya se cerró.</inlineHelpText>
+    <type>Number</type>
+    <precision>18</precision>
+    <scale>1</scale>
+    <formula><![CDATA[IF(IsClosed, null, ROUND((NOW() - CreatedDate) * 24, 1))]]></formula>
+    <formulaTreatBlanksAs>BlankAsZero</formulaTreatBlanksAs>
+</CustomField>

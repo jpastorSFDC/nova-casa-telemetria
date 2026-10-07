@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Descripcion__c</fullName>
+    <label>Descripción</label>
+    <description>Texto legible del límite, armado con Severidad__c, Tipo_Medicion__c, Operador__c, Valor__c y Unidad_Esperada__c (HP-07). Solo lectura: no interviene en la clasificación.</description>
+    <inlineHelpText>Resumen del límite, por ejemplo: Crítica si Temperatura > 40 °C.</inlineHelpText>
+    <type>Text</type>
+    <formula><![CDATA[CASE(TEXT(Severidad__c),
+  "Critica", "Crítica",
+  "Advertencia", "Advertencia",
+  "Invalida", "Inválida",
+  TEXT(Severidad__c)
+) & " si " &
+CASE(TEXT(Tipo_Medicion__c),
+  "TEMPERATURE", "Temperatura",
+  "WATER_PRESSURE", "Presión de agua",
+  "WATER_CONSUMPTION", "Consumo de agua",
+  "ENERGY_CONSUMPTION", "Consumo de energía",
+  "CAMERA_CONNECTIVITY", "Conectividad de cámara",
+  TEXT(Tipo_Medicion__c)
+) & " " &
+CASE(TEXT(Operador__c),
+  "GT", ">",
+  "GE", "≥",
+  "LT", "<",
+  "LE", "≤",
+  "?"
+) & " " & TEXT(Valor__c) & " " &
+CASE(TEXT(Unidad_Esperada__c),
+  "CELSIUS", "°C",
+  "BAR", "bar",
+  "LITER_PER_15_MIN", "L / 15 min",
+  "KWH_PER_15_MIN", "kWh / 15 min",
+  "SECONDS", "s",
+  TEXT(Unidad_Esperada__c)
+)]]></formula>
+    <formulaTreatBlanksAs>BlankAsZero</formulaTreatBlanksAs>
+</CustomField>
