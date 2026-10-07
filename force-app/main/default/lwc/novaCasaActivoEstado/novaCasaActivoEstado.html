@@ -1,0 +1,82 @@
+<template>
+    <lightning-card title="Estado del activo" icon-name="standard:asset_object">
+        <lightning-button slot="actions" label="Actualizar" variant="neutral" size="small" disabled={isLoading} onclick={handleRefresh}></lightning-button>
+        <div class="slds-var-p-horizontal_medium slds-var-p-bottom_small">
+            <template if:true={isLoading}>
+                <div role="status" aria-live="polite">
+                    <span class="slds-assistive-text">Cargando el estado del activo</span>
+                    <lightning-spinner alternative-text="Cargando" size="small"></lightning-spinner>
+                    <div class="hueso" aria-hidden="true"></div>
+                </div>
+            </template>
+
+            <template if:true={showError}>
+                <div class="slds-text-color_error" role="alert">
+                    <p class="slds-text-heading_small">No pudimos cargar el estado del activo</p>
+                    <p>Esta vista no muestra el estado actual. No asumas que todo está normal. Vuelve a intentar; si sigue, avisa a tu administrador.</p>
+                    <p class="slds-text-body_small">{errorMessage}</p>
+                </div>
+            </template>
+
+            <template if:true={hasData}>
+                <template if:true={isTruncated}>
+                    <p class="nota" role="status">Hay más lecturas de las que se muestran.</p>
+                </template>
+                <section class="bloque" aria-label="Lecturas actuales">
+                    <h3 class="titulo">Lecturas actuales</h3>
+                    <template if:true={hasReadings}>
+                        <table>
+                            <caption class="slds-assistive-text">Última lectura de cada tipo de medición</caption>
+                            <thead>
+                                <tr>
+                                    <th scope="col">Medición</th>
+                                    <th scope="col">Valor</th>
+                                    <th scope="col">Severidad</th>
+                                    <th scope="col">Hora de origen</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template for:each={readings} for:item="r">
+                                    <tr key={r.key}>
+                                        <td class="fuerte">{r.label}</td>
+                                        <td class="num">{r.valueText}</td>
+                                        <td><span class={r.sevClass}><span aria-hidden="true">{r.sevGlyph}</span> {r.sevLabel}</span></td>
+                                        <td class="num">
+                                            <lightning-formatted-date-time value={r.occurredAt} year="numeric" month="short" day="2-digit" hour="2-digit" minute="2-digit" second="2-digit" time-zone="UTC"></lightning-formatted-date-time> UTC
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </template>
+                    <template if:false={hasReadings}>
+                        <p class="nota" role="status">Este activo todavía no tiene lecturas.</p>
+                    </template>
+                </section>
+
+                <section class="bloque" aria-label="Intervención abierta">
+                    <h3 class="titulo">Intervención abierta</h3>
+                    <template if:true={hasIntervention}>
+                        <p>
+                            <span aria-hidden="true">&#9650;</span>
+                            <a href="#" onclick={handleCaseClick}>{caseTitle}</a>
+                            <span> · {caseSubject}</span>
+                            <span class="estado"> · Estado: {intervention.status}</span>
+                        </p>
+                        <template if:true={hasMoreInterventions}>
+                            <p class="nota">{moreInterventionsText}</p>
+                        </template>
+                    </template>
+                    <template if:false={hasIntervention}>
+                        <p class="nota" role="status">Este activo no tiene intervenciones abiertas.</p>
+                    </template>
+                </section>
+
+                <section class="bloque" aria-label="Historial de señales">
+                    <h3 class="titulo">Historial de señales</h3>
+                    <c-nova-casa-historial-senales asset-id={recordId}></c-nova-casa-historial-senales>
+                </section>
+            </template>
+        </div>
+    </lightning-card>
+</template>

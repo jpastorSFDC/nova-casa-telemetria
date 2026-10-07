@@ -1019,6 +1019,292 @@ private class ActivosOperadorControllerTest {
         );
     }
 
+    // ---------- asset state (HP-07, Asset record page) ----------
+
+    @isTest
+    static void assetStateReturnsTheLatestReadingPerTypeWithValueAndUnit() {
+        // Given two readings of the same type at different times, and one of another type
+        User op = newUserWithPermissionSet('nc207stateop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Account building = newAccount('Edificio Estado', op.Id);
+        Asset asset = newAsset('AST-STATE-LATEST', building, 'WATER_PUMP');
+        Datetime now = baseTime();
+        Lectura_Vigente__c older = newReading(asset, 'TEMPERATURE', 'CELSIUS', 40, now.addMinutes(-30), 0);
+        Lectura_Vigente__c newer = newReading(asset, 'TEMPERATURE', 'CELSIUS', 62.5, now, 1);
+        newReading(asset, 'WATER_PRESSURE', 'BAR', 3, now.addMinutes(-5), 0);
+        Assert.areNotEqual(older.Id, newer.Id);
+
+        // When the operator opens the asset
+        ActivosOperadorController.EstadoActivo result = estado(op, asset.Id);
+
+        // Then there is exactly one row per type, the newest of each, with value, unit, time and level
+        Assert.areEqual(2, result.readings.size());
+        ActivosOperadorController.EstadoLectura temperature = stateReading(result, 'TEMPERATURE');
+        Assert.areEqual(62.5, temperature.value);
+        Assert.areEqual('CELSIUS', temperature.unit);
+        Assert.areEqual(now, temperature.occurredAt);
+        Assert.areEqual(1, temperature.severityLevel);
+        Assert.areEqual(3, stateReading(result, 'WATER_PRESSURE').value);
+        Assert.areEqual('BAR', stateReading(result, 'WATER_PRESSURE').unit);
+    }
+
+    @isTest
+    static void assetStateNewerNormalOfAnotherTypeDoesNotHideACritical() {
+        // Given an older critical temperature and a newer normal pressure
+        User op = newUserWithPermissionSet('nc207statecrit', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Account building = newAccount('Edificio Estado Critico', op.Id);
+        Asset asset = newAsset('AST-STATE-CRIT', building, 'WATER_PUMP');
+        newReading(asset, 'TEMPERATURE', 'CELSIUS', 95, baseTime().addMinutes(-30), 2);
+        newReading(asset, 'WATER_PRESSURE', 'BAR', 3, baseTime(), 0);
+
+        // When the operator opens the asset
+        ActivosOperadorController.EstadoActivo result = estado(op, asset.Id);
+
+        // Then both rows are listed and the critical one keeps its level
+        Assert.areEqual(2, result.readings.size());
+        Assert.areEqual(2, stateReading(result, 'TEMPERATURE').severityLevel, 'a newer normal reading of another type must not hide the critical');
+        Assert.areEqual(0, stateReading(result, 'WATER_PRESSURE').severityLevel);
+    }
+
+    @isTest
+    static void assetStateKeepsAReadingWithoutLevelAsNullNeverNormal() {
+        // Given a reading with no severity level
+        User op = newUserWithPermissionSet('nc207statenull', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Account building = newAccount('Edificio Estado Nulo', op.Id);
+        Asset asset = newAsset('AST-STATE-NULL', building, 'WATER_PUMP');
+        newReading(asset, 'TEMPERATURE', 'CELSIUS', 20, baseTime(), null);
+
+        // When the operator opens the asset
+        ActivosOperadorController.EstadoActivo result = estado(op, asset.Id);
+
+        // Then the level stays null so the component shows "Sin dato"
+        Assert.isNull(stateReading(result, 'TEMPERATURE').severityLevel);
+    }
+
+    @isTest
+    static void assetStateListsOnlyOpenInterventionsNewestFirstAndEmptyWhenNone() {
+        // Given an asset with closed and open cases, and another asset with only a closed case
+        User op = newUserWithPermissionSet('nc207statecase', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Account building = newAccount('Edificio Estado Casos', op.Id);
+        Asset withCases = newAsset('AST-STATE-CASES', building, 'WATER_PUMP');
+        Asset onlyClosed = newAsset('AST-STATE-CLOSED', building, 'WATER_PUMP');
+        newCase(withCases, 'Closed', 'Cerrado');
+        Case open = newCase(withCases, 'New', 'Abierto uno');
+        newCase(onlyClosed, 'Closed', 'Cerrado otro');
+
+        // When the operator opens each asset
+        ActivosOperadorController.EstadoActivo a = estado(op, withCases.Id);
+        ActivosOperadorController.EstadoActivo b = estado(op, onlyClosed.Id);
+
+        // Then only the open case counts, with its number, subject and status; closed ones are ignored
+        Assert.areEqual(1, a.openInterventionCount);
+        Assert.areEqual(open.Id, a.openIntervention.caseId);
+        Assert.areEqual('Abierto uno', a.openIntervention.subject);
+        Assert.areEqual('New', a.openIntervention.status);
+        Assert.isNotNull(a.openIntervention.caseNumber);
+        Assert.areEqual(0, b.openInterventionCount);
+        Assert.isNull(b.openIntervention);
+        Assert.isTrue(b.readings.isEmpty());
+    }
+
+    @isTest
+    static void assetStateIsDeniedForAnotherOperatorsAssetButWorksForTheGerente() {
+        // Given two operators, a Gerente above both, and a reading on operator A's asset
+        User operatorB = newUserWithPermissionSet('nc207stateop2', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User gerente = newUserWithPermissionSet('nc207stategerente', 'Nova_Casa_Gerente', GERENTE_ROLE);
+        User operatorA = userLike('nc207operator');
+        Account buildingA = newAccount('Edificio Estado A', operatorA.Id);
+        Asset assetA = newAsset('AST-STATE-ISO-A', buildingA, 'WATER_PUMP');
+        newReading(assetA, 'TEMPERATURE', 'CELSIUS', 50, baseTime(), 1);
+
+        // When operator B asks for A's asset
+        String denied;
+        System.runAs(operatorB) {
+            try {
+                ActivosOperadorController.getEstadoActivo(assetA.Id);
+                Assert.fail('operator B must not read the state of an asset it cannot see');
+            } catch (AuraHandledException e) {
+                denied = e.getMessage();
+            }
+        }
+
+        // Then it fails with the safe message, while the owner and the Gerente get the reading
+        Assert.areEqual(ActivosOperadorController.ASSET_STATE_MESSAGE, denied);
+        Assert.areEqual(1, estado(operatorA, assetA.Id).readings.size());
+        Assert.areEqual(1, estado(gerente, assetA.Id).readings.size());
+    }
+
+    @isTest
+    static void assetStateRejectsNullAndOtherObjectIdsWithTheSafeMessage() {
+        // Given a Case Id (a real record) and null
+        Account building = newAccount('Edificio Estado Otro');
+        Asset asset = newAsset('AST-STATE-OTHER', building, 'WATER_PUMP');
+        Case c = newCase(asset, 'New', 'Caso de prueba');
+
+        // When they are passed as the asset Id
+        for (Id candidate : new List<Id>{ null, c.Id }) {
+            System.runAs(userLike('nc207operator')) {
+                try {
+                    ActivosOperadorController.getEstadoActivo(candidate);
+                    Assert.fail('expected a rejection for ' + candidate);
+                } catch (AuraHandledException e) {
+                    // Then the message is the static one
+                    Assert.areEqual(ActivosOperadorController.ASSET_STATE_MESSAGE, e.getMessage());
+                }
+            }
+        }
+    }
+
+    @isTest
+    static void assetStateExposesOnlyTheAgreedKeys() {
+        // Given an asset with one reading and one open case
+        User op = newUserWithPermissionSet('nc207statekeys', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Account building = newAccount('Edificio Estado Llaves', op.Id);
+        Asset asset = newAsset('AST-STATE-KEYS', building, 'WATER_PUMP');
+        insert new Lectura_Vigente__c(
+            Asset__c = asset.Id,
+            Clave__c = 'TEST-KEYS-1',
+            Tipo_Medicion__c = 'TEMPERATURE',
+            Unidad__c = 'CELSIUS',
+            Valor__c = 50,
+            Occurred_At__c = baseTime(),
+            Severidad_Nivel__c = 1,
+            Sensor_Id__c = 'SENSOR-SECRETO-XYZ'
+        );
+        newCase(asset, 'New', 'Caso');
+
+        // When the DTO is serialized
+        String payload = JSON.serialize(estado(op, asset.Id));
+        Map<String, Object> top = (Map<String, Object>) JSON.deserializeUntyped(payload);
+        Map<String, Object> reading = (Map<String, Object>) ((List<Object>) top.get('readings'))[0];
+        Map<String, Object> intervention = (Map<String, Object>) top.get('openIntervention');
+
+        // Then only the agreed keys are present and no technical value leaks
+        Assert.areEqual(new Set<String>{ 'readings', 'openIntervention', 'openInterventionCount', 'truncated' }, top.keySet());
+        Assert.areEqual(new Set<String>{ 'measurementType', 'value', 'unit', 'occurredAt', 'severityLevel' }, reading.keySet());
+        Assert.areEqual(new Set<String>{ 'caseId', 'caseNumber', 'subject', 'status' }, intervention.keySet());
+        Assert.isFalse(payload.contains('SECRETO'), 'Sensor_Id__c must not leave the controller');
+    }
+
+    @isTest
+    static void assetStateFlagsTruncationOnlyWhenTheReadingCapIsExceeded() {
+        // Given one asset with exactly the cap of readings (5 types x 1 asset)
+        User op = newUserWithPermissionSet('nc207statetrunc', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Account building = newAccount('Edificio Estado Tope', op.Id);
+        Asset asset = newAsset('AST-STATE-CAP', building, 'WATER_PUMP');
+        Datetime now = baseTime();
+        for (Integer i = 0; i < 5; i++) {
+            newReading(asset, 'TEMPERATURE', 'CELSIUS', 20 + i, now.addMinutes(-i), 0);
+        }
+
+        // When the operator opens the asset
+        ActivosOperadorController.EstadoActivo exact = estado(op, asset.Id);
+
+        // Then nothing was cut
+        Assert.isFalse(exact.truncated, 'Exactly at the readings cap is not a cut');
+
+        // When one more reading pushes it over the cap
+        newReading(asset, 'TEMPERATURE', 'CELSIUS', 99, now.addMinutes(-10), 0);
+        ActivosOperadorController.EstadoActivo over = estado(op, asset.Id);
+
+        // Then the panel is told the figures may be incomplete
+        Assert.isTrue(over.truncated, 'Readings beyond the cap must set truncated');
+    }
+
+    @isTest
+    static void assetStateSameInstantHighestSeverityWinsThenRecordIdNotArrivalOrder() {
+        // Given three readings of one type at the same instant: a normal, a critical, then another critical
+        User op = newUserWithPermissionSet('nc207statetie', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Account building = newAccount('Edificio Estado Empate', op.Id);
+        Asset asset = newAsset('AST-STATE-TIE', building, 'WATER_PUMP');
+        Datetime now = baseTime();
+        newReading(asset, 'TEMPERATURE', 'CELSIUS', 20, now, 0);
+        Lectura_Vigente__c critical = newReading(asset, 'TEMPERATURE', 'CELSIUS', 95, now, 2);
+
+        // When the operator opens the asset
+        ActivosOperadorController.EstadoActivo bySeverity = estado(op, asset.Id);
+
+        // Then the highest severity wins even though the normal one arrived first
+        Assert.areEqual(1, bySeverity.readings.size());
+        Assert.areEqual(2, bySeverity.readings[0].severityLevel);
+        Assert.areEqual(95, bySeverity.readings[0].value);
+
+        // When a second critical with the same instant arrives
+        Lectura_Vigente__c second = newReading(asset, 'TEMPERATURE', 'CELSIUS', 96, now, 2);
+        Lectura_Vigente__c expected = String.valueOf(critical.Id) > String.valueOf(second.Id) ? critical : second;
+        ActivosOperadorController.EstadoActivo byId = estado(op, asset.Id);
+
+        // Then the higher record Id wins, not the arrival order
+        Assert.areEqual(1, byId.readings.size());
+        Assert.areEqual(expected.Valor__c, byId.readings[0].value);
+    }
+
+    @isTest
+    static void realCoordinatorAndAdminPermissionSetsCanOpenTheAssetState() {
+        // Given a coordinator above the building, an admin-set user with no role, and an asset with a reading and an open case
+        User coordinator = newUserWithPermissionSet('nc207statecoord', 'Nova_Casa_Coordinator', COORDINATOR_ROLE);
+        User admin = newUserWithPermissionSet('nc207stateadmin', 'Nova_Casa_Admin', null);
+        Account building = newAccount('Edificio Estado Roles');
+        Asset asset = newAsset('AST-STATE-ROLES', building, 'WATER_PUMP');
+        newReading(asset, 'TEMPERATURE', 'CELSIUS', 60, baseTime(), 1);
+        Case open = newCase(asset, 'New', 'Caso abierto');
+
+        // When each opens the asset state
+        ActivosOperadorController.EstadoActivo forCoordinator = estado(coordinator, asset.Id);
+        ActivosOperadorController.EstadoActivo forAdmin = estado(admin, asset.Id);
+
+        // Then neither gets the access error and both see the reading and the case subject
+        for (ActivosOperadorController.EstadoActivo r : new List<ActivosOperadorController.EstadoActivo>{ forCoordinator, forAdmin }) {
+            Assert.areEqual(1, r.readings.size());
+            Assert.areEqual(1, r.openInterventionCount);
+            Assert.areEqual(open.Id, r.openIntervention.caseId);
+            Assert.areEqual('Caso abierto', r.openIntervention.subject);
+        }
+    }
+
+    @isTest
+    static void assetStateWithoutFieldAccessGetsTheSafeAccessMessage() {
+        // Given a user who can see the asset but has no FLS on Lectura_Vigente__c.Severidad_Nivel__c
+        User limited;
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            PermissionSet ps = newPermissionSet('NC207_State_NoSeverity');
+            insert ps;
+            List<ObjectPermissions> objectPerms = new List<ObjectPermissions>();
+            for (String obj : new List<String>{ 'Asset', 'Account', 'Contact', 'Case', 'Lectura_Vigente__c' }) {
+                objectPerms.add(new ObjectPermissions(ParentId = ps.Id, SobjectType = obj, PermissionsRead = true));
+            }
+            insert objectPerms;
+            List<FieldPermissions> fieldPerms = new List<FieldPermissions>();
+            for (String f : new List<String>{ 'Asset.AccountId', 'Case.AssetId', 'Case.Subject', 'Lectura_Vigente__c.Sensor_Id__c' }) {
+                // Required and master-detail fields are always readable; Severidad_Nivel__c is the only one left out.
+                fieldPerms.add(new FieldPermissions(ParentId = ps.Id, SobjectType = f.substringBefore('.'),
+                    Field = f, PermissionsRead = true, PermissionsEdit = false));
+            }
+            insert fieldPerms;
+            Profile p = [SELECT Id FROM Profile WHERE Name = 'Minimum Access - Salesforce' LIMIT 1];
+            limited = newUser(p.Id, 'nc207stateinsev', String.valueOf(Crypto.getRandomInteger()).replace('-', 'n'));
+            insert limited;
+            insert new PermissionSetAssignment(AssigneeId = limited.Id, PermissionSetId = ps.Id);
+        }
+        Account building = newAccount('Edificio Estado FLS', limited.Id);
+        Asset asset = newAsset('AST-STATE-FLS', building, 'WATER_PUMP');
+        newReading(asset, 'TEMPERATURE', 'CELSIUS', 95, baseTime(), 2);
+
+        // When that user asks for the asset state
+        AuraHandledException error;
+        System.runAs(limited) {
+            try {
+                ActivosOperadorController.getEstadoActivo(asset.Id);
+            } catch (AuraHandledException e) {
+                error = e;
+            }
+        }
+
+        // Then it is rejected with the static message, not partial data or platform text naming fields
+        Assert.isNotNull(error, 'missing field access must be rejected');
+        Assert.areEqual(ActivosOperadorController.ACCESS_MESSAGE, error.getMessage());
+        Assert.isFalse(error.getMessage().contains('Severidad_Nivel__c'));
+    }
+
     // ---------- helpers ----------
 
     // Assigns a SHIPPED permission set (by Name) to a fresh user. Call before inserting data rows in the test.
@@ -1029,7 +1315,9 @@ private class ActivosOperadorControllerTest {
             Assert.areEqual(1, sets.size(), permissionSetName + ' must be deployed to the org');
             Profile p = [SELECT Id FROM Profile WHERE Name = 'Minimum Access - Salesforce' LIMIT 1];
             u = newUser(p.Id, prefix, String.valueOf(Crypto.getRandomInteger()).replace('-', 'n'));
-            u.UserRoleId = roleId(roleName);
+            if (roleName != null) {
+                u.UserRoleId = roleId(roleName);
+            }
             insert u;
             insert new PermissionSetAssignment(AssigneeId = u.Id, PermissionSetId = sets[0].Id);
         }
@@ -1054,6 +1342,24 @@ private class ActivosOperadorControllerTest {
             result = ActivosOperadorController.getAssets(accountId, severity, type);
         }
         return result;
+    }
+
+    private static ActivosOperadorController.EstadoActivo estado(User runAs, Id assetId) {
+        ActivosOperadorController.EstadoActivo result;
+        System.runAs(runAs) {
+            result = ActivosOperadorController.getEstadoActivo(assetId);
+        }
+        return result;
+    }
+
+    private static ActivosOperadorController.EstadoLectura stateReading(ActivosOperadorController.EstadoActivo state, String type) {
+        for (ActivosOperadorController.EstadoLectura r : state.readings) {
+            if (r.measurementType == type) {
+                return r;
+            }
+        }
+        Assert.fail('no reading of type ' + type);
+        return null;
     }
 
     private static ActivosOperadorController.HistoryResult history(User runAs, Id assetId, Integer limite) {
