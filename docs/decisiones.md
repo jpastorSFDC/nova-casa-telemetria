@@ -315,6 +315,18 @@ Copiar esta plantilla, numerar secuencialmente, y mantener el estado actualizado
 - **Criterios de prueba**: `ActivosOperadorControllerTest` (orden y tope; solo filas del activo pedido; el operador B no ve el activo del A y cada uno ve el suyo; el gerente ve los dos por la jerarquía; activo nulo, borrado o de otro tipo recibe el mismo mensaje; el resultado serializado no contiene `Motivo__c` ni `Huella__c` y solo trae tres claves; el operador no puede leer `Log_Senial__c` directamente). Fallan si se quita la comprobación del activo, el filtro por activo, el tope o se agrega un campo técnico.
 - **Siguiente acción**: John despliega con dry-run previo, corre los tests y prueba la tarjeta como operador, coordinador y gerente; decidir con Juan Diego si se agregan valores al log.
 
+## D025 — Las asignaciones de page layout de Minimum Access viven en el repo (HP-07)
+
+- **Estado**: Propuesta
+- **Fecha**: 2026-10-07
+- **Contexto**: con los usuarios persona en Minimum Access - Salesforce (D022), abrir un `Case` o un `Asset` daba "no page layout assigned". Se asignaron a mano en Setup (2026-10-06) y quedaron solo en el org, contra la regla de que nada se cambia a mano sin versionarse.
+- **Decisión**: se versiona `profiles/Minimum Access - Salesforce.profile-meta.xml`, recuperado del org junto con los seis layouts, con las cinco asignaciones que el org tiene y los cinco permisos de usuario estándar del perfil. No se versionan los cambios que Salesforce agrega a los layouts al recuperarlos (`feedLayout`, botones excluidos, `summaryLayout`, `Readonly` que pasa a `Required` en campos obligatorios).
+- **Alternativa descartada**: dejarlo solo en Setup (un org nuevo o una demo en otro org volvería a dar el error), o versionar un perfil escrito a mano sin compararlo con el org.
+- **Trade-off**: un deploy de este perfil sobrescribe las asignaciones y los permisos de usuario del perfil en el org; como solo trae esos, no toca permisos de objeto ni de campo. Es metadata compartida: se despliega solo desde `main` y avisando a Juan Diego.
+- **Riesgo / dependencia**: `Account` no está en el perfil; funciona con el layout estándar, pero si alguien agrega otro layout de `Account` habrá que asignar el correcto. Cualquier layout nuevo de un objeto del app necesita su asignación aquí.
+- **Criterios de prueba**: un usuario persona (operador, coordinador, gerente) abre un `Case`, un `Asset`, una lectura, una señal y un límite sin el error; el `git diff` del perfil recuperado contra el versionado queda vacío.
+- **Siguiente acción**: dry-run, PR propio, deploy desde `main` por John.
+
 ## Pendientes heredados de la sección "Acuerdos" (abiertos desde Discovery, sin cerrar en Development)
 
 Estos puntos necesitaban una entrada D00X cada uno antes de cerrar el entregable 6 de Discovery. El entregable se aprobó y ya estamos en Development (ver `AGENTS.md`), pero solo el objeto de intervención (D001) y el empate de `occurredAt` (D003 arriba) están cerrados del todo; el edificio (D005 arriba) tiene entrada pero solo resuelve el campo de identidad, no el modelo de sharing. Siguen sin cerrar:
