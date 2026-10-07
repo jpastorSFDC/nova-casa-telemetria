@@ -4,7 +4,9 @@
  *
  * Credentials: the Bearer token is added by the Named Credential / External Credential and never
  * touches Apex. The session cursor (X-Simulator-Cursor header, pagination.nextCursor) is sensitive too:
- * it is never logged, never put in an exception message and never stored. Exception messages carry only
+ * it is never stored in a record, a setting or a log, and never put in an exception message. It is held only in
+ * Platform Cache (SesionSimulador, D025) and in the private state of the TelemetriaIngesta Queueable. Exception
+ * messages carry only
  * the operation name and the HTTP status code. They deliberately omit the response body and the JSON
  * parser's own message, because a JSONException message quotes part of the body, and a telemetry
  * body contains the next cursor.
