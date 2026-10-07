@@ -46,7 +46,7 @@ Duración: unos 14 minutos, más la preparación. La evidencia por historia est�
    ```
 
 2. Setup > Apex Jobs: aparecen los trabajos de `TelemetriaIngesta`, uno por página, en `Completed`.
-3. App Nova Casa Telemetry, URL `/lightning/o/Log_Senial__c/list?filterName=Todas_las_senales` (la bitácora no tiene pestaña en la app).
+3. App Nova Casa Telemetry > pestaña **Registros de Señal** (solo la ve el admin) y elegir la vista **Todas las señales** (la pestaña puede abrir en otra vista; confirmarlo en la verificación en el navegador). También se llega por URL: `/lightning/o/Log_Senial__c/list?filterName=Todas_las_senales`.
 
 **Qué debe ver el público**
 
