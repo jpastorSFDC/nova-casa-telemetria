@@ -851,7 +851,7 @@ private class SenialSensorHandlerTest {
         Senial_Sensor__e ajena = medicion('msg_edif_mal', SALA, 'TEMPERATURE', '40', 'CELSIUS', OCURRIDO);
         ajena.Building_Id__c = 'BLD-OTRO-999';
         Senial_Sensor__e propia = medicion('msg_edif_ok', SALA, 'TEMPERATURE', '25', 'CELSIUS', OCURRIDO);
-        propia.Building_Id__c = 'bld-hdl-001'; // la grafía no cambia el resultado
+        propia.Building_Id__c = '  bld-hdl-001 '; // los espacios alrededor no cambian el resultado
 
         Test.startTest();
         new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ ajena, propia });
@@ -865,6 +865,59 @@ private class SenialSensorHandlerTest {
         Lectura_Vigente__c vigente = lectura(SALA + '|TEMPERATURE');
         Assert.areEqual(identidad('msg_edif_ok'), vigente.Identidad_Senal__c, 'Solo la señal del edificio correcto escribe la lectura');
         Assert.areEqual(0, [SELECT COUNT() FROM Case], 'La señal rechazada (40 °C sería crítica) no abre intervención');
+    }
+
+    @IsTest
+    static void elReenvioIdenticoDeUnEdificioAjenoSumaUnReenvioYSigueRechazadoSinCase() {
+        Senial_Sensor__e ajena = medicion('msg_edif_reenvio', SALA, 'TEMPERATURE', '40', 'CELSIUS', OCURRIDO);
+        ajena.Building_Id__c = 'BLD-OTRO-999';
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ ajena });
+
+        Senial_Sensor__e igual = medicion('msg_edif_reenvio', SALA, 'TEMPERATURE', '40', 'CELSIUS', OCURRIDO);
+        igual.Building_Id__c = 'BLD-OTRO-999';
+        Test.startTest();
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ igual });
+        Test.stopTest();
+
+        Log_Senial__c log = filaLog(identidad('msg_edif_reenvio'));
+        Assert.areEqual('Rechazada', log.Resultado__c, 'El reenvío no cambia el resultado: ' + log.Motivo__c);
+        Assert.areEqual(1, log.Reenvios__c.intValue(), 'Cuenta como reenvío');
+        Assert.areEqual(1, [SELECT COUNT() FROM Log_Senial__c WHERE Message_Id__c = 'msg_edif_reenvio'], 'Una sola fila por identidad');
+        Assert.areEqual(0, [SELECT COUNT() FROM Lectura_Vigente__c], 'Sin lectura');
+        Assert.areEqual(0, [SELECT COUNT() FROM Case], 'Sin intervención');
+    }
+
+    @IsTest
+    static void elMismoMensajeConElEdificioCorregidoEsConflictoYNoAbreCase() {
+        Senial_Sensor__e ajena = medicion('msg_edif_conf', SALA, 'TEMPERATURE', '40', 'CELSIUS', OCURRIDO);
+        ajena.Building_Id__c = 'BLD-OTRO-999';
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ ajena });
+
+        // Mismo source + messageId con otro contenido (el edificio): no es una alerta nueva.
+        Senial_Sensor__e corregida = medicion('msg_edif_conf', SALA, 'TEMPERATURE', '40', 'CELSIUS', OCURRIDO);
+        corregida.Building_Id__c = 'BLD-HDL-001';
+        Test.startTest();
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ corregida });
+        Test.stopTest();
+
+        Log_Senial__c log = filaLog(identidad('msg_edif_conf'));
+        Assert.areEqual('Conflicto', log.Resultado__c, 'Mismo identificador con otro contenido es conflicto');
+        Assert.areEqual(0, [SELECT COUNT() FROM Lectura_Vigente__c], 'El conflicto no escribe lectura');
+        Assert.areEqual(0, [SELECT COUNT() FROM Case], 'El conflicto no abre intervención (40 °C sería crítica)');
+    }
+
+    @IsTest
+    static void unEdificioVacioNoSeValidaYLaSenialProcesa() {
+        // Política actual (D032): sin edificio en el mensaje no hay contra qué comparar y la señal sigue su camino.
+        Senial_Sensor__e sinEdificio = medicion('msg_sin_edif', SALA_2, 'TEMPERATURE', '25', 'CELSIUS', OCURRIDO);
+        sinEdificio.Building_Id__c = null;
+
+        Test.startTest();
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ sinEdificio });
+        Test.stopTest();
+
+        Assert.areEqual('Procesada', filaLog(identidad('msg_sin_edif')).Resultado__c, 'Sin edificio la señal se procesa');
+        Assert.areEqual(1, [SELECT COUNT() FROM Lectura_Vigente__c], 'Escribe su lectura');
     }
 
     @IsTest
