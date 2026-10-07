@@ -1,5 +1,5 @@
 /**
- * Keeps the simulator session between ingestion runs (HP-05, D024): the cursor of the next page to read, and the
+ * Keeps the simulator session between ingestion runs (HP-05, D025): the cursor of the next page to read, and the
  * counters of the last run. Both live in Platform Cache (org partition NovaCasaSimulador) with a TTL and never in a
  * record: the cursor is a secret (D013 point 2), so it is not written to an object, a Custom Setting or a log.
  *

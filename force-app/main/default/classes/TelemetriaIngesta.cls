@@ -11,7 +11,7 @@
  * published, because an event without a log row would be untraceable; it is counted and reported in the
  * final WARN debug line (counts only).
  *
- * One job reads SEVERAL pages (HP-05, D024). Order inside a job is: restore the saved cursor, then ALL the callouts
+ * One job reads SEVERAL pages (HP-05, D025). Order inside a job is: restore the saved cursor, then ALL the callouts
  * (POST /session only when there is no cursor, then GET /telemetry once per page, each page turned into log rows
  * and events in memory right away so the raw messages are released), then ALL the DML (log insert, event publish,
  * log update, page by page), then the cache write and, if the run is not done, the enqueue of a continuation job.
@@ -22,7 +22,7 @@
  * stack depth (observed: 2 jobs in nova-cdo), so the chain is only for continuation and retries; if it is cut, the
  * saved cursor lets the next run continue.
  *
- * The session continues across runs (HP-05, D024). The cursor of the next page to read is kept OUTSIDE any record,
+ * The session continues across runs (HP-05, D025). The cursor of the next page to read is kept OUTSIDE any record,
  * in Platform Cache (SesionSimulador), keyed by scenario+seed+batch and with a TTL. It is written after the DML of
  * the pages it follows, so a failed job re-reads its pages (idempotent by source+messageId). A run asked to restart
  * clears it. When the cache is unavailable the run opens a new session and says so (Resumen.cacheNoDisponible).
@@ -38,7 +38,7 @@
  * D023). A failure on the first page of a job still fails the job; a non-retryable failure after some pages were
  * read cannot fail the job (it would roll the DML back), so the job writes what it read, stops and reports the
  * status in Resumen.interrumpidaPorEstado. Retries wait 1 minute, then 2; Retry-After is not read. The simulator's
- * pollAfterMs is no longer honored with minute delays (D024 supersedes that part of D023). Every enqueue counts
+ * pollAfterMs is no longer honored with minute delays (D025 supersedes that part of D023). Every enqueue counts
  * against the chain depth (trabajos).
  *
  * Access: without sharing + SYSTEM_MODE makes the DML independent of operator/admin object permissions
@@ -179,12 +179,12 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
         public Integer descartados = 0; // subset of rechazados: non-object elements of "data"
         public Integer reintentos = 0; // pages re-enqueued after a 429/5xx
         public Integer sesionesReabiertas = 0; // sessions reopened after a 409/410
-        // Where the run started reading (D024). No cursor value ever goes here: only flags and counters.
+        // Where the run started reading (D025). No cursor value ever goes here: only flags and counters.
         public Boolean sesionContinuada = false; // the first page came from the saved cursor
         public Boolean sesionReiniciada = false; // the run was asked to start from a new session
         public Boolean cacheNoDisponible = false; // the cursor could not be read or saved: a new session was used
         public Boolean flujoTerminado = false; // the simulator said hasMore=false
-        public Boolean cursorSinAvanzar = false; // some message left no complete trace, so the saved cursor was kept (D024)
+        public Boolean cursorSinAvanzar = false; // some message left no complete trace, so the saved cursor was kept (D025)
         public Integer interrumpidaPorEstado; // HTTP status that stopped the run after some pages were written
         public Datetime actualizadoEn; // when the summary was last written (lets the UI ignore an older run)
 
@@ -409,7 +409,7 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
             new TelemetriaIngesta(escenario, cursor, pagina, maxPaginas, acumulado));
         siguiente.trabajos = trabajos + 1;
         guardarResumen();
-        encolar(siguiente, 0); // pollAfterMs is not honored (D024): the next job goes straight to the queue
+        encolar(siguiente, 0); // pollAfterMs is not honored (D025): the next job goes straight to the queue
     }
 
     /**

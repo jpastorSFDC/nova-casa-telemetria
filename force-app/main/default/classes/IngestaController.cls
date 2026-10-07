@@ -34,7 +34,7 @@ public with sharing class IngestaController {
     }
 
     /**
-     * What the last run did, from the counters TelemetriaIngesta keeps in Platform Cache (D024). Counters and flags
+     * What the last run did, from the counters TelemetriaIngesta keeps in Platform Cache (D025). Counters and flags
      * only: no cursor. Explains a run that registered no new signals, because a duplicate has no new log row.
      */
     public class Detalle {
@@ -87,7 +87,7 @@ public with sharing class IngestaController {
      * @param escenario one of the contract scenarios
      * @param paginas pages to read, 1 to 25; null means the ingestion default
      * @param reiniciar true clears the saved simulator session first, so the run starts from the simulator's first
-     *        message; false or null continues from where the last run stopped (D024)
+     *        message; false or null continues from where the last run stopped (D025)
      */
     @AuraEnabled
     public static Inicio traerSenales(String escenario, Integer paginas, Boolean reiniciar) {

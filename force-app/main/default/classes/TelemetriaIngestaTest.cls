@@ -231,7 +231,7 @@ private class TelemetriaIngestaTest {
         Assert.areEqual(5, siguiente.maxPaginas);
         Assert.areEqual(1, siguiente.acumulado.paginas);
         Assert.areEqual(2, siguiente.acumulado.publicados);
-        Assert.areEqual(0, TelemetriaIngesta.retrasosCapturados[0], 'pollAfterMs is not honored: no minute delay (D024)');
+        Assert.areEqual(0, TelemetriaIngesta.retrasosCapturados[0], 'pollAfterMs is not honored: no minute delay (D025)');
         Assert.areEqual(1, mock.llamadasTelemetria, 'The job stopped reading at its budget');
         Assert.areEqual('fake-cursor-3', SesionSimulador.memoriaDePrueba.get(SesionSimulador.clave(null, null, 200)),
             'The cursor of the next page is saved even if the continuation job never runs');
@@ -920,7 +920,7 @@ private class TelemetriaIngestaTest {
         Assert.isNull(conexion.Value__c);
     }
 
-    // ─── HP-05 / D024: the session continues across runs, one job reads several pages ───────────────
+    // ─── HP-05 / D025: the session continues across runs, one job reads several pages ───────────────
 
     @isTest
     static void unaCorridaNuevaContinuaDesdeElCursorGuardadoSinAbrirSesion() {

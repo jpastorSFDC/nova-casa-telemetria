@@ -1,5 +1,5 @@
 /**
- * Tests for SesionSimulador (HP-05, D024). Platform Cache holds nothing in Apex tests, so the saved values go
+ * Tests for SesionSimulador (HP-05, D025). Platform Cache holds nothing in Apex tests, so the saved values go
  * through the memoriaDePrueba map; the real-cache path is only checked for "does not throw when unavailable".
  * Cursors are obviously fake placeholders.
  */
