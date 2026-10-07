@@ -11,27 +11,35 @@
  * published, because an event without a log row would be untraceable; it is counted and reported in the
  * final WARN debug line (counts only).
  *
- * Queueable chain: one job = one page. Order inside a job is callouts first (POST /session when there is no
- * cursor yet, then GET /telemetry), then DML (log insert, event publish, log update), then enqueue of the next job.
- * Salesforce forbids a callout after uncommitted DML in the same transaction, so a job never callouts after DML;
- * the next page is a new transaction. The chain stops when the simulator says hasMore=false, on an empty page,
- * at maxPaginas, when the platform's queueable stack depth is exhausted, or at our own PROFUNDIDAD_LOCAL_MAXIMA.
- * The enqueueJob of the next job asks the platform to raise its default chain-depth cap (5) to
- * PROFUNDIDAD_COLA_SOLICITADA via AsyncOptions.MaximumQueueableStackDepth, but that request is not trusted
- * blindly: AsyncInfo.hasMaxStackDepth() was observed in nova-cdo reporting false one job before the platform
- * actually refused to run the next one (an uncaught LimitException, not our graceful WARN stop), so pagina is
- * also checked against our own, more conservative local ceiling regardless of what the platform reports.
- * The cursor travels only as private state of the next job. It is never logged or stored in a record.
+ * One job reads SEVERAL pages (HP-05, D024). Order inside a job is: restore the saved cursor, then ALL the callouts
+ * (POST /session only when there is no cursor, then GET /telemetry once per page, each page turned into log rows
+ * and events in memory right away so the raw messages are released), then ALL the DML (log insert, event publish,
+ * log update, page by page), then the cache write and, if the run is not done, the enqueue of a continuation job.
+ * Salesforce forbids a callout after uncommitted DML in the same transaction, so a job never callouts after DML.
+ * The reading stops at maxPaginas, when the simulator says hasMore=false, on an empty page, when the job has
+ * gathered maxMensajesPorTrabajo messages (keeps log rows + events under the 10,000 DML-row limit) or when heap,
+ * CPU or callouts run short. A job that stopped for budget enqueues a continuation. The platform caps the queueable
+ * stack depth (observed: 2 jobs in nova-cdo), so the chain is only for continuation and retries; if it is cut, the
+ * saved cursor lets the next run continue.
+ *
+ * The session continues across runs (HP-05, D024). The cursor of the next page to read is kept OUTSIDE any record,
+ * in Platform Cache (SesionSimulador), keyed by scenario+seed+batch and with a TTL. It is written after the DML of
+ * the pages it follows, so a failed job re-reads its pages (idempotent by source+messageId). A run asked to restart
+ * clears it. When the cache is unavailable the run opens a new session and says so (Resumen.cacheNoDisponible).
+ * When the stream ends (hasMore=false) the cursor of the last page read is kept, so the next run re-polls it.
+ * The cursor also travels as private state of the next job. It is never logged, returned or stored in a record.
  *
  * Resilience (T4.7). The simulator contract does not document these codes; they are the failures a long run
  * meets in practice. A 429 or 5xx on a callout is retried as a new job for the SAME page (same cursor, same
- * pagina) up to MAX_INTENTOS times: the callouts come before any DML, so a retry never repeats a write. If the
- * session is rejected with 409/410 the job opens a new session once per page (retries included) and rereads; the new stream restarts from the
- * beginning, which is safe only if the simulator replays the same source+messageId (unconfirmed, D023). pagina keeps counting
- * across a reopen, so maxPaginas bounds the run, not the distinct pages read. Any other error
- * still fails the job. Retries wait 1 minute, then 2; Retry-After is not read. The simulator's pollAfterMs is honored between pages with the only delay a Queueable has,
- * MinimumQueueableDelayInMinutes (whole minutes, 1..10), so a page takes at least one minute; see D023.
- * Every enqueue, retry or next page, counts against the chain depth (trabajos).
+ * pagina) up to MAX_INTENTOS times: pages read before the failing one are written first, and the callouts of the
+ * retry come before any DML, so a retry never repeats a write. If the session is rejected with 409/410 the saved
+ * cursor is cleared, the job opens a new session once per page (retries included) and rereads; the new stream
+ * restarts from the beginning, which is safe only if the simulator replays the same source+messageId (unconfirmed,
+ * D023). A failure on the first page of a job still fails the job; a non-retryable failure after some pages were
+ * read cannot fail the job (it would roll the DML back), so the job writes what it read, stops and reports the
+ * status in Resumen.interrumpidaPorEstado. Retries wait 1 minute, then 2; Retry-After is not read. The simulator's
+ * pollAfterMs is no longer honored with minute delays (D024 supersedes that part of D023). Every enqueue counts
+ * against the chain depth (trabajos).
  *
  * Access: without sharing + SYSTEM_MODE makes the DML independent of operator/admin object permissions
  * (AGENTS.md, BR-208). The CALLOUT is not independent: the user who calls iniciar() (the job runs as that
@@ -61,6 +69,16 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
     // backstop. A run asking for more than this (up to HARD_MAX_PAGINAS, 100) has not been empirically validated
     // past this ceiling yet; see docs/decisiones.md D013.
     private static final Integer PROFUNDIDAD_LOCAL_MAXIMA = 27;
+
+    // Messages (and discarded elements) one job gathers before it stops reading. Each message costs a log row and an
+    // event in the DML-row budget (10,000 per transaction), so 4000 leaves room for rejections and updates; it is
+    // 20 full pages. The rest of a 25-page run goes to a continuation job.
+    private static final Integer MAX_MENSAJES_POR_TRABAJO = 4000;
+
+    // Wall-clock time a job spends reading before it stops. The platform allows 120 s of cumulative callout time per
+    // transaction and one request may last up to 60 s (SimuladorClient.TIMEOUT_MS), so stopping at 45 s keeps the
+    // worst case (45 s + one slow page) under 120 s. Wall-clock overestimates callout time, which is the safe side.
+    private static final Long MAX_MS_DE_LECTURA = 45000L;
 
     // Callout failures worth another job: attempts per page (the first one included) and the delay cap.
     @TestVisible
@@ -111,14 +129,22 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
     private static Set<String> identidadesConFalloDeLog = new Set<String>();
     @TestVisible
     private static Resumen ultimoResumen;
+    // Replaces MAX_MENSAJES_POR_TRABAJO when not null, so a test can force the continuation job.
+    @TestVisible
+    private static Integer maxMensajesForzado;
+    // Replaces the elapsed milliseconds of the reading phase when not null, so a test can exhaust the time budget.
+    @TestVisible
+    private static Long msTranscurridosForzados;
 
     // Job state. cursor is sensitive: never log it.
     @TestVisible
     private String escenario;
     @TestVisible
     private String cursor;
+    // Number of the next page to read (1-based). A retry keeps the number of the page that failed.
     @TestVisible
     private Integer pagina;
+    // Last page number of the run.
     @TestVisible
     private Integer maxPaginas;
     @TestVisible
@@ -135,7 +161,7 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
     private Integer semilla;
     @TestVisible
     private Integer tamanoLote = PAGE_SIZE;
-    // True once this page already reopened its session, so retries of the same page do not reopen it again.
+    // True once the page being read already reopened its session, so retries of the same page do not reopen it again.
     @TestVisible
     private Boolean sesionReabierta = false;
 
@@ -153,6 +179,19 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
         public Integer descartados = 0; // subset of rechazados: non-object elements of "data"
         public Integer reintentos = 0; // pages re-enqueued after a 429/5xx
         public Integer sesionesReabiertas = 0; // sessions reopened after a 409/410
+        // Where the run started reading (D024). No cursor value ever goes here: only flags and counters.
+        public Boolean sesionContinuada = false; // the first page came from the saved cursor
+        public Boolean sesionReiniciada = false; // the run was asked to start from a new session
+        public Boolean cacheNoDisponible = false; // the cursor could not be read or saved: a new session was used
+        public Boolean flujoTerminado = false; // the simulator said hasMore=false
+        public Boolean cursorSinAvanzar = false; // some message left no complete trace, so the saved cursor was kept (D024)
+        public Integer interrumpidaPorEstado; // HTTP status that stopped the run after some pages were written
+        public Datetime actualizadoEn; // when the summary was last written (lets the UI ignore an older run)
+
+        /** True when a message of the run could not be logged or published: its page must be read again. */
+        public Boolean conFallos() {
+            return logsFallidos > 0 || noPublicadosPorLog > 0 || fallosPublicacion > 0;
+        }
 
         public void sumar(Resumen otro) {
             recibidos += otro.recibidos;
@@ -203,10 +242,30 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
      * TelemetriaIngesta.iniciar('QA_200', 42, 50, 5);
      */
     public static Id iniciar(String escenario, Integer semilla, Integer tamanoLote, Integer maxPaginas) {
+        return iniciar(escenario, semilla, tamanoLote, maxPaginas, false);
+    }
+
+    /**
+     * Same as the four-argument iniciar, choosing whether to start a new session.
+     * @param reiniciar true clears the saved cursor first, so the run opens a new session and the simulator
+     *        restarts from its first message; false (or null) continues from the saved cursor when there is one
+     * @example
+     * TelemetriaIngesta.iniciar('QA_200', null, null, 5, true);
+     */
+    public static Id iniciar(String escenario, Integer semilla, Integer tamanoLote, Integer maxPaginas, Boolean reiniciar) {
         TelemetriaIngesta trabajo = new TelemetriaIngesta(escenario, topeDePaginas(maxPaginas));
         trabajo.semilla = semilla;
         trabajo.tamanoLote = validarTamanoLote(tamanoLote);
-        return System.enqueueJob(trabajo);
+        if (reiniciar == true) {
+            trabajo.acumulado.sesionReiniciada = true;
+        }
+        // The saved cursor is cleared only once the job is really enqueued: if enqueueJob throws (limits, platform),
+        // the session the operator had stays intact.
+        Id idTrabajo = System.enqueueJob(trabajo);
+        if (reiniciar == true) {
+            SesionSimulador.borrar(SesionSimulador.clave(escenario, trabajo.semilla, trabajo.tamanoLote));
+        }
+        return idTrabajo;
     }
 
     @TestVisible
@@ -233,61 +292,167 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
     }
 
     public void execute(QueueableContext contexto) {
-        // 1) Callouts, before any DML in this transaction.
-        SimuladorClient.Pagina leida;
-        try {
-            leida = leerPaginaConSesion();
-        } catch (SimuladorClient.SimuladorClientException e) {
-            if (esReintentable(e) && intento + 1 < MAX_INTENTOS && !profundidadAgotada()) {
-                System.debug(LoggingLevel.WARN, 'Ingesta: estado ' + e.statusCode + ' en la pagina ' + pagina
-                    + ', reintento ' + (intento + 1) + ' de ' + (MAX_INTENTOS - 1));
+        String clave = SesionSimulador.clave(escenario, semilla, tamanoLote);
+        restaurarSesion(clave);
+
+        // 1) Callouts only, as many pages as the budget allows. Each page is turned into rows and events in memory
+        // right away so the raw messages do not pile up in the heap.
+        List<PaginaPreparada> preparadas = new List<PaginaPreparada>();
+        Integer mensajesDelTrabajo = 0;
+        Integer tope = maxMensajesForzado != null ? maxMensajesForzado : MAX_MENSAJES_POR_TRABAJO;
+        Boolean flujoTerminado = false;
+        Boolean paginaVacia = false;
+        SimuladorClient.SimuladorClientException falla;
+        Integer intentoDeLaPagina = intento; // attempts already spent on the first page of this job
+        Long inicioDeLectura = System.currentTimeMillis();
+        Boolean sinPresupuesto = false;
+        while (pagina <= maxPaginas && !flujoTerminado && !paginaVacia && !sinPresupuesto) {
+            // Checked before each page (so a job never starts a page it cannot afford: the overshoot is bounded to
+            // zero messages past the budget, except that the first page is always read) and again after it, below.
+            if (mensajesDelTrabajo > 0 && mensajesDelTrabajo + tamanoLote > tope) {
+                break;
+            }
+            if (sinHolguraDeLimites() || (mensajesDelTrabajo > 0 && tiempoAgotado(inicioDeLectura))) {
+                break; // the first page is always read: a job that reads nothing would never make progress
+            }
+            SimuladorClient.Pagina leida;
+            try {
+                leida = leerPaginaConSesion(clave);
+            } catch (SimuladorClient.SimuladorClientException e) {
+                falla = e;
+                if (!preparadas.isEmpty()) {
+                    intentoDeLaPagina = 0; // the failing page is a new one
+                }
+                break;
+            }
+            preparadas.add(preparar(leida.mensajes, leida.descartes, pagina));
+            mensajesDelTrabajo += leida.mensajes.size() + leida.descartes.size();
+            paginaVacia = leida.mensajes.isEmpty();
+            if (leida.hayMas) {
+                cursor = leida.siguienteCursor;
+            } else {
+                flujoTerminado = true; // the cursor stays: the next run re-polls the last page
+            }
+            pagina++;
+            sesionReabierta = false;
+            // After the page: count and time are re-checked with what this page actually cost.
+            sinPresupuesto = mensajesDelTrabajo >= tope || sinHolguraDeLimites() || tiempoAgotado(inicioDeLectura);
+        }
+
+        Boolean reintentar = falla != null && esReintentable(falla) && intentoDeLaPagina + 1 < MAX_INTENTOS && !profundidadAgotada();
+        if (falla != null && preparadas.isEmpty() && !reintentar) {
+            if (esReintentable(falla)) {
+                System.debug(LoggingLevel.WARN, 'Ingesta detenida: la pagina ' + pagina + ' agoto sus intentos (estado '
+                    + falla.statusCode + '), ' + resumenComoTexto(acumulado));
+            }
+            throw falla; // nothing was read in this job: fail it so it shows in Apex Jobs
+        }
+
+        // 2) DML: per page, log rows first, then the events.
+        for (PaginaPreparada preparada : preparadas) {
+            acumulado.sumar(escribir(preparada));
+            acumulado.paginas++;
+        }
+        acumulado.flujoTerminado = flujoTerminado;
+        ultimoResumen = acumulado;
+
+        // 3) The session continues from here in the next run: saved only after the pages are written, and only when
+        // every message of the run left a complete trace. Otherwise the previous cursor stays, so the next run reads
+        // those pages again (identity source + messageId skips what was already stored).
+        if (acumulado.conFallos()) {
+            acumulado.cursorSinAvanzar = true;
+            System.debug(LoggingLevel.WARN, 'Ingesta con mensajes sin rastro completo, el cursor guardado no avanza: '
+                + resumenComoTexto(acumulado));
+            guardarResumen();
+            return; // no retry or continuation either: they would read past the messages that must be read again
+        }
+        if (!preparadas.isEmpty() && String.isNotBlank(cursor) && !SesionSimulador.guardar(clave, cursor)) {
+            acumulado.cacheNoDisponible = true;
+        }
+
+        // 4) Retry, stop or continue.
+        if (falla != null) {
+            if (reintentar) {
+                System.debug(LoggingLevel.WARN, 'Ingesta: estado ' + falla.statusCode + ' en la pagina ' + pagina
+                    + ', reintento ' + (intentoDeLaPagina + 1) + ' de ' + (MAX_INTENTOS - 1));
                 TelemetriaIngesta reintento = conParametrosDeSesion(
                     new TelemetriaIngesta(escenario, cursor, pagina, maxPaginas, acumulado));
-                reintento.intento = intento + 1;
+                reintento.intento = intentoDeLaPagina + 1;
                 reintento.sesionReabierta = sesionReabierta;
                 acumulado.reintentos++;
                 reintento.trabajos = trabajos + 1;
+                guardarResumen();
                 encolar(reintento, reintento.intento);
                 return;
             }
-            if (esReintentable(e)) {
-                System.debug(LoggingLevel.WARN, 'Ingesta detenida: la pagina ' + pagina + ' agoto sus intentos (estado '
-                    + e.statusCode + '), ' + resumenComoTexto(acumulado));
-            }
-            throw e;
+            // Pages were written: failing the job would roll them back, so stop and report. The next run resumes here.
+            acumulado.interrumpidaPorEstado = falla.statusCode == null ? 0 : falla.statusCode;
+            System.debug(LoggingLevel.WARN, 'Ingesta interrumpida en la pagina ' + pagina + ' (estado '
+                + acumulado.interrumpidaPorEstado + '), ' + resumenComoTexto(acumulado));
+            guardarResumen();
+            return;
         }
-
-        // 2) DML: log rows first, then the events.
-        Resumen deEstaPagina = procesarPagina(leida.mensajes, leida.descartes, pagina);
-        acumulado.sumar(deEstaPagina);
-        acumulado.paginas++;
-        ultimoResumen = acumulado;
-        if (acumulado.logsFallidos > 0 || acumulado.noPublicadosPorLog > 0 || acumulado.fallosPublicacion > 0) {
-            System.debug(LoggingLevel.WARN, 'Ingesta con mensajes sin rastro completo: ' + resumenComoTexto(acumulado));
-        }
-
-        // 3) Chain.
-        Boolean hayOtra = leida.hayMas && !leida.mensajes.isEmpty() && pagina < maxPaginas;
+        Boolean hayOtra = !flujoTerminado && !paginaVacia && pagina <= maxPaginas;
         if (!hayOtra) {
             System.debug(LoggingLevel.INFO, 'Ingesta terminada: ' + resumenComoTexto(acumulado)
-                + ', hayMas=' + leida.hayMas + ', paginaVacia=' + leida.mensajes.isEmpty());
+                + ', paginaVacia=' + paginaVacia);
+            guardarResumen();
             return;
         }
         if (profundidadAgotada()) {
-            System.debug(LoggingLevel.WARN, 'Ingesta detenida: profundidad maxima de cola alcanzada, ' + resumenComoTexto(acumulado));
+            System.debug(LoggingLevel.WARN, 'Ingesta detenida: profundidad maxima de cola alcanzada, ' + resumenComoTexto(acumulado)
+                + ' (la sesion guardada continua en la proxima corrida)');
+            guardarResumen();
             return;
         }
         TelemetriaIngesta siguiente = conParametrosDeSesion(
-            new TelemetriaIngesta(escenario, leida.siguienteCursor, pagina + 1, maxPaginas, acumulado));
+            new TelemetriaIngesta(escenario, cursor, pagina, maxPaginas, acumulado));
         siguiente.trabajos = trabajos + 1;
-        encolar(siguiente, minutosDeEspera(leida.pollAfterMs));
+        guardarResumen();
+        encolar(siguiente, 0); // pollAfterMs is not honored (D024): the next job goes straight to the queue
     }
 
     /**
-     * Opens the session when there is no cursor and reads this job's page. A 409/410 on the read means the
-     * session expired: open a new one once and read again (the cursor field is replaced so a later retry reuses it).
+     * Decides where this job starts reading. A job that already carries a cursor (continuation or retry) keeps it;
+     * the first job of a run takes the saved one. Without it (first run, expired, cleared or cache unavailable)
+     * leerPaginaConSesion opens a new session.
      */
-    private SimuladorClient.Pagina leerPaginaConSesion() {
+    private void restaurarSesion(String clave) {
+        if (!SesionSimulador.disponible()) {
+            acumulado.cacheNoDisponible = true;
+        }
+        if (String.isBlank(cursor)) {
+            String guardado = SesionSimulador.leerCursor(clave);
+            if (String.isNotBlank(guardado)) {
+                cursor = guardado;
+                acumulado.sesionContinuada = true;
+            }
+        }
+    }
+
+    private static Boolean tiempoAgotado(Long inicio) {
+        Long transcurrido = msTranscurridosForzados != null ? msTranscurridosForzados : System.currentTimeMillis() - inicio;
+        return transcurrido >= MAX_MS_DE_LECTURA;
+    }
+
+    private void guardarResumen() {
+        acumulado.actualizadoEn = Datetime.now();
+        SesionSimulador.guardarResumen(JSON.serialize(acumulado));
+    }
+
+    /** True when the job should stop reading to keep heap, CPU and callouts clear of their governor limits. */
+    private static Boolean sinHolguraDeLimites() {
+        return Limits.getCallouts() + 3 >= Limits.getLimitCallouts()
+            || Limits.getHeapSize() > Limits.getLimitHeapSize() / 2
+            || Limits.getCpuTime() > Limits.getLimitCpuTime() * 6 / 10;
+    }
+
+    /**
+     * Opens the session when there is no cursor and reads one page. A 409/410 on the read means the session
+     * expired: clear the saved cursor, open a new session once and read again (the cursor field is replaced so a
+     * later retry reuses it).
+     */
+    private SimuladorClient.Pagina leerPaginaConSesion(String clave) {
         if (String.isBlank(cursor)) {
             cursor = SimuladorClient.abrirSesion(escenario, semilla, tamanoLote);
         }
@@ -300,6 +465,7 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
             sesionReabierta = true;
             acumulado.sesionesReabiertas++;
             System.debug(LoggingLevel.WARN, 'Ingesta: sesion rechazada (' + e.statusCode + '), se abre una nueva en la pagina ' + pagina);
+            SesionSimulador.borrar(clave);
             cursor = SimuladorClient.abrirSesion(escenario, semilla, tamanoLote);
             return SimuladorClient.leerPagina(cursor, tamanoLote);
         }
@@ -307,15 +473,6 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
 
     private static Boolean esReintentable(SimuladorClient.SimuladorClientException e) {
         return e.statusCode != null && (e.statusCode == 429 || e.statusCode >= 500);
-    }
-
-    /** pollAfterMs rounded up to whole minutes (a Queueable cannot wait less), at most 10; 0 when there is none. */
-    @TestVisible
-    private static Integer minutosDeEspera(Integer pollAfterMs) {
-        if (pollAfterMs == null || pollAfterMs <= 0) {
-            return 0;
-        }
-        return Math.min(MAX_RETRASO_MINUTOS, (Integer) Math.ceil(pollAfterMs / 60000.0));
     }
 
     private static void encolar(TelemetriaIngesta trabajo, Integer minutosDeRetraso) {
@@ -356,37 +513,64 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
         return procesarPagina(mensajes, new List<SimuladorClient.Descarte>(), 1);
     }
 
-    /**
-     * Logs then publishes one page of raw simulator messages. Bulk-safe: one insert, one update at most,
-     * and one EventBus.publish per 200 events, whatever the page size.
-     */
+    /** One page already mapped to rows and events, waiting for the DML phase. No DML, no callout. */
+    private class PaginaPreparada {
+        List<Senial_Sensor__e> candidatos = new List<Senial_Sensor__e>();
+        List<Log_Senial__c> filasCandidatas = new List<Log_Senial__c>(); // parallel to candidatos
+        List<Log_Senial__c> rechazos = new List<Log_Senial__c>();
+        Integer recibidos = 0;
+        Integer descartados = 0;
+    }
+
+    /** Logs then publishes one page of raw simulator messages: preparar then escribir. */
     @TestVisible
     private static Resumen procesarPagina(
         List<Map<String, Object>> mensajes,
         List<SimuladorClient.Descarte> descartes,
         Integer numeroPagina
     ) {
-        Resumen resumen = new Resumen();
-        resumen.recibidos = mensajes.size() + descartes.size();
-        Datetime ahora = Datetime.now();
+        return escribir(preparar(mensajes, descartes, numeroPagina));
+    }
 
-        List<Senial_Sensor__e> candidatos = new List<Senial_Sensor__e>();
-        List<Log_Senial__c> filasCandidatas = new List<Log_Senial__c>(); // parallel to candidatos
-        List<Log_Senial__c> rechazos = new List<Log_Senial__c>();
-
+    /** Maps the messages of a page to log rows and events. Pure CPU: safe before the callouts end. */
+    private static PaginaPreparada preparar(
+        List<Map<String, Object>> mensajes,
+        List<SimuladorClient.Descarte> descartes,
+        Integer numeroPagina
+    ) {
+        PaginaPreparada p = new PaginaPreparada();
+        p.recibidos = mensajes.size() + descartes.size();
         for (Map<String, Object> mensaje : mensajes) {
             String motivo = motivoDeRechazo(mensaje);
             if (motivo != null) {
-                rechazos.add(filaRechazada(mensaje, motivo));
+                p.rechazos.add(filaRechazada(mensaje, motivo));
                 continue;
             }
             Senial_Sensor__e evento = aEvento(mensaje);
-            candidatos.add(evento);
-            filasCandidatas.add(aFilaDeLog(evento, ahora));
+            p.candidatos.add(evento);
+            p.filasCandidatas.add(aFilaDeLog(evento, null));
         }
         for (SimuladorClient.Descarte descarte : descartes) {
-            rechazos.add(filaDeDescarte(descarte, numeroPagina));
-            resumen.descartados++;
+            p.rechazos.add(filaDeDescarte(descarte, numeroPagina));
+            p.descartados++;
+        }
+        return p;
+    }
+
+    /**
+     * Writes one prepared page. Bulk-safe: one insert, one update at most, and one EventBus.publish per 200 events,
+     * whatever the page size.
+     */
+    private static Resumen escribir(PaginaPreparada p) {
+        Resumen resumen = new Resumen();
+        resumen.recibidos = p.recibidos;
+        resumen.descartados = p.descartados;
+        Datetime ahora = Datetime.now();
+        List<Senial_Sensor__e> candidatos = p.candidatos;
+        List<Log_Senial__c> filasCandidatas = p.filasCandidatas;
+        List<Log_Senial__c> rechazos = p.rechazos;
+        for (Log_Senial__c fila : filasCandidatas) {
+            fila.Publicado_At__c = ahora;
         }
         resumen.rechazados = rechazos.size();
 
@@ -584,13 +768,18 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
+    // Counters and flags only: never the cursor.
+    @TestVisible
     private static String resumenComoTexto(Resumen r) {
         return 'paginas=' + r.paginas + ', recibidos=' + r.recibidos + ', logsCreados=' + r.logsCreados
             + ', yaExistentes=' + r.yaExistentes + ', logsFallidos=' + r.logsFallidos
             + ', noPublicadosPorLog=' + r.noPublicadosPorLog + ', publicados=' + r.publicados
             + ', fallosPublicacion=' + r.fallosPublicacion + ', rechazados=' + r.rechazados
             + ', descartados=' + r.descartados + ', reintentos=' + r.reintentos
-            + ', sesionesReabiertas=' + r.sesionesReabiertas;
+            + ', sesionesReabiertas=' + r.sesionesReabiertas + ', sesionContinuada=' + r.sesionContinuada
+            + ', sesionReiniciada=' + r.sesionReiniciada + ', cacheNoDisponible=' + r.cacheNoDisponible
+            + ', flujoTerminado=' + r.flujoTerminado + ', interrumpidaPorEstado=' + r.interrumpidaPorEstado
+            + ', cursorSinAvanzar=' + r.cursorSinAvanzar;
     }
 
     private static Map<String, Object> mapa(Object valor) {

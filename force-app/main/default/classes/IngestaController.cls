@@ -33,10 +33,45 @@ public with sharing class IngestaController {
         }
     }
 
+    /**
+     * What the last run did, from the counters TelemetriaIngesta keeps in Platform Cache (D024). Counters and flags
+     * only: no cursor. Explains a run that registered no new signals, because a duplicate has no new log row.
+     */
+    public class Detalle {
+        @AuraEnabled public Integer paginas { get; private set; }
+        @AuraEnabled public Integer recibidos { get; private set; }
+        @AuraEnabled public Integer yaExistentes { get; private set; }
+        @AuraEnabled public Boolean sesionContinuada { get; private set; }
+        @AuraEnabled public Boolean sesionReiniciada { get; private set; }
+        @AuraEnabled public Boolean cacheNoDisponible { get; private set; }
+        @AuraEnabled public Boolean flujoTerminado { get; private set; }
+        @AuraEnabled public Integer interrumpidaPorEstado { get; private set; }
+        @AuraEnabled public Integer logsFallidos { get; private set; }
+        @AuraEnabled public Integer noPublicadosPorLog { get; private set; }
+        @AuraEnabled public Integer fallosPublicacion { get; private set; }
+        @AuraEnabled public Boolean cursorSinAvanzar { get; private set; }
+        public Detalle(TelemetriaIngesta.Resumen r) {
+            this.paginas = r.paginas;
+            this.recibidos = r.recibidos;
+            this.yaExistentes = r.yaExistentes;
+            this.sesionContinuada = r.sesionContinuada;
+            this.sesionReiniciada = r.sesionReiniciada;
+            this.cacheNoDisponible = r.cacheNoDisponible;
+            this.flujoTerminado = r.flujoTerminado;
+            this.interrumpidaPorEstado = r.interrumpidaPorEstado;
+            this.logsFallidos = r.logsFallidos;
+            this.noPublicadosPorLog = r.noPublicadosPorLog;
+            this.fallosPublicacion = r.fallosPublicacion;
+            this.cursorSinAvanzar = r.cursorSinAvanzar;
+        }
+    }
+
     public class Estado {
         @AuraEnabled public Boolean enCurso { get; private set; }
         @AuraEnabled public Integer total { get; private set; }
         @AuraEnabled public Map<String, Integer> porResultado { get; private set; }
+        // Null when there is no summary of this run (cache unavailable, or the job has not written one yet).
+        @AuraEnabled public Detalle detalle { get; private set; }
         public Estado(Boolean enCurso, Map<String, Integer> porResultado) {
             this.enCurso = enCurso;
             this.porResultado = porResultado;
@@ -51,9 +86,11 @@ public with sharing class IngestaController {
      * Starts an ingestion run. Refuses when another one is still queued or running ("one person at a time").
      * @param escenario one of the contract scenarios
      * @param paginas pages to read, 1 to 25; null means the ingestion default
+     * @param reiniciar true clears the saved simulator session first, so the run starts from the simulator's first
+     *        message; false or null continues from where the last run stopped (D024)
      */
     @AuraEnabled
-    public static Inicio traerSenales(String escenario, Integer paginas) {
+    public static Inicio traerSenales(String escenario, Integer paginas, Boolean reiniciar) {
         if (!FeatureManagement.checkPermission(PERM_INGESTA)) {
             throw safeError(NO_PERMISSION);
         }
@@ -66,7 +103,7 @@ public with sharing class IngestaController {
         }
         try {
             Datetime started = Datetime.now();
-            Id jobId = TelemetriaIngesta.iniciar(escenario, pages);
+            Id jobId = TelemetriaIngesta.iniciar(escenario, null, null, pages, reiniciar == true);
             return new Inicio(jobId, started);
         } catch (Exception e) {
             System.debug(LoggingLevel.ERROR, 'traerSenales: ' + e.getTypeName());
@@ -93,10 +130,31 @@ public with sharing class IngestaController {
                 String key = (String) ar.get('result');
                 byResult.put(key == null ? 'Sin resultado' : key, (Integer) ar.get('n'));
             }
-            return new Estado(hayIngestaEnCurso(), byResult);
+            Estado estado = new Estado(hayIngestaEnCurso(), byResult);
+            estado.detalle = detalleDesde(since);
+            return estado;
         } catch (Exception e) {
             System.debug(LoggingLevel.ERROR, 'estadoIngesta: ' + e.getTypeName());
             throw safeError(STATUS_FAILED);
+        }
+    }
+
+    // The summary of the run that started at or after `since`; null when there is none or it cannot be read.
+    @TestVisible
+    private static Detalle detalleDesde(Datetime since) {
+        try {
+            String resumenJson = SesionSimulador.leerResumen();
+            if (String.isBlank(resumenJson)) {
+                return null;
+            }
+            TelemetriaIngesta.Resumen resumen = (TelemetriaIngesta.Resumen) JSON.deserialize(resumenJson, TelemetriaIngesta.Resumen.class);
+            if (resumen.actualizadoEn == null || resumen.actualizadoEn < since) {
+                return null; // left by an earlier run
+            }
+            return new Detalle(resumen);
+        } catch (Exception e) {
+            System.debug(LoggingLevel.WARN, 'detalleDesde: ' + e.getTypeName());
+            return null;
         }
     }
 
