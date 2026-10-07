@@ -3,7 +3,14 @@ import getHistorial from '@salesforce/apex/ActivosOperadorController.getHistoria
 import { SIGNAL_TYPE_LABELS, reduceError } from 'c/novaCasaEtiquetas';
 
 const HISTORY_LIMIT = 20;
-const EVIDENCE_RESULTS = ['Atrasada', 'Superada'];
+const EVIDENCE_RESULTS = ['Atrasada', 'Superada', 'Conflicto'];
+const ALL = 'Todas';
+const RESULT_HELP = {
+    Conflicto:
+        'Conflicto: llegó un mensaje con la misma identidad que otro ya recibido, pero con contenido distinto. Se guarda como evidencia; no cambia el estado del activo ni abre una intervención.',
+    Duplicada:
+        'Duplicada: llegó el mismo mensaje otra vez. No cambia el estado del activo ni abre una intervención.'
+};
 
 function formatUtcDateTime(value) {
     const ms = value ? new Date(value).getTime() : NaN;
@@ -17,6 +24,7 @@ export default class NovaCasaHistorialSenales extends LightningElement {
     historyData;
     historyError;
     historyLoaded = false;
+    selectedResult = ALL;
 
     get historyLimit() {
         return HISTORY_LIMIT;
@@ -59,6 +67,49 @@ export default class NovaCasaHistorialSenales extends LightningElement {
             isEvidence: EVIDENCE_RESULTS.includes(s.resultado),
             rowClass: EVIDENCE_RESULTS.includes(s.resultado) ? 'fila-evidencia' : ''
         }));
+    }
+    // Counts per result over the loaded rows, so a run of identical results cannot hide the rest.
+    get resultChips() {
+        const counts = new Map();
+        this.historyRows.forEach((r) => counts.set(r.resultado, (counts.get(r.resultado) || 0) + 1));
+        const chips = [{ value: ALL, count: this.historyRows.length }];
+        [...counts.entries()].sort((a, b) => b[1] - a[1]).forEach(([value, count]) => chips.push({ value, count }));
+        return chips.map((c) => {
+            const pressed = c.value === this.activeResult;
+            return {
+                ...c,
+                key: c.value,
+                label: `${c.value} ${c.count}`,
+                pressed: String(pressed),
+                chipClass: pressed ? 'chip chip-activo' : 'chip'
+            };
+        });
+    }
+    // A filter whose result is no longer in the loaded rows falls back to "Todas" instead of an empty table.
+    get activeResult() {
+        return this.selectedResult === ALL || this.historyRows.some((r) => r.resultado === this.selectedResult)
+            ? this.selectedResult
+            : ALL;
+    }
+    get visibleRows() {
+        return this.activeResult === ALL
+            ? this.historyRows
+            : this.historyRows.filter((r) => r.resultado === this.activeResult);
+    }
+    get helpTexts() {
+        const present = new Set(this.historyRows.map((r) => r.resultado));
+        return Object.keys(RESULT_HELP)
+            .filter((k) => present.has(k))
+            .map((k) => ({ key: k, text: RESULT_HELP[k] }));
+    }
+    get hasHelp() {
+        return this.helpTexts.length > 0;
+    }
+    get summaryScopeText() {
+        return `Resumen de las ${this.historyRows.length} señales más recientes. Toca un resultado para filtrar la tabla.`;
+    }
+    handleChip(event) {
+        this.selectedResult = event.currentTarget.dataset.value;
     }
     get showHistoryTable() {
         return !this.historyError && this.historyRows.length > 0;

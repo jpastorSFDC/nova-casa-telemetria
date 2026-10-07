@@ -6,13 +6,13 @@ import ASSET_OBJECT from '@salesforce/schema/Asset';
 import TIPO_ACTIVO from '@salesforce/schema/Asset.Tipo_Activo__c';
 import getAssets from '@salesforce/apex/ActivosOperadorController.getAssets';
 import getBuildings from '@salesforce/apex/ActivosOperadorController.getBuildings';
-import getHistorial from '@salesforce/apex/ActivosOperadorController.getHistorial';
 import getCapacidades from '@salesforce/apex/ActivosOperadorController.getCapacidades';
 import crearIntervencion from '@salesforce/apex/IntervencionOperadorController.crearIntervencion';
 import actualizarSeguimiento from '@salesforce/apex/IntervencionOperadorController.actualizarSeguimiento';
 import traerSenales from '@salesforce/apex/IngestaController.traerSenales';
 import estadoIngesta from '@salesforce/apex/IngestaController.estadoIngesta';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import { MEASUREMENT_LABELS, severityUi, reduceError } from 'c/novaCasaEtiquetas';
 
 const TICK_MS = 30000;
 const INGEST_POLL_MS = 5000;
@@ -30,7 +30,6 @@ const FOLLOW_UP_OPTIONS = [
 // Single source of the stale default (display-only). Keep in sync with the
 // staleMinutes default in novaCasaActivosOperador.js-meta.xml.
 const DEFAULT_STALE_MINUTES = 15;
-const GENERIC_ERROR = 'No se pudo cargar la información. Intenta de nuevo o contacta a tu administrador.';
 const RECORD_ID_PATTERN = /^[a-zA-Z0-9]{15,18}$/;
 
 // Severity filter labels follow the prototype (Crítico / Precaución / Estable). Values are the controller's levels.
@@ -41,52 +40,17 @@ const SEVERITY_OPTIONS = [
     { label: 'Estable', value: '0' }
 ];
 
-// Severity treatment per level. The glyph (filled circle / triangle / empty circle) and the text always accompany
-// the color, so color is never the only cue. A missing level is never mapped to Estable.
-const SEVERITY_UI = {
-    2: { key: 'critico', label: 'Crítico', glyph: '\u25CF' },
-    1: { key: 'advertencia', label: 'Precaución', glyph: '\u25B2' },
-    0: { key: 'normal', label: 'Estable', glyph: '\u25CB' }
-};
-const SEVERITY_NO_LEVEL_UI = { key: 'nivel', label: 'Sin dato', glyph: '?' };
+// Severity glyphs/labels per level live in c/novaCasaEtiquetas; only the "no readings" case is local.
 const SEVERITY_NO_READING_UI = { key: 'nivel', label: 'Sin lecturas', glyph: '?' };
 
-// Labels of measurement.type (Lectura_Vigente__c.Tipo_Medicion__c). Unknown values fall back to the raw value.
-const MEASUREMENT_LABELS = {
-    TEMPERATURE: 'Temperatura',
-    WATER_PRESSURE: 'Presión de agua',
-    WATER_CONSUMPTION: 'Consumo de agua',
-    ENERGY_CONSUMPTION: 'Consumo de energía',
-    CAMERA_CONNECTIVITY: 'Conectividad de cámara'
-};
 // Active measurement types: the detail table lists the ones an asset has no reading for as "Sin lecturas".
 const MEASUREMENT_TYPES = Object.keys(MEASUREMENT_LABELS);
-
-// Log_Senial__c.Message_Type__c values; unknown ones fall back to the raw value.
-const SIGNAL_TYPE_LABELS = {
-    MEASUREMENT: 'Medición',
-    CONNECTIVITY: 'Conectividad'
-};
-const HISTORY_LIMIT = 20;
-const EVIDENCE_RESULTS = ['Atrasada', 'Superada'];
 
 // Asset.Tipo_Activo__c values that have their own icon; any other type gets the neutral icon.
 const ICON_PUMP = 'WATER_PUMP';
 const ICON_VENTILATION = 'VENTILATION';
 
 const NUMBER_FORMAT = new Intl.NumberFormat('es', { maximumFractionDigits: 3 });
-
-// Only the controller's AuraHandledException message (body.message) is shown; anything else is generic.
-function reduceError(error) {
-    if (!error) {
-        return '';
-    }
-    const body = error.body;
-    if (body && !Array.isArray(body) && typeof body.message === 'string' && body.message) {
-        return body.message;
-    }
-    return GENERIC_ERROR;
-}
 
 // Response shape of getAssets, isolated here: AssetPage { assets, truncated, assetLimit }.
 // If the final contract differs, change only this function.
@@ -141,19 +105,8 @@ function formatValue(value, unit) {
     return unit ? `${number} ${unit}` : number;
 }
 
-function formatUtcDateTime(value) {
-    const ms = toMillis(value);
-    return ms === null ? '—' : `${new Date(ms).toISOString().slice(0, 16).replace('T', ' ')} UTC`;
-}
-
-function severityUi(level, hasReadings) {
-    if (!hasReadings) {
-        return SEVERITY_NO_READING_UI;
-    }
-    if (level === null || level === undefined) {
-        return SEVERITY_NO_LEVEL_UI;
-    }
-    return SEVERITY_UI[level] || SEVERITY_NO_LEVEL_UI;
+function severityUiFor(level, hasReadings) {
+    return hasReadings ? severityUi(level) : SEVERITY_NO_READING_UI;
 }
 
 function rankOf(reading) {
@@ -285,70 +238,6 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         }
     }
 
-    // Signal history of the open detail. Undefined (not null) while no asset is open, so the wire does not fire.
-    historyData;
-    historyError;
-    historyLoaded = false;
-
-    get historyAssetId() {
-        return this.selectedAssetId || undefined;
-    }
-    get historyLimit() {
-        return HISTORY_LIMIT;
-    }
-
-    @wire(getHistorial, { assetId: '$historyAssetId', limite: '$historyLimit' })
-    wiredHistory({ data, error }) {
-        if (data) {
-            this.historyData = data;
-            this.historyError = undefined;
-            this.historyLoaded = true;
-        } else if (error) {
-            // Only the history section shows the error; the rest of the detail is unaffected.
-            this.historyData = undefined;
-            this.historyError = error;
-            this.historyLoaded = true;
-        } else {
-            this.historyData = undefined;
-            this.historyError = undefined;
-            this.historyLoaded = false;
-        }
-    }
-
-    get historyLoading() {
-        return !this.historyLoaded && !this.historyError;
-    }
-    get showHistoryError() {
-        return Boolean(this.historyError);
-    }
-    get historyErrorMessage() {
-        return reduceError(this.historyError);
-    }
-    get historyRows() {
-        const signals = this.historyData?.signals || [];
-        return signals.map((s, i) => ({
-            key: `${i}-${s.occurredAt}`,
-            typeLabel: SIGNAL_TYPE_LABELS[s.messageType] || s.messageType || '—',
-            occurredText: formatUtcDateTime(s.occurredAt),
-            resultado: s.resultado || '—',
-            // Evidence only: these never change the asset's current state. Muted and tagged with text, not color alone.
-            isEvidence: EVIDENCE_RESULTS.includes(s.resultado),
-            rowClass: EVIDENCE_RESULTS.includes(s.resultado) ? 'fila-evidencia' : ''
-        }));
-    }
-    get showHistoryTable() {
-        return !this.historyError && this.historyRows.length > 0;
-    }
-    get showHistoryEmpty() {
-        return this.historyLoaded && !this.historyError && this.historyRows.length === 0;
-    }
-    get showHistoryTruncated() {
-        return this.showHistoryTable && Boolean(this.historyData?.truncated);
-    }
-    get historyTruncatedText() {
-        return `Mostrando las ${this.historyRows.length} señales más recientes.`;
-    }
-
     @wire(getBuildings)
     wiredBuildings({ data, error }) {
         if (data) {
@@ -366,8 +255,13 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     }
 
     @wire(getCapacidades)
-    wiredCaps({ data }) {
+    wiredCaps({ data, error }) {
         this.caps = data || {};
+        if (error) {
+            // Actions stay hidden (caps empty); say why instead of failing silently. actionError is only visible in the
+            // detail view and is cleared on open, so a toast is the only visible channel from the list.
+            this.toast('No se pudieron cargar tus permisos de acción', reduceError(error), 'error');
+        }
     }
 
     @wire(getObjectInfo, { objectApiName: ASSET_OBJECT })
@@ -638,7 +532,7 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     }
 
     buildReading(a, r) {
-        const ui = severityUi(r.severityLevel, true);
+        const ui = severityUiFor(r.severityLevel, true);
         return {
             key: `${a.assetId}-${r.measurementType}`,
             measurementType: r.measurementType,
@@ -659,7 +553,7 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         const readings = (a.readings || []).map((r) => this.buildReading(a, r));
         const hasReadings = readings.length > 0;
         const level = a.severityLevel;
-        const ui = severityUi(level, hasReadings);
+        const ui = severityUiFor(level, hasReadings);
 
         // Headline reading on the card: the one that sets the severity (highest level, then the newest).
         let headline = null;
@@ -828,9 +722,6 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             return;
         }
         this.selectedAssetId = assetId;
-        this.historyData = undefined;
-        this.historyError = undefined;
-        this.historyLoaded = false;
         this.formMode = null;
         this.actionError = '';
         this._focusTarget = 'detail';
@@ -1027,6 +918,7 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             this.startIngestPolling();
         } catch (e) {
             this.ingestError = reduceError(e);
+            this.toast('No se pudo iniciar la ingesta', this.ingestError, 'error');
         }
         this.ingestStarting = false;
     }
@@ -1043,11 +935,13 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             this.ingestState = state;
             if (!state.enCurso) {
                 clearInterval(this._ingestTimer);
+                this.toast('Ingesta terminada', this.ingestSummary, 'success');
                 await this.handleRefresh();
             }
         } catch (e) {
             clearInterval(this._ingestTimer);
             this.ingestError = reduceError(e);
+            this.toast('No se pudo consultar el estado de la ingesta', this.ingestError, 'error');
         }
     }
 }

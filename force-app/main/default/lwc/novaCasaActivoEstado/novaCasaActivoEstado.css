@@ -124,12 +124,12 @@ td {
 .sev-normal {
     background: transparent;
     color: var(--nc-normal);
-    border: 1px solid #86efac;
+    border: 1px solid var(--nc-normal);
 }
 .sev-nivel {
     background: var(--nc-papel);
     color: var(--nc-tinta-media);
-    border: 1px dashed #8b93a0;
+    border: 1px dashed var(--nc-tinta-media);
 }
 .hueso {
     height: 4rem;
@@ -140,4 +140,29 @@ td {
     * {
         transition: none !important;
     }
+}
+.edad {
+    color: var(--nc-tinta-media);
+    font-size: 0.8rem;
+}
+.antiguo {
+    display: inline-block;
+    margin-left: 0.3rem;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--nc-advertencia);
+    border: 1px solid var(--nc-advertencia);
+    border-radius: 999px;
+    padding: 0.1rem 0.5rem;
+}
+.enlace-boton {
+    font: inherit;
+    background: none;
+    border: 0;
+    padding: 0;
+    color: var(--nc-info);
+    text-decoration: underline;
+    cursor: pointer;
 }

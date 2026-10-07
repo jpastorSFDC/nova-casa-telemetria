@@ -7,9 +7,20 @@
             <p class="nota nota-error" role="alert">{historyErrorMessage}</p>
         </template>
         <template if:true={showHistoryEmpty}>
-            <p class="nota" role="status">Este activo todavía no tiene señales registradas.</p>
+            <p class="nota">Este activo todavía no tiene señales registradas.</p>
         </template>
         <template if:true={showHistoryTable}>
+            <div class="resumen" role="group" aria-label="Resumen por resultado">
+                <template for:each={resultChips} for:item="c">
+                    <button key={c.key} type="button" class={c.chipClass} aria-pressed={c.pressed} data-value={c.value} onclick={handleChip}>{c.label}</button>
+                </template>
+            </div>
+            <p class="nota">{summaryScopeText}</p>
+            <template if:true={hasHelp}>
+                <template for:each={helpTexts} for:item="t">
+                    <p key={t.key} class="nota">{t.text}</p>
+                </template>
+            </template>
             <table>
                 <caption class="solo-lectores">Señales recientes del activo, de la más nueva a la más antigua</caption>
                 <thead>
@@ -20,7 +31,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <template for:each={historyRows} for:item="h">
+                    <template for:each={visibleRows} for:item="h">
                         <tr key={h.key} class={h.rowClass}>
                             <td class="celda-fuerte">{h.typeLabel}</td>
                             <td class="num">{h.occurredText}</td>
@@ -34,10 +45,10 @@
                     </template>
                 </tbody>
             </table>
-            <p class="nota">Es un registro de las señales recibidas, no las lecturas actuales. Las marcadas como Atrasada o Superada se guardan como evidencia y no cambian el estado actual del activo.</p>
+            <p class="nota">Es un registro de las señales recibidas, no las lecturas actuales. Las marcadas como Atrasada, Superada o Conflicto se guardan como evidencia y no cambian el estado actual del activo.</p>
         </template>
         <template if:true={showHistoryTruncated}>
-            <p class="nota" role="status">{historyTruncatedText}</p>
+            <p class="nota">{historyTruncatedText}</p>
         </template>
     </div>
 </template>

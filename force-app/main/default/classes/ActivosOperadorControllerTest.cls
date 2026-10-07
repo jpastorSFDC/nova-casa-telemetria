@@ -838,6 +838,13 @@ private class ActivosOperadorControllerTest {
         Assert.areEqual(1, r.activosEnAlerta);
         Assert.areEqual(1, r.activosNormales);
         Assert.areEqual(1, r.activosSinLectura, 'an asset without readings is never counted as normal');
+        Assert.areEqual(0, r.activosSinNivel);
+        Assert.isFalse(r.truncated);
+        Assert.areEqual(
+            r.activosCriticos + r.activosEnAlerta + r.activosNormales + r.activosSinLectura + r.activosSinNivel,
+            r.totalActivos,
+            'every asset falls in exactly one class'
+        );
         Assert.areEqual(2, r.casosAbiertos);
         Assert.areEqual(now, r.ultimaSenal);
     }
@@ -898,6 +905,8 @@ private class ActivosOperadorControllerTest {
         Assert.areEqual(0, r.activosEnAlerta);
         Assert.areEqual(0, r.activosNormales);
         Assert.areEqual(0, r.activosSinLectura);
+        Assert.areEqual(0, r.activosSinNivel);
+        Assert.isFalse(r.truncated);
         Assert.areEqual(0, r.casosAbiertos);
         Assert.isNull(r.ultimaSenal);
     }
@@ -947,10 +956,11 @@ private class ActivosOperadorControllerTest {
     }
 
     @isTest
-    static void buildingSummaryAssetWithOnlyNullLevelReadingsIsSinLecturaNeverNormal() {
-        // Given an asset whose every reading has no level, and a plain normal asset
+    static void buildingSummarySeparatesNoSignalFromSignalWithoutLevelAndNeverCountsEitherAsNormal() {
+        // Given an asset with no signal, one whose every reading has no level, and a plain normal asset
         User op = newUserWithPermissionSet('nc207sumnull', 'Nova_Casa_Operator', OPERATOR_ROLE);
         Account building = newAccount('Edificio Niveles Nulos', op.Id);
+        newAsset('AST-SUM-NOSIGNAL', building, 'WATER_PUMP');
         Asset nullOnly = newAsset('AST-SUM-NULL', building, 'WATER_PUMP');
         newReading(nullOnly, 'TEMPERATURE', 'CELSIUS', 20, baseTime(), null);
         newReading(nullOnly, 'WATER_PRESSURE', 'BAR', 3, baseTime(), null);
@@ -960,11 +970,42 @@ private class ActivosOperadorControllerTest {
         // When the operator loads the summary
         ActivosOperadorController.EdificioResumen r = resumen(op, building.Id);
 
-        // Then the null-level asset is counted as without readings, only the real level-0 asset as normal
-        Assert.areEqual(2, r.totalActivos);
-        Assert.areEqual(1, r.activosSinLectura);
+        // Then each case has its own counter and only the real level-0 asset is normal
+        Assert.areEqual(3, r.totalActivos);
+        Assert.areEqual(1, r.activosSinLectura, 'no signal at all');
+        Assert.areEqual(1, r.activosSinNivel, 'signal without level');
         Assert.areEqual(1, r.activosNormales);
         Assert.areEqual(0, r.activosCriticos + r.activosEnAlerta);
+        Assert.areEqual(
+            r.activosCriticos + r.activosEnAlerta + r.activosNormales + r.activosSinLectura + r.activosSinNivel,
+            r.totalActivos
+        );
+    }
+
+    @isTest
+    static void buildingSummaryIsReportedAsTruncatedWhenThereAreMoreAssetsThanTheCeiling() {
+        // Given more visible assets than the summary ceiling, all with a signal and a level
+        User op = newUserWithPermissionSet('nc207sumtrunc', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Account building = newAccount('Edificio Resumen Grande', op.Id);
+        for (Integer i = 1; i <= 3; i++) {
+            Asset a = newAsset('AST-SUM-BIG-' + i, building, 'WATER_PUMP');
+            newReading(a, 'TEMPERATURE', 'CELSIUS', 20, baseTime(), 0);
+        }
+        ActivosOperadorController.maxSummaryAssets = 2;
+
+        // When the operator loads the summary
+        ActivosOperadorController.EdificioResumen r = resumen(op, building.Id);
+
+        // Then only the ceiling is counted and the caller is told the summary is partial
+        Assert.isTrue(r.truncated);
+        Assert.areEqual(2, r.totalActivos);
+        Assert.areEqual(2, r.activosNormales);
+
+        // And at exactly the ceiling it is not partial
+        ActivosOperadorController.maxSummaryAssets = 3;
+        ActivosOperadorController.EdificioResumen exact = resumen(op, building.Id);
+        Assert.isFalse(exact.truncated);
+        Assert.areEqual(3, exact.totalActivos);
     }
 
     @isTest
@@ -1011,9 +1052,9 @@ private class ActivosOperadorControllerTest {
         // When it is serialized
         Map<String, Object> json = (Map<String, Object>) JSON.deserializeUntyped(JSON.serialize(r));
 
-        // Then it carries exactly the seven agreed keys and nothing technical
+        // Then it carries exactly the nine agreed keys and nothing technical
         Assert.areEqual(
-            new Set<String>{ 'totalActivos', 'activosCriticos', 'activosEnAlerta', 'activosNormales', 'activosSinLectura', 'casosAbiertos', 'ultimaSenal' },
+            new Set<String>{ 'totalActivos', 'activosCriticos', 'activosEnAlerta', 'activosNormales', 'activosSinLectura', 'activosSinNivel', 'truncated', 'casosAbiertos', 'ultimaSenal' },
             json.keySet().clone(),
             'the summary DTO must expose only the agreed keys'
         );

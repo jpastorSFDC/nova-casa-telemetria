@@ -2,7 +2,7 @@ import { LightningElement, api, wire } from 'lwc';
 import { NavigationMixin } from 'lightning/navigation';
 import { refreshApex } from '@salesforce/apex';
 import getEstadoActivo from '@salesforce/apex/ActivosOperadorController.getEstadoActivo';
-import { MEASUREMENT_LABELS, severityUi, reduceError } from 'c/novaCasaEtiquetas';
+import { MEASUREMENT_LABELS, severityUi, reduceError, relativeAge } from 'c/novaCasaEtiquetas';
 
 const NUMBER_FORMAT = new Intl.NumberFormat('es', { maximumFractionDigits: 3 });
 
@@ -48,6 +48,18 @@ export default class NovaCasaActivoEstado extends NavigationMixin(LightningEleme
         });
     }
 
+    handleMoreClick() {
+        this[NavigationMixin.Navigate]({
+            type: 'standard__recordRelationshipPage',
+            attributes: {
+                recordId: this.recordId,
+                objectApiName: 'Asset',
+                relationshipApiName: 'Cases',
+                actionName: 'view'
+            }
+        });
+    }
+
     get isLoading() {
         return !this.loaded;
     }
@@ -60,15 +72,23 @@ export default class NovaCasaActivoEstado extends NavigationMixin(LightningEleme
     get isTruncated() {
         return Boolean(this.estado) && this.estado.truncated === true;
     }
+    get truncatedText() {
+        return `Hay más lecturas de las que caben en el panel; puede haber lecturas que no se muestran.`;
+    }
     get readings() {
         const list = this.estado ? this.estado.readings || [] : [];
+        const nowMs = Date.now();
         return list.map((r) => {
             const ui = severityUi(r.severityLevel);
+            const age = relativeAge(r.occurredAt ? new Date(r.occurredAt).getTime() : NaN, nowMs);
             return {
                 key: r.measurementType,
                 label: MEASUREMENT_LABELS[r.measurementType] || r.measurementType,
                 valueText: formatValue(r.value, r.unit),
                 occurredAt: r.occurredAt,
+                ageKnown: age.isKnown,
+                ageText: age.text,
+                isStale: age.isStale,
                 sevClass: `sev sev-${ui.key}`,
                 sevGlyph: ui.glyph,
                 sevLabel: ui.label
