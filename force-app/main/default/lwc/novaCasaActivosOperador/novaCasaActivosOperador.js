@@ -678,7 +678,7 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             return 'Sin severidad conocida: no hay lecturas con nivel para evaluar este activo.';
         }
         if (level === 2) {
-            return 'El activo está en estado crítico y no hay una intervención abierta visible para ti. Revisa el estado del procesamiento o consulta con tu administrador.';
+            return 'El activo sigue en estado crítico porque su última lectura es crítica, y no hay una intervención abierta visible para ti. El estado cambia cuando llegue una lectura normal, no al cerrar intervenciones. Si nadie las cerró, revisa el estado del procesamiento o consulta con tu administrador.';
         }
         if (level === 1) {
             return 'No es crítica: el sistema no la abre de forma automática.';
