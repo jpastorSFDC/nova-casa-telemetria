@@ -58,7 +58,9 @@ Run one class's tests without deploying:
 sf apex run test --class-names <ClassTest> --code-coverage --result-format human --wait 10
 ```
 
-Still to document once it exists: how to watch Platform Event processing.
+To watch Platform Event processing: the run itself shows up in Setup > Apex Jobs, but the events are handled by `SenialSensorTrigger` asynchronously. Open the **Todas las señales** list view of `Log_Senial__c` (`/lightning/o/Log_Senial__c/list?filterName=Todas_las_senales`): each message appears as `Publicada` (`Publicado_At__c`) and moves to `Procesada`, `Rechazada`, `Atrasada`, etc. (`Procesado_At__c`) once the subscriber handles it. Publishing and processing are separate moments (D013, D031).
+
+The ingestion continues the simulator session between runs (D025): a second run brings new messages instead of the same ones. Use **Reiniciar sesión** on the screen (or the 5-argument `TelemetriaIngesta.iniciar(escenario, semilla, tamanoLote, maxPaginas, true)`) to start the stream again. The simulator reuses `messageId` across sessions, so before a demo or a recorded run clean the `Log_Senial__c` rows of earlier runs; otherwise everything comes out as `Conflicto` or resend.
 
 ## Loading the building/asset catalog
 
