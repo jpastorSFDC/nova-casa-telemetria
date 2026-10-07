@@ -847,6 +847,27 @@ private class SenialSensorHandlerTest {
     }
 
     @IsTest
+    static void unEdificioQueNoEsDelActivoSeRechazaSinLecturaNiCaseYElEdificioCorrectoProcesa() {
+        Senial_Sensor__e ajena = medicion('msg_edif_mal', SALA, 'TEMPERATURE', '40', 'CELSIUS', OCURRIDO);
+        ajena.Building_Id__c = 'BLD-OTRO-999';
+        Senial_Sensor__e propia = medicion('msg_edif_ok', SALA, 'TEMPERATURE', '25', 'CELSIUS', OCURRIDO);
+        propia.Building_Id__c = 'bld-hdl-001'; // la grafía no cambia el resultado
+
+        Test.startTest();
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ ajena, propia });
+        Test.stopTest();
+
+        Log_Senial__c mala = filaLog(identidad('msg_edif_mal'));
+        Assert.areEqual('Rechazada', mala.Resultado__c, 'Edificio distinto al del activo: ' + mala.Motivo__c);
+        Assert.isTrue(mala.Motivo__c.contains('BLD-OTRO-999'), 'El motivo nombra el edificio recibido: ' + mala.Motivo__c);
+        Assert.isNull(mala.Caso__c, 'Sin intervención');
+        Assert.areEqual('Procesada', filaLog(identidad('msg_edif_ok')).Resultado__c, 'El edificio correcto sigue adelante');
+        Lectura_Vigente__c vigente = lectura(SALA + '|TEMPERATURE');
+        Assert.areEqual(identidad('msg_edif_ok'), vigente.Identidad_Senal__c, 'Solo la señal del edificio correcto escribe la lectura');
+        Assert.areEqual(0, [SELECT COUNT() FROM Case], 'La señal rechazada (40 °C sería crítica) no abre intervención');
+    }
+
+    @IsTest
     static void unaMedicionConUnidadIncompatibleSePersisteRechazadaSinLecturaNiCase() {
         Test.startTest();
         new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_ok_u', SALA, 'TEMPERATURE', '25', 'CELSIUS', ANTERIOR) });
