@@ -116,6 +116,8 @@ sf org assign permset -o novacasa_sprint_2 -n Nova_Casa_Lightning -b <username>
 
 Para revertir, el mismo `sf data update record` con el `ProfileId` de Standard User.
 
+**Layouts por perfil (D025).** Minimum Access no traía ninguna asignación de page layout, y los usuarios persona veían "One or more profiles have no page layout assigned" al abrir un `Case` o un `Asset` (el admin no, porque su perfil sí las tiene). La asignación es por perfil, no por rol ni por permission set. Ahora el perfil versionado `Minimum Access - Salesforce.profile-meta.xml` asigna `Asset-Asset Layout`, `Case-Case Layout`, `Lectura_Vigente__c-Lectura Vigente Layout`, `Log_Senial__c-Registro de Señal Layout` y `Umbral__c-Umbral Layout`. `Account` no figura en el perfil y el edificio abre bien con el layout estándar (verificado con `novacasa.operador@`, 2026-10-07). Tener el layout asignado no da acceso: el acceso sigue siendo de permission sets, FLS y sharing (BR-208).
+
 ## Línea base (2026-10-05, OWD público)
 
 `MaxAccessLevel` de `UserRecordAccess` por usuario. "Esperado" es el objetivo con D022 (BLD-BAQ-001 de `novacasa.operador2@`); "lectura" quiere decir sin Edit ni Delete efectivos, aunque `MaxAccessLevel` diga All por la jerarquía. Lo verificado está en "Resultado (T8.6)" y "Jerarquía en vez de View All (D022)".
