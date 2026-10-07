@@ -26,6 +26,8 @@
                 <thead>
                     <tr>
                         <th scope="col">Tipo de señal</th>
+                        <th scope="col">Medición</th>
+                        <th scope="col">Valor</th>
                         <th scope="col">Fecha de origen</th>
                         <th scope="col">Resultado</th>
                     </tr>
@@ -34,6 +36,8 @@
                     <template for:each={visibleRows} for:item="h">
                         <tr key={h.key} class={h.rowClass}>
                             <td class="celda-fuerte">{h.typeLabel}</td>
+                            <td>{h.measurementLabel}</td>
+                            <td class="num">{h.valueText}</td>
                             <td class="num">{h.occurredText}</td>
                             <td>
                                 {h.resultado}
@@ -45,7 +49,7 @@
                     </template>
                 </tbody>
             </table>
-            <p class="nota">Es un registro de las señales recibidas, no las lecturas actuales. Las marcadas como Atrasada, Superada o Conflicto se guardan como evidencia y no cambian el estado actual del activo.</p>
+            <p class="nota">Es un registro de las señales recibidas, no las lecturas actuales. Las marcadas como Atrasada, Superada o Conflicto se guardan como evidencia y no cambian el estado actual del activo. Una señal Rechazada muestra el valor recibido, pero no fue aceptada como lectura y no cambia el estado del activo. La medición y el valor aparecen solo en las señales recibidas desde que se agregaron; las anteriores muestran «—».</p>
         </template>
         <template if:true={showHistoryTruncated}>
             <p class="nota">{historyTruncatedText}</p>

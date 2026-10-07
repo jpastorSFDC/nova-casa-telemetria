@@ -10,6 +10,15 @@ export const MEASUREMENT_LABELS = {
     CAMERA_CONNECTIVITY: 'Conectividad de cámara'
 };
 
+// Log_Senial__c.Unit__c. Unknown values fall back to the raw value.
+export const UNIT_LABELS = {
+    CELSIUS: '°C',
+    BAR: 'bar',
+    LITER_PER_15_MIN: 'L / 15 min',
+    KWH_PER_15_MIN: 'kWh / 15 min',
+    SECONDS: 's'
+};
+
 // Glyph + text always accompany the color. A missing level is never mapped to Estable.
 const SEVERITY_UI = {
     2: { key: 'critico', label: 'Crítico', glyph: '●' },
