@@ -740,6 +740,136 @@ private class SenialSensorHandlerTest {
         Assert.areEqual(1, [SELECT COUNT() FROM Lectura_Vigente__c], 'Una lectura');
     }
 
+    // ─── Lote mixto (BR-202 / US-202) ────────────────────────────────────
+
+    @IsTest
+    static void unLoteMixtoDe200SenialesSeparaValidasEInvalidasConUnNumeroFijoDeConsultasYDml() {
+        List<Senial_Sensor__e> lote = new List<Senial_Sensor__e>();
+        Datetime base = Datetime.newInstanceGmt(2026, 9, 30, 10, 0, 0);
+        // 100 válidas: 5 activos x 20 señales crecientes en el tiempo. La última (n = 19) gana; en AST-BULK-00 y -01 es crítica.
+        for (Integer activo = 0; activo < 5; activo++) {
+            for (Integer n = 0; n < 20; n++) {
+                String valor = (n == 19 && activo < 2) ? '36' : '25';
+                lote.add(medicion('val_' + activo + '_' + n, 'AST-BULK-0' + activo, 'TEMPERATURE', valor, 'CELSIUS',
+                    base.addMinutes(n).formatGmt(FORMATO_ISO)));
+            }
+        }
+        // 34 incompletas sobre AST-BULK-05: 17 sin valor y 17 sin occurredAt.
+        for (Integer i = 0; i < 17; i++) {
+            lote.add(medicion('inc_v_' + i, 'AST-BULK-05', 'TEMPERATURE', null, 'CELSIUS', OCURRIDO));
+            lote.add(medicion('inc_f_' + i, 'AST-BULK-05', 'TEMPERATURE', '25', 'CELSIUS', null));
+        }
+        // 33 con activo fuera del catálogo; las pares serían críticas si el activo existiera.
+        for (Integer i = 0; i < 33; i++) {
+            lote.add(medicion('ext_' + i, 'AST-NO-EXISTE-' + i, 'TEMPERATURE', Math.mod(i, 2) == 0 ? '36' : '25', 'CELSIUS', OCURRIDO));
+        }
+        // 33 con unidad incompatible (Unidad_Esperada__c = CELSIUS) sobre AST-BULK-06.
+        for (Integer i = 0; i < 33; i++) {
+            lote.add(medicion('uni_' + i, 'AST-BULK-06', 'TEMPERATURE', '77', 'FAHRENHEIT', OCURRIDO));
+        }
+        Assert.areEqual(200, lote.size(), 'El lote mixto son 200 eventos');
+
+        Test.startTest();
+        new SenialSensorHandler().procesar(lote);
+        Integer consultas = Limits.getQueries();
+        Integer dml = Limits.getDmlStatements();
+        Test.stopTest();
+
+        // Mismo conteo que el lote homogéneo: umbrales + logs + activos + lecturas + Cases existentes; Cases + lecturas + logs.
+        Assert.areEqual(5, consultas, 'Consultas fijas por lote, también con inválidas mezcladas');
+        Assert.areEqual(3, dml, 'Sentencias DML fijas por lote, también con inválidas mezcladas');
+        Assert.areEqual(0, SenialSensorHandler.erroresInesperados, 'Ninguna excepción inesperada');
+        Assert.areEqual(0, SenialSensorHandler.fallosDeLog, 'Todas las filas de log se guardan');
+
+        Assert.areEqual(200, [SELECT COUNT() FROM Log_Senial__c], 'Una fila de log por identidad');
+        Assert.areEqual(5, [SELECT COUNT() FROM Log_Senial__c WHERE Resultado__c = 'Procesada'], 'Una ganadora válida por activo');
+        Assert.areEqual(95, [SELECT COUNT() FROM Log_Senial__c WHERE Resultado__c = 'Atrasada'], 'Las 19 anteriores de cada activo válido');
+        Assert.areEqual(100, [SELECT COUNT() FROM Log_Senial__c WHERE Resultado__c = 'Rechazada'], 'Todas las inválidas');
+        Assert.areEqual(0, [SELECT COUNT() FROM Log_Senial__c WHERE Resultado__c NOT IN ('Procesada', 'Atrasada', 'Rechazada')],
+            'Ningún otro resultado');
+        Set<String> procesadas = new Set<String>();
+        for (Log_Senial__c log : [SELECT Identidad__c FROM Log_Senial__c WHERE Resultado__c = 'Procesada']) {
+            procesadas.add(log.Identidad__c);
+        }
+        Set<String> esperadas = new Set<String>();
+        for (Integer activo = 0; activo < 5; activo++) {
+            esperadas.add(identidad('val_' + activo + '_19'));
+        }
+        Assert.areEqual(esperadas, procesadas, 'Las Procesadas son las más recientes de cada activo válido');
+
+        // Cada Rechazada explica la causa correcta según su tipo.
+        Integer incompletasValor = 0;
+        Integer incompletasFecha = 0;
+        Integer desconocidas = 0;
+        Integer incompatibles = 0;
+        for (Log_Senial__c log : [SELECT Message_Id__c, Motivo__c, Caso__c, Asset__c FROM Log_Senial__c WHERE Resultado__c = 'Rechazada']) {
+            Assert.isTrue(String.isNotBlank(log.Motivo__c), 'Toda Rechazada tiene motivo: ' + log.Message_Id__c);
+            Assert.isNull(log.Caso__c, 'Una Rechazada no enlaza Case: ' + log.Message_Id__c);
+            if (log.Message_Id__c.startsWith('inc_v_')) {
+                Assert.isTrue(log.Motivo__c.contains('Valor ausente'), 'Motivo de valor ausente: ' + log.Motivo__c);
+                incompletasValor++;
+            } else if (log.Message_Id__c.startsWith('inc_f_')) {
+                Assert.isTrue(log.Motivo__c.contains('occurredAt ausente'), 'Motivo de fecha ausente: ' + log.Motivo__c);
+                incompletasFecha++;
+            } else if (log.Message_Id__c.startsWith('ext_')) {
+                Assert.isTrue(log.Motivo__c.contains('AST-NO-EXISTE-') && log.Motivo__c.contains('no existe en el catálogo'),
+                    'Motivo de activo desconocido: ' + log.Motivo__c);
+                Assert.isNull(log.Asset__c, 'Sin activo en el log: ' + log.Message_Id__c);
+                desconocidas++;
+            } else if (log.Message_Id__c.startsWith('uni_')) {
+                Assert.isTrue(log.Motivo__c.contains('FAHRENHEIT') && log.Motivo__c.contains('unidad esperada CELSIUS'),
+                    'Motivo de unidad incompatible: ' + log.Motivo__c);
+                incompatibles++;
+            } else {
+                Assert.fail('Una válida no debe quedar Rechazada: ' + log.Message_Id__c + ' ' + log.Motivo__c);
+            }
+        }
+        Assert.areEqual(17, incompletasValor, 'Rechazadas por valor ausente');
+        Assert.areEqual(17, incompletasFecha, 'Rechazadas por fecha ausente');
+        Assert.areEqual(33, desconocidas, 'Rechazadas por activo fuera del catálogo');
+        Assert.areEqual(33, incompatibles, 'Rechazadas por unidad incompatible');
+
+        // Las inválidas no escriben lectura ni Case; las válidas sí.
+        Assert.areEqual(5, [SELECT COUNT() FROM Lectura_Vigente__c], 'Solo las 5 lecturas de los activos válidos');
+        Assert.areEqual(0, [SELECT COUNT() FROM Lectura_Vigente__c WHERE Clave__c IN ('AST-BULK-05|TEMPERATURE', 'AST-BULK-06|TEMPERATURE')],
+            'Incompletas e incompatibles no escriben lectura');
+        Assert.areEqual(36, lectura('AST-BULK-00|TEMPERATURE').Valor__c, 'Gana la crítica más reciente de AST-BULK-00');
+        Assert.areEqual(36, lectura('AST-BULK-01|TEMPERATURE').Valor__c, 'Gana la crítica más reciente de AST-BULK-01');
+        for (Integer activo = 2; activo < 5; activo++) {
+            Assert.areEqual(25, lectura('AST-BULK-0' + activo + '|TEMPERATURE').Valor__c, 'Lectura normal del activo ' + activo);
+        }
+        Set<String> identidadesConCase = new Set<String>();
+        for (Case c : [SELECT Identidad_Senal__c FROM Case]) {
+            identidadesConCase.add(c.Identidad_Senal__c);
+        }
+        Assert.areEqual(new Set<String>{ identidad('val_0_19'), identidad('val_1_19') }, identidadesConCase,
+            'Solo las dos críticas válidas ganadoras abren Case; las críticas con activo desconocido no');
+    }
+
+    @IsTest
+    static void unaMedicionConUnidadIncompatibleSePersisteRechazadaSinLecturaNiCase() {
+        Test.startTest();
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_ok_u', SALA, 'TEMPERATURE', '25', 'CELSIUS', ANTERIOR) });
+        // 77 FAHRENHEIT sería "crítica" si se leyera como Celsius, y es más reciente que la vigente.
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_otra_u', SALA, 'TEMPERATURE', '77', 'FAHRENHEIT', OCURRIDO) });
+        Test.stopTest();
+
+        Log_Senial__c log = filaLog(identidad('msg_otra_u'));
+        Assert.areEqual('Rechazada', log.Resultado__c, 'La unidad incompatible se rechaza: ' + log.Motivo__c);
+        Assert.isTrue(log.Motivo__c.contains('FAHRENHEIT'), 'El motivo nombra la unidad recibida: ' + log.Motivo__c);
+        Assert.isTrue(log.Motivo__c.contains('unidad esperada CELSIUS'), 'El motivo nombra la unidad esperada: ' + log.Motivo__c);
+        Assert.isNotNull(log.Procesado_At__c, 'La evidencia queda marcada como procesada');
+        Assert.areEqual(activo(SALA).Id, log.Asset__c, 'El activo existe y el log lo enlaza');
+        Assert.isNull(log.Caso__c, 'Sin Case enlazado');
+        Assert.areEqual('MedicionIncompatible', SenialSensorHandler.clasificacionPorMessageId.get('msg_otra_u').estado, 'Clasificación del handler');
+        Assert.areEqual(1, [SELECT COUNT() FROM Lectura_Vigente__c], 'Solo existe la lectura de la señal válida');
+        Lectura_Vigente__c vigente = lectura(SALA + '|TEMPERATURE');
+        Assert.areEqual(identidad('msg_ok_u'), vigente.Identidad_Senal__c, 'La incompatible no sobrescribe la lectura vigente');
+        Assert.areEqual(25, vigente.Valor__c, 'Valor vigente intacto');
+        Assert.areEqual('CELSIUS', vigente.Unidad__c, 'Unidad vigente intacta');
+        Assert.areEqual(0, [SELECT COUNT() FROM Case], 'Una medición incompatible no abre intervención');
+    }
+
     // ─── Límites de umbral y severidad (US-204, US-206) ──────────────────
     // Umbrales de TEMPERATURE en TECHNICAL_ROOM: GT 30 Advertencia, GT 35 Critica, LT 15 Critica, GE 81 Invalida, LE -11 Invalida.
     // Invalida se evalúa primero y es un rechazo (sin lectura ni Case); solo Critica abre Case.
