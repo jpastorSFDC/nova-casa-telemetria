@@ -744,7 +744,7 @@ private class ActivosOperadorControllerTest {
     }
 
     @isTest
-    static void historyExposesNoTechnicalFieldsOrValues() {
+    static void historyExposesOnlyTheAgreedKeysAndNoTechnicalFields() {
         // Given a signal whose technical columns carry recognizable secrets
         Account building = newAccount('Edificio Hist Tecnico');
         Asset asset = newAsset('AST-HIST-TECH', building, 'WATER_PUMP');
@@ -762,7 +762,60 @@ private class ActivosOperadorControllerTest {
         Map<String, Object> top = (Map<String, Object>) JSON.deserializeUntyped(payload);
         List<Object> signals = (List<Object>) top.get('signals');
         Map<String, Object> first = (Map<String, Object>) signals[0];
-        Assert.areEqual(new Set<String>{ 'messageType', 'occurredAt', 'resultado' }, first.keySet());
+        Assert.areEqual(new Set<String>{ 'messageType', 'occurredAt', 'resultado', 'measurementType', 'unit', 'value' }, first.keySet());
+    }
+
+    @isTest
+    static void historyReturnsMeasurementTypeUnitAndValueAndNullForOldRows() {
+        // Given a new measurement row with type, unit and value, and an old row without them
+        Account building = newAccount('Edificio Hist Valores');
+        Asset asset = newAsset('AST-HIST-VALUES', building, 'WATER_PUMP');
+        Datetime now = baseTime();
+        newLogWithValue(asset, now, 'TEMPERATURE', 'CELSIUS', 21.5);
+        newLog(asset, 'MEASUREMENT', 'Procesada', now.addMinutes(-5), null, null);
+
+        // When the operator reads the history (newest first)
+        ActivosOperadorController.HistoryResult result = history(userLike('nc207operator'), asset.Id, null);
+
+        // Then the new row round-trips and the old row has nulls
+        Assert.areEqual(2, result.signals.size());
+        Assert.areEqual('TEMPERATURE', result.signals[0].measurementType);
+        Assert.areEqual('CELSIUS', result.signals[0].unit);
+        Assert.areEqual(21.5, result.signals[0].value);
+        Assert.isNull(result.signals[1].measurementType);
+        Assert.isNull(result.signals[1].unit);
+        Assert.isNull(result.signals[1].value);
+    }
+
+    @isTest
+    static void historyValuesReachAnOperatorWhoCannotReadTheLogAndAreNotExposedForAHiddenAsset() {
+        // Given the shipped operator permission set (no access to Log_Senial__c) and a valued row on each of two buildings
+        User operatorB = newUserWithPermissionSet('nc207operator2', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User operatorA = newUserWithPermissionSet('nc207operatorlog', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Account buildingA = newAccount('Edificio Valores A', operatorA.Id);
+        Account buildingB = newAccount('Edificio Valores B', operatorB.Id);
+        Asset assetA = newAsset('AST-HIST-VAL-A', buildingA, 'WATER_PUMP');
+        Asset assetB = newAsset('AST-HIST-VAL-B', buildingB, 'WATER_PUMP');
+        newLogWithValue(assetA, baseTime(), 'WATER_PRESSURE', 'BAR', 3.2);
+        newLogWithValue(assetB, baseTime(), 'WATER_PRESSURE', 'BAR', 4.4);
+
+        // When operator A reads own history, and operator B asks for A's
+        ActivosOperadorController.HistoryResult own = history(operatorA, assetA.Id, null);
+        String denied;
+        String leaked;
+        System.runAs(operatorB) {
+            try {
+                leaked = JSON.serialize(ActivosOperadorController.getHistorial(assetA.Id, null));
+            } catch (AuraHandledException e) {
+                denied = e.getMessage();
+            }
+        }
+
+        // Then A gets the value without log access, and B gets only the safe error with no value
+        Assert.areEqual(3.2, own.signals[0].value);
+        Assert.areEqual('BAR', own.signals[0].unit);
+        Assert.areEqual(ActivosOperadorController.HISTORY_ASSET_MESSAGE, denied);
+        Assert.isNull(leaked);
     }
 
     @isTest
@@ -1532,6 +1585,15 @@ private class ActivosOperadorControllerTest {
 
     private static Log_Senial__c newLog(Asset asset, String messageType, String resultado, Datetime at, String motivo, String huella) {
         Log_Senial__c l = logRow(asset, messageType, resultado, at, motivo, huella);
+        insert l;
+        return l;
+    }
+
+    private static Log_Senial__c newLogWithValue(Asset asset, Datetime at, String measurementType, String unit, Decimal value) {
+        Log_Senial__c l = logRow(asset, 'MEASUREMENT', 'Procesada', at, null, null);
+        l.Measurement_Type__c = measurementType;
+        l.Unit__c = unit;
+        l.Value__c = value;
         insert l;
         return l;
     }

@@ -1,6 +1,6 @@
 import { LightningElement, api, wire } from 'lwc';
 import getHistorial from '@salesforce/apex/ActivosOperadorController.getHistorial';
-import { SIGNAL_TYPE_LABELS, reduceError } from 'c/novaCasaEtiquetas';
+import { SIGNAL_TYPE_LABELS, MEASUREMENT_LABELS, UNIT_LABELS, reduceError } from 'c/novaCasaEtiquetas';
 
 const HISTORY_LIMIT = 20;
 const EVIDENCE_RESULTS = ['Atrasada', 'Superada', 'Conflicto'];
@@ -15,6 +15,16 @@ const RESULT_HELP = {
 function formatUtcDateTime(value) {
     const ms = value ? new Date(value).getTime() : NaN;
     return Number.isNaN(ms) ? '—' : `${new Date(ms).toISOString().slice(0, 16).replace('T', ' ')} UTC`;
+}
+
+const NUMBER_FORMAT = new Intl.NumberFormat('es', { maximumFractionDigits: 4 });
+
+function formatValue(value, unit) {
+    if (value === null || value === undefined || Number.isNaN(Number(value))) {
+        return '—';
+    }
+    const number = NUMBER_FORMAT.format(Number(value));
+    return unit ? `${number} ${UNIT_LABELS[unit] || unit}` : number;
 }
 
 // Same rendering and wording as the "Historial de señales" card of novaCasaActivosOperador (D024).
@@ -61,6 +71,8 @@ export default class NovaCasaHistorialSenales extends LightningElement {
         return signals.map((s, i) => ({
             key: `${i}-${s.occurredAt}`,
             typeLabel: SIGNAL_TYPE_LABELS[s.messageType] || s.messageType || '—',
+            measurementLabel: s.measurementType ? MEASUREMENT_LABELS[s.measurementType] || s.measurementType : '—',
+            valueText: formatValue(s.value, s.unit),
             occurredText: formatUtcDateTime(s.occurredAt),
             resultado: s.resultado || '—',
             // Evidence only: these never change the asset's current state. Tagged with text, not color alone.

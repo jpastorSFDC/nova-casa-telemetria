@@ -1169,6 +1169,105 @@ private class SenialSensorHandlerTest {
         Assert.areEqual(new Set<String>{ identidad('msg_z'), identidad('msg_x') }, identidadesConCase, 'Solo las críticas ganadoras abren Case');
     }
 
+    // ─── Historial con valores (HP-07) ───────────────────────────────────
+
+    @IsTest
+    static void laPrimeraProcesadaGuardaTipoUnidadYValorEnElLog() {
+        Test.startTest();
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_h1', SALA, 'TEMPERATURE', ' 25.5 ', 'CELSIUS', OCURRIDO) });
+        Test.stopTest();
+
+        Log_Senial__c log = filaLog(identidad('msg_h1'));
+        Assert.areEqual('Procesada', log.Resultado__c, 'Resultado: ' + log.Motivo__c);
+        Assert.areEqual('TEMPERATURE', log.Measurement_Type__c, 'Tipo de medición del evento');
+        Assert.areEqual('CELSIUS', log.Unit__c, 'Unidad del evento');
+        Assert.areEqual(25.5, log.Value__c, 'Valor del evento');
+    }
+
+    @IsTest
+    static void unaRechazadaTambienGuardaTipoUnidadYValor() {
+        Test.startTest();
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_h2', 'AST-NO-EXISTE', 'TEMPERATURE', '40', 'CELSIUS', OCURRIDO) });
+        Test.stopTest();
+
+        Log_Senial__c log = filaLog(identidad('msg_h2'));
+        Assert.areEqual('Rechazada', log.Resultado__c, 'Resultado');
+        Assert.areEqual('TEMPERATURE', log.Measurement_Type__c, 'La evidencia rechazada conserva el tipo');
+        Assert.areEqual('CELSIUS', log.Unit__c, 'La evidencia rechazada conserva la unidad');
+        Assert.areEqual(40, log.Value__c, 'La evidencia rechazada conserva el valor');
+    }
+
+    @IsTest
+    static void conectividadDejaTipoUnidadYValorVacios() {
+        Senial_Sensor__e conectividad = new Senial_Sensor__e(Source__c = FUENTE, Message_Id__c = 'msg_h3', Message_Type__c = 'CONNECTIVITY',
+            Asset_Type__c = 'TECHNICAL_ROOM', Asset_Id__c = SALA, Gap_Seconds__c = '300', Measurement_Type__c = 'TEMPERATURE',
+            Value__c = '12', Unit__c = 'CELSIUS', Occurred_At__c = OCURRIDO, Delivery_Id__c = 'dlv_1');
+        Test.startTest();
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ conectividad });
+        Test.stopTest();
+
+        Log_Senial__c log = filaLog(identidad('msg_h3'));
+        Assert.areEqual('CONNECTIVITY', log.Message_Type__c, 'Tipo de mensaje');
+        Assert.isNull(log.Measurement_Type__c, 'Conectividad no guarda tipo de medición');
+        Assert.isNull(log.Unit__c, 'Conectividad no guarda unidad');
+        Assert.isNull(log.Value__c, 'Conectividad no guarda valor');
+    }
+
+    @IsTest
+    static void unReenvioNoCambiaTipoUnidadNiValorDelLog() {
+        Test.startTest();
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_h4', SALA, 'TEMPERATURE', '25', 'CELSIUS', OCURRIDO) });
+        Log_Senial__c fila = filaLog(identidad('msg_h4'));
+        fila.Measurement_Type__c = 'MARCA';
+        fila.Unit__c = 'MARCA';
+        fila.Value__c = 99;
+        update fila;
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_h4', SALA, 'TEMPERATURE', '25', 'CELSIUS', OCURRIDO) });
+        Test.stopTest();
+
+        Log_Senial__c log = filaLog(identidad('msg_h4'));
+        Assert.areEqual(1, log.Reenvios__c.intValue(), 'Fue un reenvío');
+        Assert.areEqual('MARCA', log.Measurement_Type__c, 'El reenvío no reescribe el tipo');
+        Assert.areEqual('MARCA', log.Unit__c, 'El reenvío no reescribe la unidad');
+        Assert.areEqual(99, log.Value__c, 'El reenvío no reescribe el valor');
+    }
+
+    @IsTest
+    static void unConflictoNoSobrescribeTipoUnidadNiValorOriginales() {
+        Test.startTest();
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_h5', SALA, 'TEMPERATURE', '25', 'CELSIUS', OCURRIDO) });
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_h5', SALA, 'WATER_PRESSURE', '36', 'BAR', OCURRIDO) });
+        Test.stopTest();
+
+        Log_Senial__c log = filaLog(identidad('msg_h5'));
+        Assert.areEqual('Conflicto', log.Resultado__c, 'Contenido distinto es conflicto');
+        Assert.areEqual('TEMPERATURE', log.Measurement_Type__c, 'El conflicto conserva el tipo original');
+        Assert.areEqual('CELSIUS', log.Unit__c, 'El conflicto conserva la unidad original');
+        Assert.areEqual(25, log.Value__c, 'El conflicto conserva el valor original');
+    }
+
+    @IsTest
+    static void tipoYUnidadLargosSeRecortanYUnValorEnormeQuedaNuloSinFallarElLog() {
+        String tipoLargo = 'T'.repeat(100);
+        String unidadLarga = 'U'.repeat(100);
+        Test.startTest();
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{
+            medicion('msg_h6', SALA, tipoLargo, '25', unidadLarga, OCURRIDO),
+            medicion('msg_h7', SALA, 'TEMPERATURE', '999999999999999999', 'CELSIUS', OCURRIDO)
+        });
+        Test.stopTest();
+
+        Assert.areEqual(0, SenialSensorHandler.fallosDeLog, 'Ningún upsert de log falla');
+        Log_Senial__c largo = filaLog(identidad('msg_h6'));
+        Assert.areEqual('T'.repeat(60), largo.Measurement_Type__c, 'El tipo se recorta a 60');
+        Assert.areEqual('U'.repeat(40), largo.Unit__c, 'La unidad se recorta a 40');
+        Assert.areEqual(25, largo.Value__c, 'El valor normal se guarda');
+        Log_Senial__c enorme = filaLog(identidad('msg_h7'));
+        Assert.isNotNull(enorme.Resultado__c, 'La fila de evidencia existe');
+        Assert.isNull(enorme.Value__c, 'Un valor fuera de Number(18,4) se guarda como nulo');
+        Assert.areEqual('TEMPERATURE', enorme.Measurement_Type__c, 'El tipo sí se guarda');
+    }
+
     private static SenialSensorHandler.Clasificacion clasificacionDe(String source, String messageId) {
         SenialSensorHandler.Clasificacion c = new SenialSensorHandler.Clasificacion();
         c.source = source;
@@ -1200,7 +1299,7 @@ private class SenialSensorHandlerTest {
     private static Log_Senial__c filaLog(String identidad) {
         List<Log_Senial__c> filas = [
             SELECT Id, Identidad__c, Resultado__c, Motivo__c, Procesado_At__c, Asset__c, Caso__c, Occurred_At__c, Delivery_Id__c,
-                Message_Type__c, Huella__c, Reenvios__c, Ultimo_Reenvio__c
+                Message_Type__c, Huella__c, Reenvios__c, Ultimo_Reenvio__c, Measurement_Type__c, Unit__c, Value__c
             FROM Log_Senial__c WHERE Identidad__c = :identidad
         ];
         Assert.areEqual(1, filas.size(), 'Debe existir exactamente una fila de log para ' + identidad);

@@ -12,6 +12,11 @@ public without sharing class SenialSensorHandler {
     // permisos de operador/administrador (AGENTS.md). La ruta de consulta del operador tiene su propia autorización
     // (BR-208). Esta clase es solo de la ruta de ingesta: no debe llamarse desde LWC ni controladores @AuraEnabled.
     private static final String MENSAJE_CONECTIVIDAD = 'CONNECTIVITY';
+    private static final String MENSAJE_MEDICION = 'MEASUREMENT';
+    // Topes de Log_Senial__c.Measurement_Type__c (60) y Unit__c (40); Value__c es Number(18,4): |valor| < 1e14.
+    private static final Integer MAX_LOG_TIPO_MEDICION = 60;
+    private static final Integer MAX_LOG_UNIDAD = 40;
+    private static final Decimal MAX_LOG_VALOR = 100000000000000L;
     private static final String MEDICION_CONECTIVIDAD = 'CAMERA_CONNECTIVITY';
     private static final String UNIDAD_CONECTIVIDAD = 'SECONDS';
     private static final String FORMATO_ISO = 'yyyy-MM-dd\'T\'HH:mm:ss.SSS\'Z\'';
@@ -326,6 +331,10 @@ public without sharing class SenialSensorHandler {
                 fila.Source__c = c.source;
                 fila.Message_Id__c = c.messageIdLog;
                 fila.Message_Type__c = c.tipoMensaje;
+                // Historial con valores: el dato crudo del evento queda como evidencia aunque el resultado sea Rechazada.
+                fila.Measurement_Type__c = c.logTipoMedicion;
+                fila.Unit__c = c.logUnidad;
+                fila.Value__c = c.logValor;
                 fila.Occurred_At__c = c.occurredAt;
                 fila.Delivery_Id__c = c.deliveryId;
                 fila.Huella__c = c.huella;
@@ -805,6 +814,10 @@ public without sharing class SenialSensorHandler {
         public String sensorId;
         public String deliveryId;
         public String tipoMensaje;
+        // Valores crudos (recortados) para el historial del log; solo mensajes MEASUREMENT. Nunca pueden hacer fallar el upsert.
+        public String logTipoMedicion;
+        public String logUnidad;
+        public Decimal logValor;
         // Procesada, Rechazada, Atrasada, Superada, Fallida, Reenvio o Conflicto
         public String resultado;
         public String edificioExterno;
@@ -819,6 +832,12 @@ public without sharing class SenialSensorHandler {
             this.sensorId = senial.Sensor_Id__c;
             this.deliveryId = senial.Delivery_Id__c;
             this.tipoMensaje = senial.Message_Type__c;
+            if (senial.Message_Type__c == MENSAJE_MEDICION) {
+                this.logTipoMedicion = String.isBlank(senial.Measurement_Type__c) ? null : senial.Measurement_Type__c.trim().left(MAX_LOG_TIPO_MEDICION);
+                this.logUnidad = String.isBlank(senial.Unit__c) ? null : senial.Unit__c.trim().left(MAX_LOG_UNIDAD);
+                Decimal crudo = convertirDecimal(senial.Value__c);
+                this.logValor = crudo == null || crudo.abs() >= MAX_LOG_VALOR ? null : crudo;
+            }
         }
 
         public void fijarIdentidad(String source, String messageId) {

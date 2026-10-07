@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Unit__c</fullName>
+    <label>Unidad</label>
+    <description>measurement.unit tal como llegó en el evento (texto libre, no restringido) para mostrarlo en el historial. Vacío en las filas anteriores a HP-07 y en mensajes de conectividad.</description>
+    <type>Text</type>
+    <length>40</length>
+    <required>false</required>
+    <unique>false</unique>
+</CustomField>

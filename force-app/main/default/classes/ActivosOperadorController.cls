@@ -254,11 +254,18 @@ public with sharing class ActivosOperadorController {
         @AuraEnabled public Datetime occurredAt { get; private set; }
         // Log_Senial__c.Resultado__c, e.g. Procesada, Atrasada, Duplicada.
         @AuraEnabled public String resultado { get; private set; }
+        // Physical measurement (e.g. TEMPERATURE, CELSIUS, 21.5). Null on rows received before these fields existed.
+        @AuraEnabled public String measurementType { get; private set; }
+        @AuraEnabled public String unit { get; private set; }
+        @AuraEnabled public Decimal value { get; private set; }
 
         public SignalView(Log_Senial__c l) {
             this.messageType = l.Message_Type__c;
             this.occurredAt = l.Occurred_At__c;
             this.resultado = l.Resultado__c;
+            this.measurementType = l.Measurement_Type__c;
+            this.unit = l.Unit__c;
+            this.value = l.Value__c;
         }
     }
 
@@ -281,7 +288,7 @@ public with sharing class ActivosOperadorController {
     private without sharing class HistoryReader {
         List<Log_Senial__c> read(Id assetId, Integer fetch) {
             return [
-                SELECT Message_Type__c, Occurred_At__c, Resultado__c
+                SELECT Message_Type__c, Occurred_At__c, Resultado__c, Measurement_Type__c, Unit__c, Value__c
                 FROM Log_Senial__c
                 WHERE Asset__c = :assetId
                 WITH SYSTEM_MODE
@@ -294,7 +301,7 @@ public with sharing class ActivosOperadorController {
     /**
      * Recent signals (newest first) of an asset the running user can see.
      * Authorization: the asset is first queried WITH USER_MODE; if the user cannot see it the call fails and the log is never read.
-     * The log rows themselves are then read in system mode and only three non-technical fields are returned.
+     * The log rows themselves are then read in system mode and only six non-technical fields are returned (type, time, result, measurement type, unit, value).
      * @param assetId Asset Id
      * @param limite max rows; clamped to 1..50, null means 20
      */
