@@ -3,13 +3,14 @@
     <fullName>Nova_Casa_Intervenciones_Abiertas</fullName>
     <columns>CASES.CASE_NUMBER</columns>
     <columns>CASES.SUBJECT</columns>
-    <columns>ACCOUNT.NAME</columns>
+    <columns>Edificio__c</columns>
     <columns>ASSET.NAME</columns>
+    <columns>Severidad_Activo__c</columns>
     <columns>CASES.PRIORITY</columns>
     <columns>CASES.STATUS</columns>
+    <columns>Tiempo_Abierto_Horas__c</columns>
     <columns>CASES.CREATED_DATE_DATE_ONLY</columns>
     <columns>CORE.USERS.ALIAS</columns>
-    <columns>Identidad_Senal__c</columns>
     <filterScope>Everything</filterScope>
     <filters>
         <field>CASES.CLOSED</field>

@@ -6,5 +6,6 @@
     <fields>Status</fields>
     <fields>Priority</fields>
     <fields>AssetId</fields>
+    <fields>Identidad_Senal__c</fields>
     <label>Nova Casa Intervención</label>
 </CompactLayout>

@@ -4,7 +4,7 @@
     <excludeButtons>Submit</excludeButtons>
     <layoutSections>
         <customLabel>true</customLabel>
-        <detailHeading>false</detailHeading>
+        <detailHeading>true</detailHeading>
         <editHeading>true</editHeading>
         <label>Edificio</label>
         <layoutColumns>
@@ -27,7 +27,7 @@
     </layoutSections>
     <layoutSections>
         <customLabel>true</customLabel>
-        <detailHeading>false</detailHeading>
+        <detailHeading>true</detailHeading>
         <editHeading>true</editHeading>
         <label>Ubicación</label>
         <layoutColumns>
@@ -41,7 +41,7 @@
     </layoutSections>
     <layoutSections>
         <customLabel>true</customLabel>
-        <detailHeading>false</detailHeading>
+        <detailHeading>true</detailHeading>
         <editHeading>false</editHeading>
         <label>Información del sistema</label>
         <layoutColumns>
@@ -76,6 +76,7 @@
         <fields>Tipo_Activo__c</fields>
         <fields>Severidad_Actual__c</fields>
         <fields>Ultima_Senal__c</fields>
+        <fields>Minutos_Sin_Senal__c</fields>
         <relatedList>RelatedAssetList</relatedList>
     </relatedLists>
     <relatedLists>
@@ -83,6 +84,7 @@
         <fields>CASES.SUBJECT</fields>
         <fields>CASES.STATUS</fields>
         <fields>CASES.PRIORITY</fields>
+        <fields>Tiempo_Abierto_Horas__c</fields>
         <relatedList>RelatedCaseList</relatedList>
     </relatedLists>
     <showEmailCheckbox>false</showEmailCheckbox>

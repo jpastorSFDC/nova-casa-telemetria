@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Severidad_Activo__c</fullName>
+    <label>Severidad actual del activo</label>
+    <description>Severidad actual del activo (Asset.Severidad_Actual__c, HP-07). Es el estado de hoy del activo, no el valor que abrió la intervención. Solo lectura.</description>
+    <inlineHelpText>Estado actual del activo; puede ser distinto de lo que abrió esta intervención.</inlineHelpText>
+    <type>Text</type>
+    <formula><![CDATA[Asset.Severidad_Actual__c]]></formula>
+    <formulaTreatBlanksAs>BlankAsZero</formulaTreatBlanksAs>
+</CustomField>
