@@ -303,9 +303,14 @@
                             <template if:true={selectedRow.hasMoreInterventions}>
                                 <p>{selectedRow.moreInterventionsText}</p>
                             </template>
-                            <template if:true={selectedRow.canFollow}>
-                                <button type="button" class="boton secundario" data-mode="seguir" onclick={openForm}>Actualizar seguimiento</button>
-                            </template>
+                            <div class="acciones-form acciones-int">
+                                <template if:true={selectedRow.canFollow}>
+                                    <button type="button" class="boton secundario" data-mode="seguir" onclick={openForm}>Actualizar seguimiento</button>
+                                </template>
+                                <template if:true={selectedRow.canCloseAll}>
+                                    <button type="button" class="boton secundario" data-mode="cerrar-todas" onclick={openForm}>{selectedRow.closeAllLabel}</button>
+                                </template>
+                            </div>
                         </div>
                     </section>
                 </template>
@@ -340,11 +345,17 @@
                             <label class="filtro-label" for="a-comentario">Comentario (opcional)</label>
                             <textarea class="campo campo-texto" id="a-comentario" maxlength="4000" rows="3" value={comentario} oninput={handleComentario}></textarea>
                         </template>
+                        <template if:true={isClosingAll}>
+                            <h3>Cerrar todas las intervenciones abiertas</h3>
+                            <p class="nota">{selectedRow.closeAllWarning}</p>
+                            <label class="filtro-label" for="a-comentario-todas">Comentario (opcional)</label>
+                            <textarea class="campo campo-texto" id="a-comentario-todas" maxlength="4000" rows="3" value={comentario} oninput={handleComentario}></textarea>
+                        </template>
                         <template if:true={showActionError}>
                             <p class="nota nota-error" role="alert">{actionError}</p>
                         </template>
                         <div class="acciones-form">
-                            <button type="button" class="boton urgente" disabled={saveDisabled} onclick={handleSaveForm}>Guardar</button>
+                            <button type="button" class="boton urgente" disabled={saveDisabled} onclick={handleSaveForm}>{saveLabel}</button>
                             <button type="button" class="boton secundario" disabled={isSaving} onclick={closeForm}>Cancelar</button>
                         </div>
                     </section>
