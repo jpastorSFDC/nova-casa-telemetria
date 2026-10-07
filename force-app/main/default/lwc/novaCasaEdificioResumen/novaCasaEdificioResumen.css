@@ -1,0 +1,106 @@
+/* Same tokens as novaCasaActivosOperador, scoped to this component. */
+:host {
+    --nc-tinta: #12141a;
+    --nc-tinta-media: #5c6470;
+    --nc-linea: #d8dee8;
+    --nc-papel: #ffffff;
+    --nc-hueco: #e4e8ef;
+    --nc-critico: #e11d48;
+    --nc-advertencia: #c2410c;
+    --nc-normal: #15803d;
+    --nc-info: #2563eb;
+    color: var(--nc-tinta);
+}
+
+:focus-visible {
+    outline: 3px solid var(--nc-info);
+    outline-offset: 2px;
+}
+
+.grilla {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+    gap: 0.6rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.tarjeta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    border: 1px solid var(--nc-linea);
+    border-radius: 12px;
+    padding: 0.7rem 0.85rem;
+    background: var(--nc-papel);
+}
+.cifra {
+    font-size: 1.6rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Severity badge: glyph + text, never color alone */
+.sev {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    align-self: flex-start;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    border-radius: 999px;
+    padding: 0.18rem 0.55rem;
+    white-space: nowrap;
+}
+.sev-critico {
+    background: var(--nc-critico);
+    color: #fff;
+}
+.sev-advertencia {
+    background: var(--nc-papel);
+    color: var(--nc-advertencia);
+    border: 1px solid var(--nc-advertencia);
+}
+.sev-normal {
+    background: transparent;
+    color: var(--nc-normal);
+    border: 1px solid #86efac;
+}
+.sev-nivel {
+    background: var(--nc-papel);
+    color: var(--nc-tinta-media);
+    border: 1px dashed #8b93a0;
+}
+
+.datos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 2rem;
+    margin: 0;
+}
+.datos dt {
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--nc-tinta-media);
+}
+.datos dd {
+    margin: 0;
+    font-weight: 700;
+}
+
+.hueso {
+    height: 4rem;
+    background: var(--nc-hueco);
+    border-radius: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * {
+        transition: none !important;
+    }
+}

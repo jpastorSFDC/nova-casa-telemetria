@@ -89,10 +89,11 @@ public with sharing class CatalogoService {
     private static Map<String, Id> upsertBuildings(List<BuildingWrapper> buildings) {
         List<Account> buildingAccounts = new List<Account>();
         for (BuildingWrapper building : buildings) {
-            buildingAccounts.add(new Account(
-                External_Id__c = building.id,
-                Name = building.name
-            ));
+            Account buildingAccount = new Account(External_Id__c = building.id, Name = building.name);
+            if (String.isNotBlank(building.city)) { // unset (not null) when missing, so a reload never blanks an existing city
+                buildingAccount.BillingCity = building.city;
+            }
+            buildingAccounts.add(buildingAccount);
         }
 
         // Explicit CRUD pre-check: with no object access, the USER_MODE upsert below failed with a raw
@@ -282,6 +283,7 @@ public with sharing class CatalogoService {
     private class BuildingWrapper {
         private String id;
         private String name;
+        private String city;
         private List<AssetWrapper> assets;
     }
 

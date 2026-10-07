@@ -1,0 +1,58 @@
+<template>
+    <lightning-card title="Estado del edificio" icon-name="standard:account">
+        <lightning-button slot="actions" label="Actualizar" variant="neutral" size="small" disabled={isLoading} onclick={handleRefresh}></lightning-button>
+        <div class="slds-var-p-horizontal_medium slds-var-p-bottom_small">
+            <template if:true={isLoading}>
+                <div role="status" aria-live="polite">
+                    <span class="slds-assistive-text">Cargando el estado del edificio</span>
+                    <lightning-spinner alternative-text="Cargando" size="small"></lightning-spinner>
+                    <div class="hueso" aria-hidden="true"></div>
+                </div>
+            </template>
+
+            <template if:true={showError}>
+                <div class="slds-text-color_error" role="alert">
+                    <p class="slds-text-heading_small">No pudimos cargar el estado del edificio</p>
+                    <p>Este resumen no muestra el estado actual. No asumas que todo está normal. Vuelve a intentar; si sigue, avisa a tu administrador.</p>
+                    <p class="slds-text-body_small">{errorMessage}</p>
+                </div>
+            </template>
+
+            <template if:true={isEmpty}>
+                <div role="status">
+                    <p class="slds-text-heading_small">Sin activos para mostrar</p>
+                    <p class="slds-text-color_weak">Este edificio no tiene activos a los que tengas acceso, o aún no se ha cargado el catálogo.</p>
+                </div>
+            </template>
+
+            <template if:true={showSummary}>
+                <p class="slds-text-color_weak slds-var-m-bottom_small">{totalText}</p>
+                <ul class="grilla" aria-label="Activos por severidad">
+                    <template for:each={items} for:item="it">
+                        <li key={it.key} class="tarjeta">
+                            <span class="cifra">{it.count}</span>
+                            <span class={it.cls}><span aria-hidden="true">{it.glyph}</span> {it.label}</span>
+                        </li>
+                    </template>
+                </ul>
+                <dl class="datos slds-var-m-top_small">
+                    <div>
+                        <dt>Intervenciones</dt>
+                        <dd>
+                            <span if:true={hasOpenCases}><span aria-hidden="true">&#9650;</span> </span>{openCasesText}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt>Última señal</dt>
+                        <dd>
+                            <template if:true={hasLastSignal}>
+                                <lightning-formatted-date-time value={lastSignalValue} year="numeric" month="short" day="2-digit" hour="2-digit" minute="2-digit"></lightning-formatted-date-time>
+                            </template>
+                            <template if:false={hasLastSignal}>Sin señales todavía</template>
+                        </dd>
+                    </div>
+                </dl>
+            </template>
+        </div>
+    </lightning-card>
+</template>

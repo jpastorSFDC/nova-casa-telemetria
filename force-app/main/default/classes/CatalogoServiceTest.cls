@@ -19,6 +19,11 @@ private class CatalogoServiceTest {
             ']}' +
         ']}}';
 
+    private static final String NO_CITY_CATALOG_JSON =
+        '{"catalog":{"buildings":[' +
+            '{"id":"BLD-TEST-001","name":"Edificio Test","assets":[]}' +
+        ']}}';
+
     private static final String ALL_TYPES_CATALOG_JSON =
         '{"catalog":{"buildings":[' +
             '{"id":"BLD-TEST-001","name":"Edificio Test","city":"Bogotá","assets":[' +
@@ -111,10 +116,11 @@ private class CatalogoServiceTest {
         Test.stopTest();
 
         // Then
-        Account building = [SELECT Id, Name, External_Id__c FROM Account WHERE External_Id__c = 'BLD-TEST-001'];
+        Account building = [SELECT Id, Name, External_Id__c, BillingCity FROM Account WHERE External_Id__c = 'BLD-TEST-001'];
         Asset asset = [SELECT Id, Name, External_Id__c, Tipo_Activo__c, AccountId FROM Asset WHERE External_Id__c = 'AST-TEST-001'];
 
         Assert.areEqual('Edificio Test', building.Name, 'Building Name should come from the catalog');
+        Assert.areEqual('Bogotá', building.BillingCity, 'Building BillingCity should come from the catalog city');
         Assert.areEqual('Sala tecnica test', asset.Name, 'Asset Name should come from the catalog');
         Assert.areEqual('TECHNICAL_ROOM', asset.Tipo_Activo__c, 'Asset type should come from the catalog');
         Assert.areEqual(building.Id, asset.AccountId, 'Asset should be linked to its building');
@@ -129,7 +135,8 @@ private class CatalogoServiceTest {
         // seeds the "already loaded" state directly instead.
         Account existingBuilding = new Account(
             External_Id__c = 'BLD-TEST-001',
-            Name = 'Edificio Test'
+            Name = 'Edificio Test',
+            BillingCity = 'Bogotá'
         );
         insert existingBuilding;
         Asset existingAsset = new Asset(
@@ -153,12 +160,29 @@ private class CatalogoServiceTest {
         Assert.areEqual(1, [SELECT COUNT() FROM Asset WHERE External_Id__c = 'AST-TEST-001'],
             'A reload should not create a second asset');
 
-        Account reloadedBuilding = [SELECT Id FROM Account WHERE External_Id__c = 'BLD-TEST-001'];
+        Account reloadedBuilding = [SELECT Id, BillingCity FROM Account WHERE External_Id__c = 'BLD-TEST-001'];
         Asset reloadedAsset = [SELECT Id FROM Asset WHERE External_Id__c = 'AST-TEST-001'];
         Assert.areEqual(existingBuilding.Id, reloadedBuilding.Id,
             'A reload should update the existing building in place, not delete and recreate it');
         Assert.areEqual(existingAsset.Id, reloadedAsset.Id,
             'A reload should update the existing asset in place, not delete and recreate it');
+        Assert.areEqual('Bogotá', reloadedBuilding.BillingCity, 'A reload should leave BillingCity unchanged');
+    }
+
+    @isTest
+    static void shouldKeepExistingCity_WhenCatalogHasNoCity() {
+        // Given: a building that already has a city, and a catalog entry without one
+        insert new Account(External_Id__c = 'BLD-TEST-001', Name = 'Edificio Test', BillingCity = 'Bogotá');
+        Test.setMock(HttpCalloutMock.class, new CatalogSimulatorMock(200, NO_CITY_CATALOG_JSON));
+
+        // When
+        Test.startTest();
+        CatalogoService.loadCatalog();
+        Test.stopTest();
+
+        // Then
+        Account building = [SELECT BillingCity FROM Account WHERE External_Id__c = 'BLD-TEST-001'];
+        Assert.areEqual('Bogotá', building.BillingCity, 'A missing city must not blank the existing BillingCity');
     }
 
     @isTest

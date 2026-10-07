@@ -17,6 +17,7 @@ public with sharing class ActivosOperadorController {
     @TestVisible private static final String HISTORY_ASSET_MESSAGE = 'El activo no es válido o no tienes acceso a él.';
     @TestVisible private static final Integer HISTORY_DEFAULT_LIMIT = 20;
     @TestVisible private static final Integer HISTORY_MAX_LIMIT = 50;
+    @TestVisible private static final String BUILDING_SUMMARY_MESSAGE = 'El edificio no es válido o no tienes acceso a él.';
     @TestVisible private static final String LOAD_MESSAGE = 'No se pudo cargar la información. Inténtalo de nuevo más tarde.';
 
     public class Option {
@@ -314,6 +315,85 @@ public with sharing class ActivosOperadorController {
                 signals.add(new SignalView(rows[i]));
             }
             return new HistoryResult(signals, cap, truncated);
+        } catch (AuraHandledException e) {
+            throw e;
+        } catch (Exception e) {
+            throw failure(e);
+        }
+    }
+
+    /**
+     * Counts for the Account record page of a building (HP-07). Deliberately minimal: no Log_Senial__c data and no
+     * technical fields. Every number is what the running user can see.
+     */
+    public class EdificioResumen {
+        @AuraEnabled public Integer totalActivos { get; private set; }
+        @AuraEnabled public Integer activosCriticos { get; private set; }
+        @AuraEnabled public Integer activosEnAlerta { get; private set; }
+        @AuraEnabled public Integer activosNormales { get; private set; }
+        // No reading yet (Ultima_Senal__c empty) or readings without a severity level: never counted as normal.
+        @AuraEnabled public Integer activosSinLectura { get; private set; }
+        @AuraEnabled public Integer casosAbiertos { get; private set; }
+        // Newest Asset.Ultima_Senal__c of the visible assets; null when none has a signal.
+        @AuraEnabled public Datetime ultimaSenal { get; private set; }
+
+        public EdificioResumen() {
+            this.totalActivos = 0;
+            this.activosCriticos = 0;
+            this.activosEnAlerta = 0;
+            this.activosNormales = 0;
+            this.activosSinLectura = 0;
+            this.casosAbiertos = 0;
+        }
+    }
+
+    /**
+     * Severity counts, open interventions and last signal of one building, as the running user sees them.
+     * Asset and Case are read WITH USER_MODE, so a building whose assets the user cannot see yields zeros for them;
+     * a building the user cannot see at all is rejected. Severity uses the Asset roll-ups (same rule as the list):
+     * 2 critical, 1 warning, 0 normal, and no signal or no level counts as "sin lectura".
+     * Open cases are those linked through Case.AssetId to an asset of the building.
+     * @param accountId building (Account Id)
+     */
+    @AuraEnabled(cacheable=true)
+    public static EdificioResumen getResumenEdificio(Id accountId) {
+        try {
+            if (accountId == null || accountId.getSobjectType() != Account.SObjectType) {
+                throw safeError(BUILDING_SUMMARY_MESSAGE);
+            }
+            List<Account> visible = [SELECT Id FROM Account WHERE Id = :accountId WITH USER_MODE LIMIT 1];
+            if (visible.isEmpty()) {
+                throw safeError(BUILDING_SUMMARY_MESSAGE);
+            }
+            EdificioResumen resumen = new EdificioResumen();
+            for (Asset a : [
+                SELECT Id, Severidad_Nivel__c, Ultima_Senal__c
+                FROM Asset
+                WHERE AccountId = :accountId
+                WITH USER_MODE
+            ]) {
+                resumen.totalActivos++;
+                if (a.Ultima_Senal__c == null || a.Severidad_Nivel__c == null) {
+                    resumen.activosSinLectura++;
+                } else if (a.Severidad_Nivel__c >= 2) {
+                    resumen.activosCriticos++;
+                } else if (a.Severidad_Nivel__c >= 1) {
+                    resumen.activosEnAlerta++;
+                } else {
+                    resumen.activosNormales++;
+                }
+                if (a.Ultima_Senal__c != null && (resumen.ultimaSenal == null || a.Ultima_Senal__c > resumen.ultimaSenal)) {
+                    resumen.ultimaSenal = a.Ultima_Senal__c;
+                }
+            }
+            if (resumen.totalActivos > 0) {
+                resumen.casosAbiertos = [
+                    SELECT COUNT() FROM Case
+                    WHERE IsClosed = false AND AssetId IN (SELECT Id FROM Asset WHERE AccountId = :accountId)
+                    WITH USER_MODE
+                ];
+            }
+            return resumen;
         } catch (AuraHandledException e) {
             throw e;
         } catch (Exception e) {
