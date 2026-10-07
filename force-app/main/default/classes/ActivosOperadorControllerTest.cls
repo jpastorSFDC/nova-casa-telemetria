@@ -809,6 +809,216 @@ private class ActivosOperadorControllerTest {
         Assert.areEqual(1, result.signals.size());
     }
 
+    // ---------- building summary (HP-07) ----------
+
+    @isTest
+    static void buildingSummaryCountsAssetsPerSeverityOpenCasesAndLastSignal() {
+        // Given a real operator who owns a building with one asset per class and cases in different states
+        User op = newUserWithPermissionSet('nc207sumop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Account building = newAccount('Edificio Resumen', op.Id);
+        Datetime now = baseTime();
+        Asset critical = newAsset('AST-SUM-CRIT', building, 'WATER_PUMP');
+        newReading(critical, 'TEMPERATURE', 'CELSIUS', 95, now.addMinutes(-30), 2);
+        newReading(critical, 'WATER_PRESSURE', 'BAR', 3, now.addMinutes(-40), 0);
+        Asset warning = newAsset('AST-SUM-WARN', building, 'WATER_PUMP');
+        newReading(warning, 'TEMPERATURE', 'CELSIUS', 60, now, 1);
+        Asset normal = newAsset('AST-SUM-OK', building, 'WATER_PUMP');
+        newReading(normal, 'TEMPERATURE', 'CELSIUS', 20, now.addMinutes(-5), 0);
+        newAsset('AST-SUM-NONE', building, 'WATER_PUMP');
+        newCase(critical, 'New', 'Open one');
+        newCase(critical, 'Working', 'Open two');
+        newCase(normal, 'Closed', 'Closed one');
+
+        // When the operator loads the building summary
+        ActivosOperadorController.EdificioResumen r = resumen(op, building.Id);
+
+        // Then every asset falls in exactly one class, only open cases count, and the newest signal wins
+        Assert.areEqual(4, r.totalActivos);
+        Assert.areEqual(1, r.activosCriticos);
+        Assert.areEqual(1, r.activosEnAlerta);
+        Assert.areEqual(1, r.activosNormales);
+        Assert.areEqual(1, r.activosSinLectura, 'an asset without readings is never counted as normal');
+        Assert.areEqual(2, r.casosAbiertos);
+        Assert.areEqual(now, r.ultimaSenal);
+    }
+
+    @isTest
+    static void buildingSummaryOperatorSeesOnlyOwnBuildingAndGerenteSeesBoth() {
+        // Given two operators with a building each, and a Gerente above both
+        User opA = newUserWithPermissionSet('nc207sumopa', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User opB = newUserWithPermissionSet('nc207sumopb', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User gerente = newUserWithPermissionSet('nc207sumger', 'Nova_Casa_Gerente', GERENTE_ROLE);
+        Account buildingA = newAccount('Edificio Resumen A', opA.Id);
+        Account buildingB = newAccount('Edificio Resumen B', opB.Id);
+        Asset assetA = newAsset('AST-SUMA-1', buildingA, 'WATER_PUMP');
+        newReading(assetA, 'TEMPERATURE', 'CELSIUS', 95, baseTime(), 2);
+        newCase(assetA, 'New', 'A case');
+        Asset assetB = newAsset('AST-SUMB-1', buildingB, 'WATER_PUMP');
+        newReading(assetB, 'TEMPERATURE', 'CELSIUS', 60, baseTime(), 1);
+        newAsset('AST-SUMB-2', buildingB, 'WATER_PUMP');
+
+        // When each user asks for their own and for the other building
+        ActivosOperadorController.EdificioResumen aOwn = resumen(opA, buildingA.Id);
+        ActivosOperadorController.EdificioResumen gerenteA = resumen(gerente, buildingA.Id);
+        ActivosOperadorController.EdificioResumen gerenteB = resumen(gerente, buildingB.Id);
+        AuraHandledException denied;
+        System.runAs(opA) {
+            try {
+                ActivosOperadorController.getResumenEdificio(buildingB.Id);
+            } catch (AuraHandledException e) {
+                denied = e;
+            }
+        }
+
+        // Then the operator gets their own counts and is refused the other building; the Gerente sees both
+        Assert.areEqual(1, aOwn.totalActivos);
+        Assert.areEqual(1, aOwn.activosCriticos);
+        Assert.areEqual(1, aOwn.casosAbiertos);
+        Assert.isNotNull(denied, 'operator A must not read operator B building');
+        Assert.areEqual(ActivosOperadorController.BUILDING_SUMMARY_MESSAGE, denied.getMessage());
+        Assert.areEqual(1, gerenteA.totalActivos);
+        Assert.areEqual(1, gerenteA.activosCriticos);
+        Assert.areEqual(2, gerenteB.totalActivos);
+        Assert.areEqual(1, gerenteB.activosEnAlerta);
+        Assert.areEqual(1, gerenteB.activosSinLectura);
+    }
+
+    @isTest
+    static void buildingSummaryOfABuildingWithoutAssetsIsAllZerosAndNoLastSignal() {
+        // Given a building the operator owns with no assets
+        User op = newUserWithPermissionSet('nc207sumempty', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Account building = newAccount('Edificio Vacio', op.Id);
+
+        // When the operator loads the summary
+        ActivosOperadorController.EdificioResumen r = resumen(op, building.Id);
+
+        // Then everything is zero and there is no last signal
+        Assert.areEqual(0, r.totalActivos);
+        Assert.areEqual(0, r.activosCriticos);
+        Assert.areEqual(0, r.activosEnAlerta);
+        Assert.areEqual(0, r.activosNormales);
+        Assert.areEqual(0, r.activosSinLectura);
+        Assert.areEqual(0, r.casosAbiertos);
+        Assert.isNull(r.ultimaSenal);
+    }
+
+    @isTest
+    static void buildingSummaryRejectsANullOrNonAccountIdWithASafeMessage() {
+        // Given a null Id and an Id of another object
+        Account building = newAccount('Edificio Para Id Ajeno');
+        Asset asset = newAsset('AST-SUM-WRONG', building, 'WATER_PUMP');
+        List<Id> bad = new List<Id>{ null, asset.Id };
+
+        // When the summary is requested with each of them
+        for (Id value : bad) {
+            AuraHandledException thrown;
+            System.runAs(userLike('nc207operator')) {
+                try {
+                    ActivosOperadorController.getResumenEdificio(value);
+                } catch (AuraHandledException e) {
+                    thrown = e;
+                }
+            }
+
+            // Then the same safe message comes back, never a platform message
+            Assert.isNotNull(thrown, 'expected a rejection for ' + value);
+            Assert.areEqual(ActivosOperadorController.BUILDING_SUMMARY_MESSAGE, thrown.getMessage());
+        }
+    }
+
+    @isTest
+    static void buildingSummaryNewerNormalReadingOfAnotherTypeDoesNotHideAnOlderCritical() {
+        // Given an asset whose critical temperature is older than a normal pressure reading
+        User op = newUserWithPermissionSet('nc207sumhide', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Account building = newAccount('Edificio Severidad Maxima', op.Id);
+        Datetime now = baseTime();
+        Asset asset = newAsset('AST-SUM-HIDE', building, 'WATER_PUMP');
+        newReading(asset, 'TEMPERATURE', 'CELSIUS', 95, now.addMinutes(-30), 2);
+        newReading(asset, 'WATER_PRESSURE', 'BAR', 3, now, 0);
+
+        // When the operator loads the summary
+        ActivosOperadorController.EdificioResumen r = resumen(op, building.Id);
+
+        // Then the asset is still critical and the last signal is the newer normal one
+        Assert.areEqual(1, r.totalActivos);
+        Assert.areEqual(1, r.activosCriticos, 'a newer normal reading must not hide an older critical one');
+        Assert.areEqual(0, r.activosNormales);
+        Assert.areEqual(now, r.ultimaSenal);
+    }
+
+    @isTest
+    static void buildingSummaryAssetWithOnlyNullLevelReadingsIsSinLecturaNeverNormal() {
+        // Given an asset whose every reading has no level, and a plain normal asset
+        User op = newUserWithPermissionSet('nc207sumnull', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Account building = newAccount('Edificio Niveles Nulos', op.Id);
+        Asset nullOnly = newAsset('AST-SUM-NULL', building, 'WATER_PUMP');
+        newReading(nullOnly, 'TEMPERATURE', 'CELSIUS', 20, baseTime(), null);
+        newReading(nullOnly, 'WATER_PRESSURE', 'BAR', 3, baseTime(), null);
+        Asset normal = newAsset('AST-SUM-NORMAL', building, 'WATER_PUMP');
+        newReading(normal, 'TEMPERATURE', 'CELSIUS', 20, baseTime(), 0);
+
+        // When the operator loads the summary
+        ActivosOperadorController.EdificioResumen r = resumen(op, building.Id);
+
+        // Then the null-level asset is counted as without readings, only the real level-0 asset as normal
+        Assert.areEqual(2, r.totalActivos);
+        Assert.areEqual(1, r.activosSinLectura);
+        Assert.areEqual(1, r.activosNormales);
+        Assert.areEqual(0, r.activosCriticos + r.activosEnAlerta);
+    }
+
+    @isTest
+    static void buildingSummaryDeniesUsersMissingObjectOrFieldAccessWithTheSafeAccessMessage() {
+        // Given a building and asset that an admin can see, one owned by a user lacking Asset FLS
+        Account building = newAccount('Edificio Resumen Privado', UserInfo.getUserId());
+        newAsset('AST-SUM-PRIV', building, 'WATER_PUMP');
+        Account flsBuilding = newAccount('Edificio Resumen FLS', userLike('nc207nofls').Id);
+        Asset flsAsset = newAsset('AST-SUM-FLS', flsBuilding, 'WATER_PUMP');
+        newReading(flsAsset, 'TEMPERATURE', 'CELSIUS', 95, baseTime(), 2);
+
+        // When a user with no object access, and one missing field access, ask the server directly
+        AuraHandledException objectError;
+        AuraHandledException fieldError;
+        System.runAs(userLike('nc207restricted')) {
+            try {
+                ActivosOperadorController.getResumenEdificio(building.Id);
+            } catch (AuraHandledException e) {
+                objectError = e;
+            }
+        }
+        System.runAs(userLike('nc207nofls')) {
+            try {
+                ActivosOperadorController.getResumenEdificio(flsBuilding.Id);
+            } catch (AuraHandledException e) {
+                fieldError = e;
+            }
+        }
+
+        // Then both fail with the static access message, never platform text naming objects or fields
+        Assert.isNotNull(objectError, 'no object access must be rejected');
+        Assert.areEqual(ActivosOperadorController.ACCESS_MESSAGE, objectError.getMessage());
+        Assert.isNotNull(fieldError, 'missing field access must be rejected, not answered with partial counts');
+        Assert.areEqual(ActivosOperadorController.ACCESS_MESSAGE, fieldError.getMessage());
+        Assert.isFalse(fieldError.getMessage().contains('Ultima_Senal__c'));
+        Assert.isFalse(fieldError.getMessage().contains('Severidad_Nivel__c'));
+    }
+
+    @isTest
+    static void buildingSummaryExposesOnlyTheAgreedFields() {
+        // Given the DTO the component receives
+        ActivosOperadorController.EdificioResumen r = new ActivosOperadorController.EdificioResumen();
+
+        // When it is serialized
+        Map<String, Object> json = (Map<String, Object>) JSON.deserializeUntyped(JSON.serialize(r));
+
+        // Then it carries exactly the seven agreed keys and nothing technical
+        Assert.areEqual(
+            new Set<String>{ 'totalActivos', 'activosCriticos', 'activosEnAlerta', 'activosNormales', 'activosSinLectura', 'casosAbiertos', 'ultimaSenal' },
+            json.keySet().clone(),
+            'the summary DTO must expose only the agreed keys'
+        );
+    }
+
     // ---------- helpers ----------
 
     // Assigns a SHIPPED permission set (by Name) to a fresh user. Call before inserting data rows in the test.
@@ -824,6 +1034,14 @@ private class ActivosOperadorControllerTest {
             insert new PermissionSetAssignment(AssigneeId = u.Id, PermissionSetId = sets[0].Id);
         }
         return u;
+    }
+
+    private static ActivosOperadorController.EdificioResumen resumen(User runAs, Id accountId) {
+        ActivosOperadorController.EdificioResumen result;
+        System.runAs(runAs) {
+            result = ActivosOperadorController.getResumenEdificio(accountId);
+        }
+        return result;
     }
 
     private static List<ActivosOperadorController.AssetView> load(User runAs, String accountId, Integer severity, String type) {

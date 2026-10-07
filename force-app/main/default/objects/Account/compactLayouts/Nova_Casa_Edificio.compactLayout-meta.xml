@@ -3,5 +3,6 @@
     <fullName>Nova_Casa_Edificio</fullName>
     <fields>Name</fields>
     <fields>External_Id__c</fields>
+    <fields>BillingAddress</fields>
     <label>Nova Casa Edificio</label>
 </CompactLayout>
