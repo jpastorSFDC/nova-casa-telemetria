@@ -335,6 +335,10 @@ public without sharing class SenialSensorHandler {
                     registrar(c, fila, RECHAZADA, c.motivo);
                 } else if (activo == null) {
                     registrar(c, fila, RECHAZADA, 'El activo ' + c.assetExterno + ' no existe en el catálogo');
+                } else if (String.isNotBlank(c.edificioExterno)
+                    && normalizar(c.edificioExterno) != normalizar(activo.Account?.External_Id__c)) {
+                    // BR-201: el edificio del mensaje debe ser el del activo en el catálogo.
+                    registrar(c, fila, RECHAZADA, 'El activo ' + c.assetExterno + ' no pertenece al edificio ' + c.edificioExterno);
                 } else {
                     fila.Resultado__c = 'Procesada';
                     fila.Motivo__c = null;
@@ -613,7 +617,7 @@ public without sharing class SenialSensorHandler {
     private static Map<String, Asset> consultarActivos(Set<String> externos) {
         Map<String, Asset> activos = new Map<String, Asset>();
         for (Asset activo : [
-            SELECT Id, External_Id__c, AccountId
+            SELECT Id, External_Id__c, AccountId, Account.External_Id__c
             FROM Asset
             WHERE External_Id__c IN :externos
             WITH SYSTEM_MODE
@@ -803,6 +807,7 @@ public without sharing class SenialSensorHandler {
         public String tipoMensaje;
         // Procesada, Rechazada, Atrasada, Superada, Fallida, Reenvio o Conflicto
         public String resultado;
+        public String edificioExterno;
 
         public void enriquecer(Senial_Sensor__e senial, String huella) {
             this.source = senial.Source__c;
@@ -810,6 +815,7 @@ public without sharing class SenialSensorHandler {
             this.huella = huella;
             this.assetExterno = senial.Asset_Id__c;
             this.assetKey = normalizar(senial.Asset_Id__c);
+            this.edificioExterno = senial.Building_Id__c;
             this.sensorId = senial.Sensor_Id__c;
             this.deliveryId = senial.Delivery_Id__c;
             this.tipoMensaje = senial.Message_Type__c;

@@ -1346,6 +1346,111 @@ private class ActivosOperadorControllerTest {
         Assert.isFalse(error.getMessage().contains('Severidad_Nivel__c'));
     }
 
+    // ---------- warning (level 1) visibility for monitoring (BR-206 / US-206) ----------
+
+    @isTest
+    static void warningAssetIsShownToTheRealOperatorWithItsLevelLabelAndNoIntervention() {
+        // Given a real operator who owns a building with an asset whose only reading is a warning (level 1)
+        User op = newUserWithPermissionSet('nc206warnshow', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Account building = newAccount('Edificio Advertencia', op.Id);
+        Datetime now = baseTime();
+        Asset warning = newAsset('AST-WARN-SHOW', building, 'WATER_PUMP');
+        newReading(warning, 'TEMPERATURE', 'CELSIUS', 60, now, 1);
+
+        // When the operator loads the list
+        List<ActivosOperadorController.AssetView> result = load(op, null, null, null);
+
+        // Then the asset is listed as a warning (not critical, not normal), with its reading, and no case is opened
+        Assert.areEqual(1, result.size());
+        ActivosOperadorController.AssetView view = result[0];
+        Assert.areEqual(warning.Id, view.assetId);
+        Assert.areEqual(1, view.severityLevel);
+        // Current controller label for level 1 (labelFor); the LWC shows 'Precaución' -- see report
+        Assert.areEqual('Advertencia', view.severityLabel);
+        Assert.areEqual(1, view.readings.size());
+        Assert.areEqual(1, view.readings[0].severityLevel);
+        Assert.areEqual('Advertencia', view.readings[0].severityLabel);
+        Assert.areEqual(60, view.readings[0].value);
+        Assert.areEqual(now, view.lastSignalAt);
+        Assert.isNull(view.openIntervention, 'a warning must not carry an open case');
+        Assert.areEqual(0, view.openInterventionCount);
+        Assert.isTrue([SELECT COUNT() FROM Case WHERE AssetId = :warning.Id] == 0, 'the query side must not create cases');
+    }
+
+    @isTest
+    static void severityFilterOneReturnsWarningAssetsAndCriticalFilterDoesNot() {
+        // Given a warning, a critical and a normal asset owned by the real operator
+        User op = newUserWithPermissionSet('nc206warnfilt', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Account building = newAccount('Edificio Filtro Advertencia', op.Id);
+        Datetime now = baseTime();
+        newReading(newAsset('AST-F-WARN', building, 'WATER_PUMP'), 'TEMPERATURE', 'CELSIUS', 60, now, 1);
+        newReading(newAsset('AST-F-CRIT', building, 'WATER_PUMP'), 'TEMPERATURE', 'CELSIUS', 95, now, 2);
+        newReading(newAsset('AST-F-OK', building, 'WATER_PUMP'), 'TEMPERATURE', 'CELSIUS', 20, now, 0);
+
+        // When filtering by level 1, by level 2 and by level 0
+        ActivosOperadorController.AssetPage warnings = loadResult(op, null, 1, null);
+        ActivosOperadorController.AssetPage criticals = loadResult(op, null, 2, null);
+        ActivosOperadorController.AssetPage normals = loadResult(op, null, 0, null);
+
+        // Then each filter returns only its own level: the warning is in level 1 and absent from level 2
+        Assert.areEqual(new List<String>{ 'AST-F-WARN' }, names(warnings.assets));
+        Assert.areEqual(1, warnings.totalCount);
+        Assert.areEqual(1, warnings.assets[0].severityLevel);
+        Assert.areEqual(new List<String>{ 'AST-F-CRIT' }, names(criticals.assets));
+        Assert.areEqual(new List<String>{ 'AST-F-OK' }, names(normals.assets));
+    }
+
+    @isTest
+    static void assetWithWarningAndCriticalReadingsIsCriticalNotWarning() {
+        // Given one asset with a warning temperature and a critical pressure, and a warning-only control asset
+        User op = newUserWithPermissionSet('nc206warnmax', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Account building = newAccount('Edificio Maximo', op.Id);
+        Datetime now = baseTime();
+        Asset mixed = newAsset('AST-MAX-MIXED', building, 'WATER_PUMP');
+        // the warning is the NEWER reading, so "latest wins" would wrongly make the asset a warning
+        newReading(mixed, 'WATER_PRESSURE', 'BAR', 9, now.addMinutes(-20), 2);
+        newReading(mixed, 'TEMPERATURE', 'CELSIUS', 60, now, 1);
+        Asset onlyWarning = newAsset('AST-MAX-WARN', building, 'WATER_PUMP');
+        newReading(onlyWarning, 'TEMPERATURE', 'CELSIUS', 60, now, 1);
+
+        // When the operator loads the list, unfiltered and by each level
+        Map<String, ActivosOperadorController.AssetView> all = byName(load(op, null, null, null));
+        List<ActivosOperadorController.AssetView> warnings = load(op, null, 1, null);
+        List<ActivosOperadorController.AssetView> criticals = load(op, null, 2, null);
+
+        // Then the mixed asset is critical (the maximum), keeps both readings, and is not in the warning filter
+        Assert.areEqual(2, all.get('AST-MAX-MIXED').severityLevel);
+        Assert.areEqual('Crítica', all.get('AST-MAX-MIXED').severityLabel);
+        Assert.areEqual(2, all.get('AST-MAX-MIXED').readings.size());
+        Assert.areEqual(1, readingOf(all.get('AST-MAX-MIXED'), 'TEMPERATURE').severityLevel);
+        Assert.areEqual(1, all.get('AST-MAX-WARN').severityLevel);
+        Assert.areEqual(new List<String>{ 'AST-MAX-WARN' }, names(warnings));
+        Assert.areEqual(new List<String>{ 'AST-MAX-MIXED' }, names(criticals));
+    }
+
+    @isTest
+    static void criticalAssetIsListedBeforeTheWarningAssetEvenWhenItsNameSortsLater() {
+        // Given a warning asset whose name sorts first, and a critical one whose name sorts last
+        User op = newUserWithPermissionSet('nc206warnorder', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Account building = newAccount('Edificio Orden', op.Id);
+        Datetime now = baseTime();
+        newReading(newAsset('AST-ORD-A-WARN', building, 'WATER_PUMP'), 'TEMPERATURE', 'CELSIUS', 60, now, 1);
+        newReading(newAsset('AST-ORD-Z-CRIT', building, 'WATER_PUMP'), 'TEMPERATURE', 'CELSIUS', 95, now, 2);
+        newReading(newAsset('AST-ORD-B-OK', building, 'WATER_PUMP'), 'TEMPERATURE', 'CELSIUS', 20, now, 0);
+
+        // When the operator loads the list (names() would sort alphabetically, so read the raw order)
+        List<ActivosOperadorController.AssetView> result = load(op, null, null, null);
+
+        // Then the order is severity first: critical, warning, normal -- not alphabetical
+        Assert.areEqual(3, result.size());
+        Assert.areEqual('AST-ORD-Z-CRIT', result[0].name);
+        Assert.areEqual('AST-ORD-A-WARN', result[1].name);
+        Assert.areEqual('AST-ORD-B-OK', result[2].name);
+        Assert.areEqual(2, result[0].severityLevel);
+        Assert.areEqual(1, result[1].severityLevel);
+        Assert.areEqual(0, result[2].severityLevel);
+    }
+
     // ---------- helpers ----------
 
     // Assigns a SHIPPED permission set (by Name) to a fresh user. Call before inserting data rows in the test.
