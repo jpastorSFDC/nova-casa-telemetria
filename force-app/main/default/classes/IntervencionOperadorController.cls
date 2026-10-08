@@ -16,7 +16,6 @@ public with sharing class IntervencionOperadorController {
 
     @TestVisible private static final String ORIGIN_OPERATOR = 'Operador';
     @TestVisible private static final String STATUS_IN_PROGRESS = 'En curso';
-    @TestVisible private static final Set<String> FOLLOW_UP_STATUSES = new Set<String>{ 'En curso', 'On Hold', 'Closed' };
     @TestVisible private static final String STATUS_CLOSED = 'Closed';
     @TestVisible private static final Integer MOTIVO_MAX = 1000;
     @TestVisible private static final Integer COMMENT_MAX = 4000;
@@ -44,6 +43,16 @@ public with sharing class IntervencionOperadorController {
         public Resultado(Case c) {
             this.caseId = c.Id;
             this.caseNumber = c.CaseNumber;
+        }
+    }
+
+    // One value of the Case.Status picklist: `value` is the API value the server compares, `label` is what the user reads.
+    public class EstadoOpcion {
+        @AuraEnabled public String value { get; private set; }
+        @AuraEnabled public String label { get; private set; }
+        public EstadoOpcion(String value, String label) {
+            this.value = value;
+            this.label = label;
         }
     }
 
@@ -133,8 +142,20 @@ public with sharing class IntervencionOperadorController {
     }
 
     /**
-     * Changes the status of an open intervention (a Case tied to an asset and not closed) and optionally leaves a
-     * comment. A closed Case cannot be reopened here: that could leave two open interventions on one asset.
+     * Statuses the follow-up form offers: the active values of the Case.Status picklist, in picklist order. It is the
+     * same list the Case record page shows, so the two screens never disagree (D036), and the same set
+     * actualizarSeguimiento accepts.
+     * No custom-permission check on purpose: this is picklist metadata, not record data, and it changes nothing.
+     */
+    @AuraEnabled(cacheable=true)
+    public static List<EstadoOpcion> getEstadosSeguimiento() {
+        return activeStatusOptions();
+    }
+
+    /**
+     * Changes the status of an open intervention (a Case tied to an asset and not closed) to any active value of the
+     * Case.Status picklist (the list getEstadosSeguimiento returns) and optionally leaves a comment. A closed Case
+     * cannot be reopened here: that could leave two open interventions on one asset.
      * Runs as the user (USER_MODE): a user without Edit on Case cannot do it even with the custom permission.
      */
     @AuraEnabled
@@ -142,7 +163,7 @@ public with sharing class IntervencionOperadorController {
         if (!FeatureManagement.checkPermission(PERM_SEGUIR)) {
             throw safeError(NO_PERMISSION_FOLLOW);
         }
-        if (String.isBlank(estado) || !FOLLOW_UP_STATUSES.contains(estado)) {
+        if (String.isBlank(estado) || !activeStatusValues().contains(estado)) {
             throw safeError(INVALID_STATUS);
         }
         String note = comentario == null ? '' : comentario.trim();
@@ -249,6 +270,28 @@ public with sharing class IntervencionOperadorController {
             System.debug(LoggingLevel.ERROR, 'cerrarIntervencionesDelActivo: ' + e.getTypeName());
             throw safeError(SAVE_FAILED);
         }
+    }
+
+    // Active Case.Status picklist entries, in picklist order. The one place the describe is read: the form list
+    // (getEstadosSeguimiento) and the server-side allowlist (activeStatusValues) both come from here, so gating or
+    // reshaping the public method cannot change what actualizarSeguimiento accepts.
+    private static List<EstadoOpcion> activeStatusOptions() {
+        List<EstadoOpcion> options = new List<EstadoOpcion>();
+        for (Schema.PicklistEntry entry : Schema.Case.Status.getDescribe().getPicklistValues()) {
+            if (entry.isActive()) {
+                options.add(new EstadoOpcion(entry.getValue(), entry.getLabel()));
+            }
+        }
+        return options;
+    }
+
+    // API values of the active Case.Status picklist entries.
+    private static Set<String> activeStatusValues() {
+        Set<String> values = new Set<String>();
+        for (EstadoOpcion option : activeStatusOptions()) {
+            values.add(option.value);
+        }
+        return values;
     }
 
     // Highest severity among the asset's latest readings; null when it has none.

@@ -2,7 +2,8 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Identidad_Senal__c</fullName>
     <label>Identidad de la señal</label>
-    <description>Identidad del mensaje (origen + messageId). Impide dos Cases para el mismo mensaje único (BR-205 / T5.17).</description>
+    <description>Identidad del mensaje (origen + messageId). Impide dos Cases para el mismo mensaje único (BR-205 / T5.17). Solo la llena IntervencionService en los Cases abiertos por una señal crítica (Origin = Telemetria); queda vacía en las intervenciones manuales (Origin = Operador), que no tienen señal (D020).</description>
+    <inlineHelpText>Clave técnica source|messageId de la señal crítica que abrió esta intervención. Se llena sola y queda vacía en las creadas a mano.</inlineHelpText>
     <type>Text</type>
     <length>60</length>
     <externalId>true</externalId>

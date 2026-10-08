@@ -9,6 +9,7 @@ import getBuildings from '@salesforce/apex/ActivosOperadorController.getBuilding
 import getCapacidades from '@salesforce/apex/ActivosOperadorController.getCapacidades';
 import crearIntervencion from '@salesforce/apex/IntervencionOperadorController.crearIntervencion';
 import actualizarSeguimiento from '@salesforce/apex/IntervencionOperadorController.actualizarSeguimiento';
+import getEstadosSeguimiento from '@salesforce/apex/IntervencionOperadorController.getEstadosSeguimiento';
 import cerrarIntervencionesDelActivo from '@salesforce/apex/IntervencionOperadorController.cerrarIntervencionesDelActivo';
 import traerSenales from '@salesforce/apex/IngestaController.traerSenales';
 import estadoIngesta from '@salesforce/apex/IngestaController.estadoIngesta';
@@ -22,12 +23,10 @@ const FUTURE_TOLERANCE_MS = 5 * 60000;
 const DEFAULT_INGEST_PAGES = 5;
 // Scenarios of the simulator contract; IngestaController validates the same list on the server.
 const SCENARIOS = ['MIXED', 'QA_200', 'BOUNDARIES', 'CRITICAL_BURST', 'LATE_MESSAGES', 'DUPLICATES', 'CONFLICT', 'INVALID_DATA', 'CAMERA_OUTAGE'];
-// Follow-up statuses the controller accepts.
-const FOLLOW_UP_OPTIONS = [
-    { label: 'En curso', value: 'En curso' },
-    { label: 'En espera', value: 'On Hold' },
-    { label: 'Cerrada', value: 'Closed' }
-];
+// API values of Case.Status used only to pick the form's default. The list of options itself comes from the server
+// (getEstadosSeguimiento: the active values of the Case.Status picklist, the same ones the Case record page offers).
+const STATUS_IN_PROGRESS = 'En curso';
+const STATUS_CLOSED = 'Closed';
 // Single source of the stale default (display-only). Keep in sync with the
 // staleMinutes default in novaCasaActivosOperador.js-meta.xml.
 const DEFAULT_STALE_MINUTES = 15;
@@ -155,10 +154,15 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     // Inline forms of the detail view: null, 'crear', 'seguir' or 'cerrar-todas'.
     formMode = null;
     motivo = '';
-    nuevoEstado = 'En curso';
+    nuevoEstado = '';
     comentario = '';
     isSaving = false;
     actionError = '';
+
+    // Statuses the follow-up form offers: [{ label, value }], the active values of Case.Status (empty until loaded or if it fails).
+    followUpRaw = [];
+    followUpLoaded = false;
+    followUpError = false;
 
     // Admin ingestion panel.
     ingestOpen = false;
@@ -264,6 +268,25 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             // Actions stay hidden (caps empty); say why instead of failing silently. actionError is only visible in the
             // detail view and is cleared on open, so a toast is the only visible channel from the list.
             this.toast('No se pudieron cargar tus permisos de acción', reduceError(error), 'error');
+        }
+    }
+
+    // Picklist metadata, not record data: the server does not gate it by custom permission. Only the form shows a
+    // failure here, and users without the follow-up action (e.g. no access to the class) never open it.
+    @wire(getEstadosSeguimiento)
+    wiredEstados({ data, error }) {
+        if (data) {
+            this.followUpRaw = data;
+            this.followUpLoaded = true;
+            this.followUpError = false;
+            // The form may already be open when the list arrives.
+            if (!data.some((o) => o.value === this.nuevoEstado)) {
+                this.nuevoEstado = this.defaultFollowUpState();
+            }
+        } else if (error) {
+            this.followUpRaw = [];
+            this.followUpLoaded = true;
+            this.followUpError = true;
         }
     }
 
@@ -773,17 +796,45 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         return this.isClosingAll ? 'Cerrar todas' : 'Guardar';
     }
     get followUpOptions() {
-        return FOLLOW_UP_OPTIONS.map((o) => ({ ...o, selected: o.value === this.nuevoEstado }));
+        return this.followUpRaw.map((o) => ({ label: o.label, value: o.value, selected: o.value === this.nuevoEstado }));
+    }
+    get hasFollowUpOptions() {
+        return this.followUpRaw.length > 0;
+    }
+    get followUpLoading() {
+        return this.isFollowing && !this.followUpLoaded;
+    }
+    get followUpUnavailable() {
+        return this.isFollowing && this.followUpLoaded && !this.hasFollowUpOptions;
+    }
+    get followUpNote() {
+        return this.followUpError
+            ? 'No se pudo cargar la lista de estados. Recarga la pantalla e inténtalo de nuevo.'
+            : 'No hay estados disponibles para actualizar el seguimiento.';
     }
     get saveDisabled() {
-        return this.isSaving || (this.isCreating && !this.motivo.trim());
+        return (
+            this.isSaving ||
+            (this.isCreating && !this.motivo.trim()) ||
+            (this.isFollowing && (!this.hasFollowUpOptions || !this.nuevoEstado))
+        );
+    }
+
+    // Default status of the follow-up form: "En curso" if the picklist has it, else the first one that is not the closed
+    // one, else none (the form then cannot be saved).
+    defaultFollowUpState() {
+        const values = this.followUpRaw.map((o) => o.value);
+        if (values.includes(STATUS_IN_PROGRESS)) {
+            return STATUS_IN_PROGRESS;
+        }
+        return values.find((v) => v !== STATUS_CLOSED) || '';
     }
 
     openForm(event) {
         this.formMode = event.currentTarget.dataset.mode;
         this.motivo = '';
         this.comentario = '';
-        this.nuevoEstado = 'En curso';
+        this.nuevoEstado = this.defaultFollowUpState();
         this.actionError = '';
     }
     closeForm() {
