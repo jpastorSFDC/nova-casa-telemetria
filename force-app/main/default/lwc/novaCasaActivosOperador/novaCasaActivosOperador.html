@@ -336,12 +336,20 @@
                         </template>
                         <template if:true={isFollowing}>
                             <h3>Actualizar seguimiento</h3>
-                            <label class="filtro-label" for="a-estado">Estado</label>
-                            <select class="campo" id="a-estado" onchange={handleEstado}>
-                                <template for:each={followUpOptions} for:item="opt">
-                                    <option key={opt.value} value={opt.value} selected={opt.selected}>{opt.label}</option>
-                                </template>
-                            </select>
+                            <template if:true={hasFollowUpOptions}>
+                                <label class="filtro-label" for="a-estado">Estado</label>
+                                <select class="campo" id="a-estado" onchange={handleEstado}>
+                                    <template for:each={followUpOptions} for:item="opt">
+                                        <option key={opt.value} value={opt.value} selected={opt.selected}>{opt.label}</option>
+                                    </template>
+                                </select>
+                            </template>
+                            <template if:true={followUpLoading}>
+                                <p class="nota" role="status" aria-live="polite">Cargando los estados…</p>
+                            </template>
+                            <template if:true={followUpUnavailable}>
+                                <p class="nota nota-error" role="alert">{followUpNote}</p>
+                            </template>
                             <label class="filtro-label" for="a-comentario">Comentario (opcional)</label>
                             <textarea class="campo campo-texto" id="a-comentario" maxlength="4000" rows="3" value={comentario} oninput={handleComentario}></textarea>
                         </template>

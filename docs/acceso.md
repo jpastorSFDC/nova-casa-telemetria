@@ -238,7 +238,7 @@ Todos ven la misma pantalla y los mismos datos; cambian las acciones. Cada acci�
 |---|---|---|---|---|
 | Ver activos, lecturas, intervención abierta y resumen por edificio | sí | sí | sí | sí |
 | Crear intervención manual (`Nova_Casa_Crear_Intervencion`) | sí | sí | no | sí |
-| Cambiar estado de la intervención, o cerrar en bloque las abiertas de un activo (`Nova_Casa_Seguir_Intervencion`, D035) | no | sí (necesita además Edit en `Case`) | no | sí |
+| Cambiar estado de la intervención, o cerrar en bloque las abiertas de un activo (`Nova_Casa_Seguir_Intervencion`, D035). Las opciones de estado son los valores activos de `Case.Status` (D036); la lista la puede leer quien tenga acceso a la clase (operador, coordinador, admin), pero solo cambia el estado quien tiene el permiso | no | sí (necesita además Edit en `Case`) | no | sí |
 | Ir a los límites (`Umbral__c`, por permiso de objeto) | no | sí | no | sí |
 | Traer señales del simulador (`Nova_Casa_Traer_Senales`) | no | no | no | sí (necesita además `Nova_Casa_Simulator_Integration`) |
 

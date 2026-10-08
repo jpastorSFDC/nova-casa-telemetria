@@ -105,7 +105,7 @@ Si en la corrida la bomba no salió crítica, se sigue con el activo crítico qu
 
 1. Setup > Users > `novacasa.coordinador@…` > **Login**.
 2. Pestaña Cases > list view **Intervenciones abiertas**.
-3. Pestaña **Activos del operador** > un activo crítico > **Actualizar seguimiento** (estado En espera, con comentario) > **Guardar**. Si el activo tiene varias intervenciones abiertas, el botón **Cerrar las N abiertas** las cierra de una vez, hasta 200 por vez (D035).
+3. Pestaña **Activos del operador** > un activo crítico > **Actualizar seguimiento** (estado On Hold, con comentario) > **Guardar**. Si el activo tiene varias intervenciones abiertas, el botón **Cerrar las N abiertas** las cierra de una vez, hasta 200 por vez (D035).
 4. **Ver límites** (o pestaña Umbrales > **Nova Casa - Umbrales**).
 
 **Qué debe ver el público**

@@ -1,5 +1,5 @@
 /**
- * Tests for IntervencionOperadorController (D020) and the capabilities of ActivosOperadorController.
+ * Tests for IntervencionOperadorController (D020, D036) and the capabilities of ActivosOperadorController.
  * Users carry the shipped permission sets, so these also fail if a custom permission is dropped from one.
  */
 @isTest
@@ -232,7 +232,84 @@ private class IntervencionOperadorControllerTest {
         Assert.areEqual(0, caseCount(asset.Id));
     }
 
+    // ─── getEstadosSeguimiento ────────────────────────────────────────────
+
+    // Active entries of the Case.Status picklist, in picklist order: what the follow-up form must offer (D036).
+    private static List<Schema.PicklistEntry> activeStatusEntries() {
+        List<Schema.PicklistEntry> active = new List<Schema.PicklistEntry>();
+        for (Schema.PicklistEntry entry : Schema.Case.Status.getDescribe().getPicklistValues()) {
+            if (entry.isActive()) {
+                active.add(entry);
+            }
+        }
+        return active;
+    }
+
+    private static List<String> activeStatusValues() {
+        List<String> values = new List<String>();
+        for (Schema.PicklistEntry entry : activeStatusEntries()) {
+            values.add(entry.getValue());
+        }
+        return values;
+    }
+
+    private static List<String> valuesOf(List<IntervencionOperadorController.EstadoOpcion> options) {
+        List<String> values = new List<String>();
+        for (IntervencionOperadorController.EstadoOpcion option : options) {
+            values.add(option.value);
+        }
+        return values;
+    }
+
+    @isTest
+    static void shouldOfferExactlyTheActiveCaseStatusValues_WhenTheListIsRequested() {
+        List<Schema.PicklistEntry> expected = activeStatusEntries();
+
+        List<IntervencionOperadorController.EstadoOpcion> options = IntervencionOperadorController.getEstadosSeguimiento();
+
+        Assert.areEqual(expected.size(), options.size(), 'One option per active Case.Status value');
+        for (Integer i = 0; i < expected.size(); i++) {
+            Assert.areEqual(expected[i].getValue(), options[i].value, 'Same API value, same position as the picklist');
+            Assert.areEqual(expected[i].getLabel(), options[i].label, 'The label the user reads is the picklist label');
+            Assert.isFalse(String.isBlank(options[i].label), 'Every option has a label: ' + options[i].value);
+        }
+        List<String> values = valuesOf(options);
+        Assert.areEqual(values.size(), new Set<String>(values).size(), 'No value is offered twice');
+        Assert.isTrue(values.contains(IntervencionOperadorController.STATUS_IN_PROGRESS), 'The form default (En curso) is offered');
+        Assert.isTrue(values.contains(IntervencionOperadorController.STATUS_CLOSED), 'Closed is offered');
+    }
+
+    @isTest
+    static void shouldOfferTheStatuses_WhenTheUserLacksTheFollowUpPermission() {
+        User operator = newUserWithPermissionSet('ncestop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+
+        Boolean holdsTheKey;
+        String error;
+        List<IntervencionOperadorController.EstadoOpcion> options;
+        System.runAs(operator) {
+            holdsTheKey = FeatureManagement.checkPermission(IntervencionOperadorController.PERM_SEGUIR);
+            try {
+                options = IntervencionOperadorController.getEstadosSeguimiento();
+            } catch (AuraHandledException e) {
+                error = e.getMessage();
+            }
+        }
+
+        Assert.isFalse(holdsTheKey, 'The operator must not hold Nova_Casa_Seguir_Intervencion, or this proves nothing');
+        Assert.isNull(error, 'The list is picklist metadata: it is not gated by the follow-up permission');
+        Assert.areEqual(activeStatusValues(), valuesOf(options), 'The operator gets the same list as anyone else');
+    }
+
     // ─── actualizarSeguimiento ────────────────────────────────────────────
+
+    private static String followUpError(Id caseId, String status) {
+        try {
+            IntervencionOperadorController.actualizarSeguimiento(caseId, status, null);
+        } catch (AuraHandledException e) {
+            return e.getMessage();
+        }
+        return null;
+    }
 
     @isTest
     static void shouldChangeStatusAndAppendComment_WhenCoordinatorFollowsUp() {
@@ -290,18 +367,20 @@ private class IntervencionOperadorControllerTest {
     }
 
     @isTest
-    static void shouldRefuseFollowUp_WhenStatusIsNotAllowedOrInputIsBad() {
+    static void shouldRefuseFollowUp_WhenStatusIsOutsideThePicklistOrInputIsBad() {
         User operator = newUserWithPermissionSet('ncfupbadop', 'Nova_Casa_Operator', OPERATOR_ROLE);
         User coordinator = newUserWithPermissionSet('ncfupbad', 'Nova_Casa_Coordinator', COORDINATOR_ROLE);
         Asset asset = newAssetWithReading('AST-FUP-4', 2, operator.Id);
         Case c = new Case(AssetId = asset.Id, OwnerId = operator.Id, Status = 'En curso', Origin = 'Telemetria', Subject = 'Abierta');
         insert c;
+        Assert.isFalse(activeStatusValues().contains('Inexistente'), 'The "invalid" status must not be a Case.Status value');
 
         List<String> errors = new List<String>();
         System.runAs(coordinator) {
             for (List<Object> args : new List<List<Object>>{
-                new List<Object>{ c.Id, 'Escalated', null },
+                new List<Object>{ c.Id, 'Inexistente', null },
                 new List<Object>{ c.Id, null, null },
+                new List<Object>{ c.Id, '   ', null },
                 new List<Object>{ c.Id, 'Closed', 'x'.repeat(IntervencionOperadorController.COMMENT_MAX + 1) },
                 new List<Object>{ null, 'Closed', null },
                 new List<Object>{ Id.valueOf('500000000000000AAA'), 'Closed', null }
@@ -316,6 +395,7 @@ private class IntervencionOperadorControllerTest {
         }
 
         Assert.areEqual(new List<String>{
+            IntervencionOperadorController.INVALID_STATUS,
             IntervencionOperadorController.INVALID_STATUS,
             IntervencionOperadorController.INVALID_STATUS,
             IntervencionOperadorController.COMMENT_TOO_LONG,
@@ -379,6 +459,93 @@ private class IntervencionOperadorControllerTest {
         Assert.areEqual(1, visible, 'The gerente sees the operator Case through the role hierarchy');
         Assert.areEqual(IntervencionOperadorController.NO_PERMISSION_FOLLOW, error, 'Refused for permission, not CASE_NOT_FOUND');
         Assert.areEqual('En curso', [SELECT Status FROM Case WHERE Id = :c.Id].Status);
+    }
+
+    @isTest
+    static void shouldAcceptEscalated_WhenCoordinatorFollowsUp() {
+        User operator = newUserWithPermissionSet('ncfupescop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User coordinator = newUserWithPermissionSet('ncfupesc', 'Nova_Casa_Coordinator', COORDINATOR_ROLE);
+        Asset asset = newAssetWithReading('AST-FUP-7', 2, operator.Id);
+        Case c = openCase(asset, operator.Id, 'En curso', 'Original');
+        insert c;
+        // The old fixed list (En curso, On Hold, Closed) refused it; now it is accepted because it is in the picklist.
+        Assert.isTrue(activeStatusValues().contains('Escalated'), 'Escalated must be an active Case.Status value in the org');
+
+        String error;
+        System.runAs(coordinator) {
+            error = followUpError(c.Id, 'Escalated');
+        }
+
+        Assert.isNull(error, 'Escalated is in the Case.Status picklist, so the server accepts it');
+        Case after = [SELECT Status, IsClosed, Description FROM Case WHERE Id = :c.Id];
+        Assert.areEqual('Escalated', after.Status);
+        Assert.isFalse(after.IsClosed, 'Escalated keeps the intervention open');
+        Assert.areEqual('Original', after.Description, 'No comment, nothing appended');
+    }
+
+    @isTest
+    static void shouldAcceptEveryStatusTheFormOffers_WhenCoordinatorFollowsUp() {
+        User operator = newUserWithPermissionSet('ncfupallop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User coordinator = newUserWithPermissionSet('ncfupall', 'Nova_Casa_Coordinator', COORDINATOR_ROLE);
+        Asset asset = newAssetWithReading('AST-FUP-8', 2, operator.Id);
+        List<String> offered = valuesOf(IntervencionOperadorController.getEstadosSeguimiento());
+        Assert.isFalse(offered.isEmpty(), 'The form must offer at least one status');
+        // One fresh open Case per status, started from a different status so the change is a real one.
+        List<Case> cases = new List<Case>();
+        for (String status : offered) {
+            String startStatus = status == IntervencionOperadorController.STATUS_IN_PROGRESS ? 'New' : IntervencionOperadorController.STATUS_IN_PROGRESS;
+            cases.add(openCase(asset, operator.Id, startStatus, null));
+        }
+        insert cases;
+
+        List<String> refused = new List<String>();
+        System.runAs(coordinator) {
+            for (Integer i = 0; i < offered.size(); i++) {
+                String error = followUpError(cases[i].Id, offered[i]);
+                if (error != null) {
+                    refused.add(offered[i] + ': ' + error);
+                }
+            }
+        }
+
+        Assert.areEqual(new List<String>(), refused, 'Every status the form offers is accepted by the server');
+        Map<Id, Case> after = new Map<Id, Case>([SELECT Status, IsClosed FROM Case WHERE AssetId = :asset.Id]);
+        for (Integer i = 0; i < offered.size(); i++) {
+            Case saved = after.get(cases[i].Id);
+            Assert.areEqual(offered[i], saved.Status, 'The Case takes the status it was sent');
+            // Closed needs no comment and closes the Case; any other offered status leaves it open.
+            Assert.areEqual(offered[i] == IntervencionOperadorController.STATUS_CLOSED, saved.IsClosed, 'IsClosed after ' + offered[i]);
+        }
+    }
+
+    @isTest
+    static void shouldRefuseEveryStatusTheFormOffers_WhenTheCaseIsAlreadyClosed() {
+        User operator = newUserWithPermissionSet('ncfupreopop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User coordinator = newUserWithPermissionSet('ncfupreop', 'Nova_Casa_Coordinator', COORDINATOR_ROLE);
+        Asset asset = newAssetWithReading('AST-FUP-9', 2, operator.Id);
+        Case closed = openCase(asset, operator.Id, IntervencionOperadorController.STATUS_CLOSED, 'Cerrada antes');
+        insert closed;
+        List<String> offered = valuesOf(IntervencionOperadorController.getEstadosSeguimiento());
+        Assert.isFalse(offered.isEmpty(), 'The form must offer at least one status');
+
+        Integer visible;
+        List<String> outcomes = new List<String>();
+        List<String> expected = new List<String>();
+        System.runAs(coordinator) {
+            visible = [SELECT COUNT() FROM Case WHERE Id = :closed.Id WITH USER_MODE];
+            for (String status : offered) {
+                // A call that succeeds returns no error text, so its entry differs from the expected one below.
+                outcomes.add(status + ': ' + followUpError(closed.Id, status));
+                expected.add(status + ': ' + IntervencionOperadorController.CASE_NOT_FOUND);
+            }
+        }
+
+        Assert.areEqual(1, visible, 'The coordinator sees the Case, so not-found comes from the IsClosed filter, not from sharing');
+        Assert.areEqual(expected, outcomes, 'No status reopens a closed Case from the panel');
+        Case after = [SELECT Status, IsClosed, Description FROM Case WHERE Id = :closed.Id];
+        Assert.areEqual(IntervencionOperadorController.STATUS_CLOSED, after.Status);
+        Assert.isTrue(after.IsClosed);
+        Assert.areEqual('Cerrada antes', after.Description);
     }
 
     // ─── cerrarIntervencionesDelActivo ────────────────────────────────────
