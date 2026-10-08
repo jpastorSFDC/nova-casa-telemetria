@@ -17,7 +17,7 @@ T8.1. Quién ve y hace qué, y de dónde sale cada acceso (BR-208). El acceso ef
 
 El admin persona no lleva rol: View All / Modify All ya le da todos los registros, y un rol lo metería en la jerarquía operativa sin necesidad.
 
-`novacasa.operador2@novacasa-telemetria.demo` es dato del org, no está en el repo. Se creó el 2026-10-06 (Id `005ak00000kPZmTAAW`) con perfil Minimum Access - Salesforce, rol `Operador_Edificios`, alias `ncoper2`, locale `es_CO`, zona `America/Bogota`, y los permission sets `Nova_Casa_Operator` y `Nova_Casa_Lightning`; después se le pasó el `OwnerId` de BLD-BAQ-001 (antes de John). Los `Asset` y `Case` de BAQ no cambiaron de dueño (`Asset` es Controlled by Parent). Para reproducirlo:
+`novacasa.operador2@novacasa-telemetria.demo` es dato del org, no está en el repo. Se creó el 2026-10-06 con perfil Minimum Access - Salesforce, rol `Operador_Edificios`, alias `ncoper2`, locale `es_CO`, zona `America/Bogota`, y los permission sets `Nova_Casa_Operator` y `Nova_Casa_Lightning`; después se le pasó el `OwnerId` de BLD-BAQ-001 (antes de John). Los `Asset` y `Case` de BAQ no cambiaron de dueño (`Asset` es Controlled by Parent). Para reproducirlo:
 
 ```bash
 sf data create record -o novacasa_sprint_2 -s User -v "Username='novacasa.operador2@novacasa-telemetria.demo' FirstName='Operador 2' LastName='Nova Casa' Alias='ncoper2' Email='<email>' TimeZoneSidKey='America/Bogota' LocaleSidKey='es_CO' LanguageLocaleKey='es' EmailEncodingKey='UTF-8' ProfileId='<Id de Minimum Access - Salesforce>' UserRoleId='<Id de Operador_Edificios>'"
@@ -25,7 +25,7 @@ sf org assign permset -o novacasa_sprint_2 -n Nova_Casa_Operator -n Nova_Casa_Li
 sf data update record -o novacasa_sprint_2 -s Account -w "External_Id__c='BLD-BAQ-001'" -v "OwnerId='<Id de operador2>'"
 ```
 
-**Edificio no autorizado (T8.6)**: `Edificio de prueba (fuera de jerarquía)`, `External_Id__c` `BLD-TEST-NOAUT` (Id `001ak00003qlUtRAAU`), dueño Juan Diego (System Administrator, sin rol), sin activos. Nadie de la jerarquía debe verlo: es el registro de prueba de coordinador y gerente. No choca con el catálogo, que solo hace upsert de los `External_Id__c` que manda el simulador.
+**Edificio no autorizado (T8.6)**: `Edificio de prueba (fuera de jerarquía)`, `External_Id__c` `BLD-TEST-NOAUT`, dueño Juan Diego (System Administrator, sin rol), sin activos. Nadie de la jerarquía debe verlo: es el registro de prueba de coordinador y gerente. No choca con el catálogo, que solo hace upsert de los `External_Id__c` que manda el simulador.
 
 - **Gerente** ([D022](decisiones.md#d022--coordinador-y-gerente-ven-por-role-hierarchy-cada-edificio-es-de-un-operador-personas-en-minimum-access-us-208)): Read en `Account`, `Asset`, `Case`, `Contact` y `Lectura_Vigente__c`, sin View All, Create, Edit, Delete ni Modify All, y Run Reports sin Export. Ve todos los edificios porque cada uno es de un operador, que está bajo él en la jerarquía. Un reporte solo le muestra lo que puede ver.
 - **Coordinador**: sin View All. Ve los edificios de los operadores por jerarquía y todas las intervenciones porque las crea el usuario de integración, que también está bajo él. Si un edificio no es de un operador pero tiene casos de integración, lo ve en lectura por implicit parent sharing.
@@ -181,7 +181,7 @@ Después de los dos deploys de T8.2 (objetos, luego roles), desde `main`.
 - **Coordinador y gerente ven BLD-BAQ-001** aunque no sean dueños: implicit parent sharing de los casos del usuario de integración (coordinador) y View All (gerente).
 - **View All del gerente**: en `salesforce.com`, un `Account` de John sin casos, el gerente tiene Read y operador y coordinador None.
 - **CRUD efectivo**: el perfil Minimum Access no aporta `ObjectPermissions` en estos objetos; solo cuentan los permission sets Nova Casa.
-- **Tests**: `ActivosOperadorControllerTest` e `IntervencionOperadorControllerTest`, 34/34 en verde (run `707ak00001y0oZd`).
+- **Tests**: `ActivosOperadorControllerTest` e `IntervencionOperadorControllerTest`, 34/34 en verde en una corrida de tests en la org (`sf apex run test` en `nova-cdo`).
 
 Pendiente: abrir "Activos del operador" con el operador en el navegador (debe salir solo BLD-BOG-001). `Umbral__c` y `Log_Senial__c` no se volvieron a medir.
 
@@ -203,14 +203,14 @@ Solo lectura del gerente sobre registros de otro dueño:
 |---|---|---|
 | BLD-BAQ-001, `Account` (`novacasa.operador2@`) | All, sin Edit/Delete | All, sin Edit/Delete |
 | AST-BAQ-TEMP-001, `Asset` (John) | Read | Read |
-| `Lectura_Vigente__c` de BAQ (`a03ak00002FSarvAAD`, vía activo) | Read | Read |
+| `Lectura_Vigente__c` de BAQ (vía activo) | Read | Read |
 | `Case` 00003260 de BAQ (`novacasa.integracion@`) | All, sin Edit/Delete | All, sin Edit/Delete |
 | `Case` 00002946 de BOG (John) | Read | Read |
 | `salesforce.com`, `Account` demo del CDO (John) | **Read** (View All) | **None** |
 
 - Operador 2 ve en lectura el activo, la lectura vigente y el caso de BAQ, y nada de BOG; el operador, al revés.
 - Lo único que cambia con el deploy es lo que hoy llega por View All: BLD-TEST-NOAUT y las cuentas que no son de Nova Casa.
-- Para medir de nuevo, las consultas de "Cómo verificar (T8.6)" con estos Ids: BLD-BOG-001 `001ak00003q9p0bAAA`, BLD-BAQ-001 `001ak00003q9p0cAAA`, BLD-TEST-NOAUT `001ak00003qlUtRAAU`.
+- Para medir de nuevo, las consultas de "Cómo verificar (T8.6)": el paso 2 da los Ids de BLD-BOG-001, BLD-BAQ-001 y BLD-TEST-NOAUT en el org.
 
 ## Dueño de los edificios
 
