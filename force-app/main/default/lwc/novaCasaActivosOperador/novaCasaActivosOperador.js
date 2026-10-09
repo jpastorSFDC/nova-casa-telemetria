@@ -14,7 +14,7 @@ import cerrarIntervencionesDelActivo from '@salesforce/apex/IntervencionOperador
 import traerSenales from '@salesforce/apex/IngestaController.traerSenales';
 import estadoIngesta from '@salesforce/apex/IngestaController.estadoIngesta';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
-import { MEASUREMENT_LABELS, severityUi, reduceError } from 'c/novaCasaEtiquetas';
+import { MEASUREMENT_LABELS, severityUi, reduceError, relativeAge } from 'c/novaCasaEtiquetas';
 
 const TICK_MS = 30000;
 const INGEST_POLL_MS = 5000;
@@ -95,6 +95,18 @@ function relativeTime(value, nowMs) {
         return `hace ${hours} h`;
     }
     return `hace ${Math.floor(hours / 24)} d`;
+}
+
+// Age of a reading's origin time (BR-207). A time ahead of now by more than FUTURE_TOLERANCE_MS (simulator clock) gets the
+// label of c/novaCasaEtiquetas ("hora del simulador"); within the tolerance it reads as fresh, the same cut signalText uses.
+// Other timestamps (case creation, refresh) keep relativeTime.
+function readingAge(value, nowMs) {
+    const ms = toMillis(value);
+    if (ms === null) {
+        return '';
+    }
+    const withinSkew = ms > nowMs && ms - nowMs <= FUTURE_TOLERANCE_MS;
+    return relativeAge(withinSkew ? nowMs : ms, nowMs).text;
 }
 
 function formatUtcTime(value) {
@@ -564,7 +576,7 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             measurementType: r.measurementType,
             measurementLabel: MEASUREMENT_LABELS[r.measurementType] || r.measurementType,
             valueText: formatValue(r.value, r.unit),
-            ageText: relativeTime(r.occurredAt, this.nowMs),
+            ageText: readingAge(r.occurredAt, this.nowMs),
             timeText: formatUtcTime(r.occurredAt),
             occurredMs: toMillis(r.occurredAt),
             rank: rankOf(r),
