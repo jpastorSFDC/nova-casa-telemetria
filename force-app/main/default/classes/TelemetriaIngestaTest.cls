@@ -878,11 +878,78 @@ private class TelemetriaIngestaTest {
         // The DML is SYSTEM_MODE, so the rows exist whatever the user can see.
         Assert.areEqual(2, resumen.logsCreados);
         Assert.areEqual(2, [SELECT COUNT() FROM Log_Senial__c WHERE Message_Id__c LIKE 'msg_j%']);
-        // Publishing is the open point: this user may lack Create on Senial_Sensor__e. Either way nothing is lost:
-        // an event that did not go out leaves its row as 'Fallida' (checked in the next assertion). Which branch
-        // the platform takes for this profile is not confirmed yet (see D013).
-        Assert.areEqual(2, resumen.publicados + resumen.fallosPublicacion);
-        Assert.areEqual(resumen.fallosPublicacion, [SELECT COUNT() FROM Log_Senial__c WHERE Message_Id__c LIKE 'msg_j%' AND Resultado__c = 'Fallida']);
+        Assert.areEqual(0, resumen.logsFallidos, 'Logging must not fail for a user without permissions');
+        Assert.areEqual(0, resumen.noPublicadosPorLog, 'No event may be held back because its log row failed');
+        // Publishing is the open point: this user has no permission set at all, so it may lack Create on Senial_Sensor__e,
+        // and what the platform does then is not confirmed yet (see D013). The publish outcome is therefore NOT pinned
+        // here: laIngestaPublicaTodoConUnUsuarioSinPermisosDeOperador pins it for the production ingestion user's permission
+        // set. What must hold on either branch is that the summary and the rows tell the same story:
+        // each published event leaves a 'Publicada' row, each failed one a 'Fallida' row, and no row is left in limbo.
+        Assert.areEqual(resumen.publicados, [SELECT COUNT() FROM Log_Senial__c WHERE Message_Id__c LIKE 'msg_j%' AND Resultado__c = 'Publicada'],
+            'Published events and Publicada rows must match');
+        Assert.areEqual(resumen.fallosPublicacion, [SELECT COUNT() FROM Log_Senial__c WHERE Message_Id__c LIKE 'msg_j%' AND Resultado__c = 'Fallida'],
+            'Failed publishes and Fallida rows must match');
+        Assert.areEqual(2, [SELECT COUNT() FROM Log_Senial__c WHERE Message_Id__c LIKE 'msg_j%' AND Resultado__c IN ('Publicada', 'Fallida')],
+            'Every message ends either published or marked as failed');
+    }
+
+    // Ingestion run by a user that holds only the processing permission set (the one the ingestion user has in production:
+    // Create/Read on Senial_Sensor__e and Log_Senial__c) and none of the operator, coordinator, manager or admin sets.
+    // Unlike the test above, the publish outcome is defined here, so a failed publish for that user fails this test.
+    // It is a regression check for "ingestion needs no operator or admin permissions" (BR-208), not proof that the
+    // permission set is what makes publishing work: whether Apex EventBus.publish enforces Create on Senial_Sensor__e
+    // is platform behavior we have not confirmed (D013), so a user without the set might publish here too.
+    @isTest
+    static void laIngestaPublicaTodoConUnUsuarioSinPermisosDeOperador() {
+        User usuario = crearUsuarioConSoloElConjuntoDeProcesamiento();
+        Set<String> conjuntos = new Set<String>();
+        for (PermissionSetAssignment asignacion : [
+            SELECT PermissionSet.Name FROM PermissionSetAssignment
+            WHERE AssigneeId = :usuario.Id AND PermissionSet.IsOwnedByProfile = false
+        ]) {
+            conjuntos.add(asignacion.PermissionSet.Name);
+        }
+        Assert.isTrue(conjuntos.contains('Nova_Casa_Procesamiento'), 'Precondition: the user has the processing permission set. Has: ' + conjuntos);
+        for (String conjunto : new List<String>{ 'Nova_Casa_Operator', 'Nova_Casa_Coordinator', 'Nova_Casa_Gerente', 'Nova_Casa_Admin' }) {
+            Assert.isFalse(conjuntos.contains(conjunto), 'Precondition: the ingestion user must not hold ' + conjunto);
+        }
+
+        TelemetriaIngesta.Resumen resumen;
+        System.runAs(usuario) {
+            resumen = TelemetriaIngesta.procesarPagina(comoMapas(mensajes(2, 'msg_pub')));
+        }
+
+        Assert.areEqual(2, resumen.logsCreados, 'Both log rows are created');
+        Assert.areEqual(0, resumen.logsFallidos, 'No log row fails');
+        Assert.areEqual(0, resumen.noPublicadosPorLog, 'No event is held back by its log row');
+        Assert.areEqual(2, resumen.publicados, 'Both events are published without operator permissions');
+        Assert.areEqual(0, resumen.fallosPublicacion, 'No publish may fail');
+        Assert.areEqual(2, [SELECT COUNT() FROM Log_Senial__c WHERE Message_Id__c LIKE 'msg_pub%' AND Resultado__c = 'Publicada'],
+            'Both rows stay Publicada until the handler processes them');
+        Assert.areEqual(0, [SELECT COUNT() FROM Log_Senial__c WHERE Message_Id__c LIKE 'msg_pub%' AND Resultado__c = 'Fallida'],
+            'No row is marked as failed');
+    }
+
+    // Same pattern as PermisosProcesamientoTest: the user and its assignment are setup objects, inserted in their own context.
+    private static User crearUsuarioConSoloElConjuntoDeProcesamiento() {
+        String sufijo = String.valueOf(Crypto.getRandomInteger()).replace('-', 'n');
+        User usuario = new User(
+            Alias = 'ingproc',
+            Email = 'ingesta.proc.' + sufijo + '@novacasa-test.example.com',
+            EmailEncodingKey = 'UTF-8',
+            LastName = 'IngestaConProcesamiento',
+            LanguageLocaleKey = 'en_US',
+            LocaleSidKey = 'en_US',
+            ProfileId = [SELECT Id FROM Profile WHERE Name = 'Standard User' LIMIT 1].Id,
+            TimeZoneSidKey = 'America/Bogota',
+            Username = 'ingesta.proc.' + sufijo + '@novacasa-test.example.com'
+        );
+        Id conjuntoId = [SELECT Id FROM PermissionSet WHERE Name = 'Nova_Casa_Procesamiento' LIMIT 1].Id;
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            insert usuario;
+            insert new PermissionSetAssignment(AssigneeId = usuario.Id, PermissionSetId = conjuntoId);
+        }
+        return usuario;
     }
 
     @isTest
