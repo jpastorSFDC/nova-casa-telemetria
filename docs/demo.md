@@ -97,7 +97,7 @@ Si en la corrida la bomba no salió crítica, se sigue con el activo crítico qu
 
 - La fila `Atrasada` tiene un `Occurred_At__c` más viejo que la lectura vigente del mismo activo y tipo de medición, y su motivo lo dice.
 - La lectura vigente no cambió y la fila no tiene caso, aunque su valor sea crítico.
-- En una corrida completa casi todas las filas quedan `Atrasada`: es lo esperado de D011 (h), porque solo gana la más reciente de cada activo y medición del lote.
+- En una corrida completa casi todas las filas quedan `Atrasada`: es lo esperado de D011 (h), porque solo gana la más reciente de cada activo y medición del lote (decisión de John del 2026-10-05; el facilitador del MDSS no la ha confirmado).
 
 `LATE_MESSAGES` muestra esto mismo con más casos, pero necesita el org limpio otra vez (los `messageId` se repiten entre escenarios). Su corrida está en `evidencia-escenarios.md`.
 
@@ -157,7 +157,7 @@ Cierre: lo que falta está en la tabla de evidencia, columna Estado.
 |---|---|
 | El simulador no responde o un trabajo queda `Failed` en Apex Jobs | Leer el error en Apex Jobs. Volver a correr el mismo `iniciar`: la identidad evita duplicados (D013, punto 8). Si sigue, mostrar la corrida guardada en `evidencia-escenarios.md` y los datos que ya están en el org. |
 | Todo sale `Conflicto` o reenvío | El org no estaba limpio. Mostrar **Conflictos** y **Duplicadas (reenvíos)** como prueba de BR-205 y seguir con los datos que haya. |
-| No salió ninguna señal crítica, o ningún caso nuevo | El resultado depende de cómo se parten los lotes (D011 h). Mostrar `CRITICAL_BURST` en `evidencia-escenarios.md` (30 casos, cada uno con su fila `Procesada`). |
+| No salió ninguna señal crítica, o ningún caso nuevo | El resultado depende de cómo se parten los lotes (D011 h, sin confirmar por el facilitador). Mostrar `CRITICAL_BURST` en `evidencia-escenarios.md` (30 casos, cada uno con su fila `Procesada`). |
 | "Traer señales" da error | Con `novacasa.admin@` falta `Nova_Casa_Simulator_Integration`. Usar Execute Anonymous con el usuario de Juan Diego. |
 | "Login" no aparece en Setup > Users | Revisar "Administrators Can Log in as Any User". Si no se puede, mostrar las tablas de `UserRecordAccess` de `docs/acceso.md`. |
 | La pantalla dice "No pudimos cargar tus activos" | **Reintentar**. Si sigue, es falta de permisos del usuario (FLS): se muestra como el estado de error que pide BR-207 y se sigue con otro rol. |
