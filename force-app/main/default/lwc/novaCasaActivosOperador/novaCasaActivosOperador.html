@@ -378,6 +378,7 @@
                                 <th scope="col">Medición</th>
                                 <th scope="col">Valor</th>
                                 <th scope="col">Severidad</th>
+                                <th scope="col">Antigüedad</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -387,9 +388,11 @@
                                     <template if:true={t.hasReading}>
                                         <td class="num">{t.valueText}</td>
                                         <td><span class={t.sevClass}><span class="glifo" aria-hidden="true">{t.sevGlyph}</span> {t.sevLabel}</span></td>
+                                        <td class="num">{t.ageText}</td>
                                     </template>
                                     <template if:false={t.hasReading}>
                                         <td class="celda-sub">Sin lecturas</td>
+                                        <td class="celda-sub">—</td>
                                         <td class="celda-sub">—</td>
                                     </template>
                                 </tr>

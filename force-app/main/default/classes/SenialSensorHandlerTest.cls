@@ -2,6 +2,8 @@
 private class SenialSensorHandlerTest {
     private static final String OCURRIDO = '2026-09-30T16:45:21.262Z';
     private static final String ANTERIOR = '2026-09-30T16:40:00.000Z';
+    // Posterior a OCURRIDO y a ANTERIOR, sin milisegundos: Occurred_At__c no los guarda y así la igualdad con la fila no depende del recorte.
+    private static final String MAS_RECIENTE = '2026-09-30T16:50:00.000Z';
     private static final String SALA = 'AST-BOG-TEMP-001';
 
     private static final String FUENTE = 'nova-casa-simulator';
@@ -469,6 +471,91 @@ private class SenialSensorHandlerTest {
         Assert.areEqual('Procesada', filaLog(identidad('msg_a')).Resultado__c, 'msg_a se procesa');
         Assert.areEqual('Superada', filaLog(identidad('msg_c')).Resultado__c, 'Perder el desempate es Superada');
         Assert.areEqual('Atrasada', filaLog(identidad('msg_0')).Resultado__c, 'Ser más antigua es Atrasada');
+    }
+
+    // D011 (h) lo decidió John (2026-10-05) y el facilitador de MDSS no lo ha confirmado. La línea base dice una intervención
+    // por mensaje crítico único y que una señal atrasada es solo evidencia: aquí una crítica más vieja del mismo lote (mismo
+    // activo + tipo de medición) queda Atrasada y no abre Case; solo la ganadora del lote lo abre. Una alternativa solo vale
+    // si separa el estado histórico del vigente y trae sus pruebas. Estas dos pruebas fijan el comportamiento ACTUAL a propósito
+    // (a nivel de persistencia: log por identidad, Case y lectura vigente). Si se cambia la política, hay que cambiarlas junto
+    // con el handler, de forma deliberada, no para que vuelvan a pasar.
+    @IsTest
+    static void unaCriticaMasViejaEnElMismoLoteQuedaAtrasadaYSoloLaMasNuevaAbreCase() {
+        verificarCriticaViejaEnElLote(false);
+    }
+
+    @IsTest
+    static void unaCriticaMasViejaEnElMismoLoteQuedaAtrasadaAunqueLlegueDespuesDeLaNueva() {
+        verificarCriticaViejaEnElLote(true);
+    }
+
+    // Una lectura más nueva (otra invocación de procesar) reescribe TODOS los campos de la única fila vigente de la clave.
+    @IsTest
+    static void unaLecturaMasNuevaActualizaValorUnidadFechaYSeveridadDeLaMismaFila() {
+        Test.startTest();
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_v1', SALA, 'TEMPERATURE', '25', 'CELSIUS', ANTERIOR) });
+        Lectura_Vigente__c antes = lectura(SALA + '|TEMPERATURE');
+        Assert.areEqual(25, antes.Valor__c, 'Precondición: valor de la primera lectura');
+        Assert.areEqual(0, antes.Severidad_Nivel__c.intValue(), 'Precondición: la primera lectura es Normal');
+        Assert.areEqual(fecha(ANTERIOR), antes.Occurred_At__c, 'Precondición: occurredAt de la primera lectura');
+        Assert.areEqual('SNS-1', antes.Sensor_Id__c, 'Precondición: sensor de la primera lectura');
+        // La unidad de TEMPERATURE solo puede ser CELSIUS (debe coincidir con un umbral), así que una lectura real nunca la cambia.
+        // Se deja una marca válida de la picklist en la fila guardada: si el handler dejara de escribir Unidad__c, la marca sobreviviría.
+        update new Lectura_Vigente__c(Id = antes.Id, Unidad__c = 'BAR');
+        Assert.areEqual('BAR', lectura(SALA + '|TEMPERATURE').Unidad__c, 'Precondición: la marca quedó guardada');
+
+        Senial_Sensor__e nueva = medicion('msg_v2', SALA, 'TEMPERATURE', '36', 'CELSIUS', MAS_RECIENTE);
+        nueva.Sensor_Id__c = 'SNS-2';
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ nueva });
+        Test.stopTest();
+
+        Assert.areEqual(1, [SELECT COUNT() FROM Lectura_Vigente__c], 'Una sola lectura vigente: se actualiza, no se crea otra');
+        Lectura_Vigente__c despues = lectura(SALA + '|TEMPERATURE');
+        Assert.areEqual(antes.Id, despues.Id, 'Es la misma fila de lectura');
+        Assert.areEqual(36, despues.Valor__c, 'Valor de la lectura nueva');
+        Assert.areEqual('CELSIUS', despues.Unidad__c, 'La unidad se reescribe con la del evento nuevo (la marca BAR desaparece)');
+        Assert.areEqual(fecha(MAS_RECIENTE), despues.Occurred_At__c, 'occurredAt de la lectura nueva');
+        Assert.areEqual(2, despues.Severidad_Nivel__c.intValue(), 'Severidad de la lectura nueva: Crítica');
+        Assert.areEqual(identidad('msg_v2'), despues.Identidad_Senal__c, 'La lectura recuerda la señal nueva');
+        Assert.areEqual('SNS-2', despues.Sensor_Id__c, 'Sensor de la lectura nueva');
+        Assert.areEqual(2, [SELECT Severidad_Nivel__c FROM Asset WHERE External_Id__c = :SALA].Severidad_Nivel__c.intValue(),
+            'La severidad del activo sigue a su lectura vigente');
+        Assert.areEqual('Procesada', filaLog(identidad('msg_v2')).Resultado__c, 'La lectura nueva se procesa');
+        Assert.areEqual(1, [SELECT COUNT() FROM Case], 'La crítica nueva abre su Case');
+    }
+
+    // Lote con una crítica vieja y otra nueva para el mismo activo + tipo de medición (D011 h); el orden dentro del lote no cuenta.
+    private static void verificarCriticaViejaEnElLote(Boolean nuevaPrimero) {
+        Senial_Sensor__e vieja = medicion('msg_vieja', SALA_2, 'TEMPERATURE', '36', 'CELSIUS', ANTERIOR);
+        Senial_Sensor__e nueva = medicion('msg_nueva', SALA_2, 'TEMPERATURE', '37', 'CELSIUS', MAS_RECIENTE);
+
+        Test.startTest();
+        new SenialSensorHandler().procesar(nuevaPrimero
+            ? new List<Senial_Sensor__e>{ nueva, vieja }
+            : new List<Senial_Sensor__e>{ vieja, nueva });
+        Test.stopTest();
+
+        Log_Senial__c logNueva = filaLog(identidad('msg_nueva'));
+        Log_Senial__c logVieja = filaLog(identidad('msg_vieja'));
+        Assert.areEqual('Procesada', logNueva.Resultado__c, 'La crítica más nueva gana el lote: ' + logNueva.Motivo__c);
+        Assert.areEqual('Atrasada', logVieja.Resultado__c, 'La crítica más vieja del lote queda como evidencia: ' + logVieja.Motivo__c);
+        Assert.isTrue(logVieja.Motivo__c.contains('(el lote)'),
+            'El motivo dice que perdió contra la ganadora del lote, no contra la lectura vigente: ' + logVieja.Motivo__c);
+        Assert.areEqual('Atrasada', SenialSensorHandler.resultadoPorIdentidad.get(identidad('msg_vieja')), 'Resultado reportado por el handler');
+        Assert.isNull(logVieja.Caso__c, 'La atrasada no enlaza Case');
+
+        List<Case> casos = [SELECT Id, Identidad_Senal__c FROM Case];
+        Assert.areEqual(1, casos.size(), 'Solo la ganadora del lote abre intervención');
+        Assert.areEqual(identidad('msg_nueva'), casos[0].Identidad_Senal__c, 'El único Case es el de la ganadora');
+        Assert.areEqual(casos[0].Id, logNueva.Caso__c, 'El log de la ganadora enlaza su Case');
+        Assert.areEqual(0, [SELECT COUNT() FROM Case WHERE Identidad_Senal__c = :identidad('msg_vieja')],
+            'La crítica más vieja no abre Case');
+
+        Lectura_Vigente__c lectura = lectura(SALA_2 + '|TEMPERATURE');
+        Assert.areEqual(identidad('msg_nueva'), lectura.Identidad_Senal__c, 'La lectura vigente es la de la ganadora');
+        Assert.areEqual(37, lectura.Valor__c, 'La lectura vigente tiene el valor de la ganadora, no el de la atrasada');
+        Assert.areEqual(2, lectura.Severidad_Nivel__c.intValue(), 'Crítica es nivel 2');
+        Assert.areEqual(1, SenialSensorHandler.criticasProcesadas.size(), 'Solo una crítica procesada');
     }
 
     @IsTest

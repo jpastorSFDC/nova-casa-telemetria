@@ -1,6 +1,7 @@
 import { LightningElement, api, wire } from 'lwc';
 import { refreshApex } from '@salesforce/apex';
 import getResumenEdificio from '@salesforce/apex/ActivosOperadorController.getResumenEdificio';
+import { reduceError } from 'c/novaCasaEtiquetas';
 
 const GENERIC_ERROR = 'No se pudo cargar la información. Intenta de nuevo o contacta a tu administrador.';
 
