@@ -1,6 +1,6 @@
 # Evidence: end-to-end runs of the simulator scenarios (T9.3)
 
-Runs of `TelemetriaIngesta.iniciar('<scenario>', 10)` against `nova-cdo`, each one on a cleaned org (logs, readings and Cases with `Origin = 'Telemetria'` deleted first). Counts are from SOQL on `Log_Senial__c.Resultado__c`, `Lectura_Vigente__c` and `Case`. Deploys report 0 tests in this org, so unit evidence is `sf apex run test` (see the PRs).
+Runs of `TelemetriaIngesta.iniciar('<scenario>', 10)` against `nova-cdo`, each one on a cleaned org (logs, readings and Cases with `Origin = 'Telemetria'` deleted first). Counts are from SOQL on `Log_Senial__c.Resultado__c`, `Lectura_Vigente__c` and `Case`. Deploys report 0 tests in this org, so unit evidence is `sf apex run test` (see the PRs). The cleanup, the run, the wait for processing and the tables below are reproducible with `scripts/org-check.sh` (`clean`, `run`, `wait`, `evidence`).
 
 ## Results — final reruns, 2026-10-05 (post chain-depth fix, trigger as integration user)
 
