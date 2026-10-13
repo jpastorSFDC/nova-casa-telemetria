@@ -7,7 +7,7 @@ Duración: unos 14 minutos, más la preparación. La evidencia por historia est�
 ## Antes de la demo (no cuenta en el tiempo)
 
 1. **Avisar en Slack** quién corre la ingesta y a qué hora. La corre Juan Diego (o John) con su propio usuario: los dos tienen `Nova_Casa_Admin` y `Nova_Casa_Simulator_Integration`. `novacasa.admin@` no tiene `Nova_Casa_Simulator_Integration`, así que "Traer señales" con ese usuario falla. Una corrida a la vez.
-2. **Org limpio.** El simulador reutiliza `messageId` entre sesiones: si quedan filas de corridas anteriores, todo sale como `Conflicto` o reenvío. El 2026-10-06 el org tenía 400 filas de `Log_Senial__c`, todas `Conflicto`. Antes de la demo se borran los `Log_Senial__c`, las `Lectura_Vigente__c` y los `Case` con `Origin = 'Telemetria'`, como en `evidencia-escenarios.md`. Borrar datos lo acuerdan John y Juan Diego (`CONTRIBUTING.md`).
+2. **Org limpio.** El simulador reutiliza `messageId` entre sesiones: si quedan filas de corridas anteriores, todo sale como `Conflicto` o reenvío. El 2026-10-06 el org tenía 400 filas de `Log_Senial__c`, todas `Conflicto`. Antes de la demo se borran los `Log_Senial__c`, las `Lectura_Vigente__c` y los `Case` con `Origin = 'Telemetria'`, como en `evidencia-escenarios.md`. Borrar datos lo acuerdan John y Juan Diego (`CONTRIBUTING.md`). Para hacerlo y para las corridas: `scripts/org-check.sh clean` (muestra qué borraría y qué queda), `clean confirm=<org>:<n>`, `run <ESCENARIO>`, `wait <desde>` y `evidence`.
 3. **Catálogo cargado** (README, "Loading the building/asset catalog"): `CatalogoService.loadCatalog();` desde Execute Anonymous. Después, la consulta de "Dueño de los edificios" en `docs/acceso.md` debe volver vacía: BLD-BOG-001 (Edificio Nova Alameda) es de `novacasa.operador@` y BLD-BAQ-001 (Edificio Nova Caribe) de `novacasa.operador2@`. BLD-TEST-NOAUT (Edificio de prueba, fuera de jerarquía) sigue a nombre de Juan Diego, sin activos.
 4. **Usuarios persona** (`docs/acceso.md`, "Personas"), todos `@novacasa-telemetria.demo` y activos: `novacasa.operador`, `novacasa.operador2`, `novacasa.coordinador`, `novacasa.gerente`, `novacasa.admin`. "Log in as" ya está activo en el org (T8.7). Probarlo una vez con cada uno.
 5. **Pruebas corridas el mismo día** y el resultado a mano (paso 9):
@@ -97,7 +97,7 @@ Si en la corrida la bomba no salió crítica, se sigue con el activo crítico qu
 
 - La fila `Atrasada` tiene un `Occurred_At__c` más viejo que la lectura vigente del mismo activo y tipo de medición, y su motivo lo dice.
 - La lectura vigente no cambió y la fila no tiene caso, aunque su valor sea crítico.
-- En una corrida completa casi todas las filas quedan `Atrasada`: es lo esperado de D011 (h), porque solo gana la más reciente de cada activo y medición del lote.
+- En una corrida completa casi todas las filas quedan `Atrasada`: es lo esperado de D011 (h), porque solo gana la más reciente de cada activo y medición del lote (decisión de John del 2026-10-05; el facilitador del MDSS no la ha confirmado).
 
 `LATE_MESSAGES` muestra esto mismo con más casos, pero necesita el org limpio otra vez (los `messageId` se repiten entre escenarios). Su corrida está en `evidencia-escenarios.md`.
 
@@ -157,7 +157,7 @@ Cierre: lo que falta está en la tabla de evidencia, columna Estado.
 |---|---|
 | El simulador no responde o un trabajo queda `Failed` en Apex Jobs | Leer el error en Apex Jobs. Volver a correr el mismo `iniciar`: la identidad evita duplicados (D013, punto 8). Si sigue, mostrar la corrida guardada en `evidencia-escenarios.md` y los datos que ya están en el org. |
 | Todo sale `Conflicto` o reenvío | El org no estaba limpio. Mostrar **Conflictos** y **Duplicadas (reenvíos)** como prueba de BR-205 y seguir con los datos que haya. |
-| No salió ninguna señal crítica, o ningún caso nuevo | El resultado depende de cómo se parten los lotes (D011 h). Mostrar `CRITICAL_BURST` en `evidencia-escenarios.md` (30 casos, cada uno con su fila `Procesada`). |
+| No salió ninguna señal crítica, o ningún caso nuevo | El resultado depende de cómo se parten los lotes (D011 h, sin confirmar por el facilitador). Mostrar `CRITICAL_BURST` en `evidencia-escenarios.md` (30 casos, cada uno con su fila `Procesada`). |
 | "Traer señales" da error | Con `novacasa.admin@` falta `Nova_Casa_Simulator_Integration`. Usar Execute Anonymous con el usuario de Juan Diego. |
 | "Login" no aparece en Setup > Users | Revisar "Administrators Can Log in as Any User". Si no se puede, mostrar las tablas de `UserRecordAccess` de `docs/acceso.md`. |
 | La pantalla dice "No pudimos cargar tus activos" | **Reintentar**. Si sigue, es falta de permisos del usuario (FLS): se muestra como el estado de error que pide BR-207 y se sigue con otro rol. |

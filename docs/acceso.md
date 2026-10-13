@@ -79,7 +79,7 @@ C/R/E/D = Create/Read/Edit/Delete del permission set; después del punto, de dó
 - **Coordinador**: lo del operador, más edición en `Umbral__c.Activo__c` y lectura en `Umbral__c.Severidad_Nivel__c`.
 - **Gerente**: lo del operador. Nada editable.
 - **Claves técnicas** (`Account.External_Id__c`, `Asset.External_Id__c`, `Lectura_Vigente__c.Clave__c`, `Identidad_Senal__c` en `Case` y `Lectura_Vigente__c`): solo lectura para todas las personas (alineado con PR #26); solo Admin las edita. La pantalla del operador consulta `Asset.External_Id__c` en `USER_MODE`, así que sin esa FLS muestra error de acceso; las otras cuatro son para los layouts de `Case`, `Account` y `Lectura_Vigente__c`.
-- **Solo Admin**: todo `Log_Senial__c`. Excepción (D024): operador, coordinador y gerente ven en el detalle del activo el "Historial de señales" (tipo de señal, fecha de origen y resultado) de los activos que ya ven, leído por Apex sin darles permisos sobre el objeto.
+- **Solo Admin**: todo `Log_Senial__c`. Excepción (D024): operador, coordinador y gerente ven en el detalle del activo el "Historial de señales" (tipo de señal, fecha de origen, resultado y, desde D034, tipo de medición, valor y unidad) de los activos que ya ven, leído por Apex sin darles permisos sobre el objeto.
 
 ## Acciones
 
@@ -90,7 +90,7 @@ C/R/E/D = Create/Read/Edit/Delete del permission set; después del punto, de dó
 | Cambiar umbrales | Coordinador (crear/editar), Admin (todo) | CRUD de `Umbral__c` en el permission set; requiere el OWD Public Read/Write de arriba |
 | Ver errores técnicos y motivo de rechazo | Admin | `Log_Senial__c` solo en `Nova_Casa_Admin`; la pestaña "Registros de Señal" de la app Nova Casa Telemetry se declara visible solo en ese permission set (`tabSettings`); sin Read sobre el objeto nadie más llega a los datos aunque vea la pestaña. Medido en la org el 2026-10-07 (`ObjectPermissions`): Read sobre `Log_Senial__c` solo en `Nova_Casa_Admin`, `Nova_Casa_Procesamiento` y los perfiles o permission sets de administración e integración de Salesforce; ningún permission set de Operador, Coordinador o Gerente. Que el perfil Minimum Access no muestre la pestaña se comprueba en la org tras el deploy |
 | Ver el historial de señales de un activo (sin motivo ni detalle técnico) | Operador, Coordinador, Gerente, Admin | `ActivosOperadorController.getHistorial`: comprueba el activo en `USER_MODE` y lee el log en modo sistema; ver D024 |
-| Reintentar una señal | Admin | Edit en `Log_Senial__c` (`Reintento_Seguro__c`); el mecanismo de reintento es de BR-209 |
+| Saber si una señal se puede reintentar, y reintentarla | Admin | La columna `Accion_Reintento__c` de `Log_Senial__c` (fórmula de solo lectura, FLS de solo lectura en `Nova_Casa_Admin`, D014) dice si el reintento es seguro o qué corregir antes. Reintentar es volver a correr la ingesta ("Traer señales"), que pide la custom permission `Nova_Casa_Traer_Senales` y además `Nova_Casa_Simulator_Integration` y Create sobre `Senial_Sensor__e` (cabecera de `IngestaController`). `Reintento_Seguro__c` quedó reemplazado por esa fórmula, pero el campo sigue en el repo, editable en `Nova_Casa_Admin` y en `Nova_Casa_Procesamiento`, hasta que se decida borrarlo en su propio PR (D014) |
 | Ingestar señales | Usuario de integración | `Nova_Casa_Simulator_Integration` + permiso de ingesta propio (T2.10), separado del operador |
 
 ## Orden de pasos
