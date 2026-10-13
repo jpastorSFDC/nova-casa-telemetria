@@ -56,6 +56,9 @@ valid_since() {
   esac
   return 1
 }
+approx_since() { # now minus two minutes in UTC: macOS date first, then GNU date
+  date -u -v-2M +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d '2 minutes ago' +%Y-%m-%dT%H:%M:%SZ
+}
 
 # sf output as JSON; a fake error object when sf prints nothing, so jq always gets valid input.
 soqlj() {
@@ -100,9 +103,11 @@ window() { # window "SOQL with minp and maxp": "first to last, N s"
 
 # apex < source: runs anonymous Apex and prints the lines the source logged as System.debug('NC|...') without the
 # marker. The echoed source, USER_INFO and the rest of the debug log are dropped. Returns 1 on a compile or runtime
-# error, printing it with Id-shaped words masked.
+# error, printing it with Id-shaped words masked. sf returns "|" inside a debug message as the entity &#124; (seen on
+# nova-cdo), so the message is decoded before the marker is looked for. Every source below logs at least one NC| line,
+# so a successful run with none gets a warning instead of looking like an empty answer.
 apex() {
-  local out ok
+  local out ok lines
   cat > "$WORK/run.apex"
   out=$(sf apex run -o "$ORG" -f "$WORK/run.apex" --json 2>/dev/null)
   rm -f "$WORK/run.apex"
@@ -115,8 +120,15 @@ apex() {
       else "ERROR: " + ((.message // "apex run failed") | mask) end' >&2
     return 1
   fi
-  echo "$out" | jq -r '(.result.logs // "") | split("\n")[] | select(contains("|USER_DEBUG|"))
-    | sub("^.*\\|USER_DEBUG\\|\\[[0-9]+\\]\\|DEBUG\\|"; "") | select(startswith("NC|")) | .[3:]'
+  lines=$(echo "$out" | jq -r '(.result.logs // "") | split("\n")[] | select(contains("|USER_DEBUG|"))
+    | sub("^.*\\|USER_DEBUG\\|\\[[0-9]+\\]\\|DEBUG\\|"; "")
+    | gsub("&#124;"; "|") | gsub("&quot;"; "\"") | gsub("&lt;"; "<") | gsub("&gt;"; ">") | gsub("&amp;"; "&")
+    | select(startswith("NC|")) | .[3:]')
+  if [ -z "$lines" ]; then
+    echo "WARNING: the Apex ran, but none of its output lines were found in the debug log." >&2
+    return 0
+  fi
+  printf '%s\n' "$lines"
 }
 
 # ---------------------------------------------------------------- guards
@@ -278,9 +290,13 @@ mode_run() {
   echo "Starting $SCEN on $ORG: pages=$PAGES seed=$SEED batch=$BATCH, new simulator session."
   out=$(src_run | apex) || die "the run did not start"
   echo "$out"
+  case "$out" in
+    *"can-create-Senial_Sensor__e=false"*)
+      die "nothing was started: the running user cannot create Senial_Sensor__e. Use a user with Nova_Casa_Admin and Nova_Casa_Simulator_Integration." ;;
+  esac
   since=$(echo "$out" | sed -n 's/^since=//p')
   if ! valid_since "$since"; then
-    die "nothing was started: the running user cannot create Senial_Sensor__e. Use a user with Nova_Casa_Admin and Nova_Casa_Simulator_Integration."
+    die "the Apex ran but did not report the start time, so the ingestion MAY HAVE STARTED. Do NOT run it again. Look for a TelemetriaIngesta job in Setup > Apex Jobs, then: scripts/org-check.sh wait $(approx_since)  (two minutes before now by this computer's clock)"
   fi
   case "$out" in
     *"Nova_Casa_Simulator_Integration-assigned-directly=false"*)
@@ -322,7 +338,7 @@ mode_wait() {
 }
 
 mode_evidence() {
-  local scen="" since="" a rows logs reads cases lvl label n lote vigente atr
+  local scen="" since="" a rows logs reads cases lvl label n lote vigente atr rej sumjson
   for a in "$@"; do
     if valid_since "$a"; then since="$a"
     elif valid_scenario "$a"; then scen="$a"
@@ -384,11 +400,16 @@ mode_evidence() {
     echo
     echo "| Motivo__c | Rows |"
     echo "|---|---|"
-    mdrows "SELECT Motivo__c, COUNT(Id) n FROM Log_Senial__c WHERE Resultado__c = 'Rechazada' GROUP BY Motivo__c ORDER BY COUNT(Id) DESC LIMIT 10"
+    rej=$(mdrows "SELECT Motivo__c, COUNT(Id) n FROM Log_Senial__c WHERE Resultado__c = 'Rechazada' GROUP BY Motivo__c ORDER BY COUNT(Id) DESC LIMIT 10")
+    if [ -n "$rej" ]; then printf '%s\n' "$rej"; else echo "| (none) | 0 |"; fi
     echo
     echo "Run summary kept by \`SesionSimulador\` (counters only):"
     echo
-    src_summary | apex | jq -Rr --arg since "$since" '
+    sumjson=$(src_summary | apex) || sumjson=""
+    if [ -z "$sumjson" ]; then
+      echo "- Could not read the summary (see the warning above)."
+    else
+      printf '%s\n' "$sumjson" | jq -Rr --arg since "$since" '
       def keep: ["paginas","recibidos","logsCreados","yaExistentes","logsFallidos","noPublicadosPorLog","publicados","fallosPublicacion",
                  "rechazados","descartados","reintentos","sesionesReabiertas","sesionContinuada","sesionReiniciada","cacheNoDisponible",
                  "flujoTerminado","cursorSinAvanzar","interrumpidaPorEstado","actualizadoEn"];
@@ -397,6 +418,7 @@ mode_evidence() {
         else "- " + ($s | with_entries(select(.key as $k | keep | index($k))) | to_entries | map("\(.key)=\(.value)") | join(", "))
           + (if ($since != "" and ($s.actualizadoEn | type) == "string" and ($s.actualizadoEn[0:19] < $since[0:19]))
              then "\n- WARNING: this summary is older than the run started at " + $since + ": do not use it." else "" end) end'
+    fi
     echo
     echo "Trace rows (US-201): one \`Procesada\` with a Case and one without."
     echo
