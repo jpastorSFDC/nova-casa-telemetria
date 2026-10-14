@@ -29,7 +29,30 @@ US-201 trace of one `Procesada` row with a Case and one without:
 | `nova-casa-simulator\|msg_000007` | Medidor de agua torre única | 2026-10-14T15:42:41Z | 2026-10-14T15:35:40Z | 2026-10-14T15:35:45Z | -421 | 5 | `En curso`, `Critica` |
 | `nova-casa-simulator\|msg_000004` | Sala técnica principal | 2026-10-14T15:39:39Z | 2026-10-14T15:35:40Z | 2026-10-14T15:35:45Z | -239 | 5 | none |
 
-`Delay publish` is negative because the simulator stamps `Occurred_At__c` later than the org's clock (here by 4 and 7 minutes; the `CAMERA_OUTAGE` section below shows the same, and D020 covers the future-date warning). The figure that means something is `Latency process`: 5 s from published to processed.
+`Delay publish` is negative in every trace row, and it grows with the message number: `msg_000004` is 4 minutes ahead of its publish time, `msg_000007` 7, `msg_000122` 122 and `msg_000176` 176 (run 2). The simulator's timeline advances one minute per message from the start of the session, so `Occurred_At__c` is in the future when the message is published, by more the later it comes in the stream; it is not a fixed offset of the simulator's clock (D020 covers the future-date warning, and the `CAMERA_OUTAGE` section below shows the same). The figure that means something is `Latency process`: 5 s from published to processed in run 1.
+
+### Run 2 — `DUPLICATES` (10 pages, batch 200, started 2026-10-14T16:30:52Z)
+
+| Scenario | Log rows | Readings | Cases | Breakdown of logs |
+|---|---|---|---|---|
+| `DUPLICATES` | 1437 | 9 | 19 | 83 Procesada, 1270 Atrasada, 50 Conflicto, 34 Rechazada |
+
+- **Gates:** 1 job (`TelemetriaIngesta`), `Completed`, 0 errors; 0 rows `Publicada`. The job took 57 s from creation to completion; the first `Publicado_At__c` to the last `Procesado_At__c` took 71 s. The run read the 10 pages it was given and stopped there (`flujoTerminado=false`): 2000 messages received and published.
+- **Counters:** 1437 log rows created, 563 `yaExistentes` (2000 − 1437), 0 log failures, 0 publish failures. 429 rows have `Reenvios__c > 0` and 50 are `Conflicto`.
+- **Latest readings by severity (US-206):** 2 `Crítica`, 1 `Advertencia`, 6 `Normal`, 0 without a level.
+- **Cases:** 19, all `Critica` and `En curso`, each tied to a `Procesada` log row (19 of 19): the repeats opened no Case of their own (US-205).
+- **`Atrasada` (1270):** 1263 lost to a newer message of the same batch and 7 to the stored reading (D011 h).
+- **`Rechazada` (34):** the output lists the 10 most common reasons, which cover 22 of the 34 rows: 8 `No hay umbral activo para UNKNOWN WATER_PRESSURE`; 6 `Valor ausente o no numérico: null`; and one each of `WATER_CONSUMPTION 6378` and `5339 LITER_PER_15_MIN` above the physical range limit `GT 5000`, `WATER_CONSUMPTION -229 LITER_PER_15_MIN` below `LT 0`, `TEMPERATURE 101.6 CELSIUS` reaching `GE 81`, `WATER_CONSUMPTION 308 GALLON_PER_15_MIN` and `ENERGY_CONSUMPTION 9.2`, `36.8` and `39.7 WATT` not in the expected unit.
+- **Against 2026-10-05:** that run had 276 log rows, 7 Cases and 10 `Conflicto`; this one has 1437, 19 and 50. Another case of the volume changing from run to run (see Caveats).
+
+US-201 trace:
+
+| Identidad__c | Asset | Occurred_At__c | Publicado_At__c | Procesado_At__c | Delay publish (s) | Latency process (s) | Case |
+|---|---|---|---|---|---|---|---|
+| `nova-casa-simulator\|msg_000122` | Cámara azotea | 2026-10-14T18:32:57Z | 2026-10-14T16:30:58Z | 2026-10-14T16:31:51Z | -7319 | 53 | `En curso`, `Critica` |
+| `nova-casa-simulator\|msg_000176` | Medidor de energía torre única | 2026-10-14T19:26:54Z | 2026-10-14T16:30:58Z | 2026-10-14T16:31:51Z | -10556 | 53 | none |
+
+Both rows were processed 53 s after they were published, against 5 s in run 1: this run had 2000 events to process instead of 200.
 
 ## Results — final reruns, 2026-10-05 (post chain-depth fix, trigger as integration user)
 
