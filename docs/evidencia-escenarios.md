@@ -2,6 +2,35 @@
 
 Runs of `TelemetriaIngesta.iniciar('<scenario>', 10)` against `nova-cdo`, each one on a cleaned org (logs, readings and Cases with `Origin = 'Telemetria'` deleted first). Counts are from SOQL on `Log_Senial__c.Resultado__c`, `Lectura_Vigente__c` and `Case`. Deploys report 0 tests in this org, so unit evidence is `sf apex run test` (see the PRs). The cleanup, the run, the wait for processing and the tables below are reproducible with `scripts/org-check.sh` (`clean`, `run`, `wait`, `evidence`).
 
+## Results — runs of 2026-10-14 (Juan Diego, `scripts/org-check.sh`)
+
+Nine runs in a fixed order, each on a cleaned org: `clean confirm=<org>:<n>` → `run <SCENARIO>` → `wait` → `evidence`, started and read by Juan Diego with his own user, seed 42. Gates for every run: no `AsyncApexJob` in `Failed` and no row left `Publicada`. The tables below are the `evidence` output of each run; this section grows as the runs come in.
+
+**The first clean.** It removed 10,200 `Log_Senial__c`, 10 `Lectura_Vigente__c` and the 70 `Case` with `Origin = 'Telemetria'`; the 3 other Cases, the buildings, the assets and the thresholds were not part of it. Everything went to the recycle bin. The script's own pass failed on the Apex CPU limit (also with chunks of 500): it deleted the Cases while thousands of logs still pointed at them through `Caso__c`. Juan Diego deleted the logs first in passes of 2000 and then ran the script's clean for the Cases and the readings. The script now deletes Cases and readings only once no log is left.
+
+### Run 1 — `QA_200` (10 pages requested, batch 200, started 2026-10-14T15:35:30Z)
+
+| Scenario | Log rows | Readings | Cases | Breakdown of logs |
+|---|---|---|---|---|
+| `QA_200` | 189 | 10 | 4 | 16 Procesada, 168 Atrasada, 4 Rechazada, 1 Conflicto |
+
+- **Gates:** 1 job (`TelemetriaIngesta`), `Completed`, 0 errors; 0 rows `Publicada`. The job took 13 s from creation to completion; the first `Publicado_At__c` to the last `Procesado_At__c` took 5 s. The stream ended after the first page (`flujoTerminado=true`).
+- **Counters:** 200 received, 200 published, 189 log rows created, 11 `yaExistentes`, 0 log failures, 0 publish failures. The 11 are the scenario's own repeats, not leftovers: 10 rows with `Reenvios__c > 0` plus the 1 `Conflicto` (200 = 189 + 10 + 1, the same split as on 2026-10-05). The 189 log rows created equal the 189 identities of the 2026-10-05 run on a clean org, so the recycle bin blocked none.
+- **Latest readings by severity (US-206):** 3 `Crítica`, 2 `Advertencia`, 5 `Normal`, 0 without a level.
+- **Cases:** 4, all `Critica` and `En curso`, each tied to a `Procesada` log row.
+- **`Atrasada` (168):** 167 lost to a newer message of the same batch and 1 to the stored reading (D011 h).
+- **`Rechazada` (4), one row each:** `WATER_CONSUMPTION 7476 LITER_PER_15_MIN` above the physical range limit `GT 5000`; `Valor ausente o no numérico: null`; `No hay umbral activo para UNKNOWN TEMPERATURE`; `ENERGY_CONSUMPTION 23.6 WATT` not in the expected unit `KWH_PER_15_MIN`.
+- **Against 2026-10-05:** the same 189 log rows and the same 4 `Rechazada` and 1 `Conflicto`, but 16 `Procesada` and 4 Cases against 9 and 2: the split depends on the batch again (see Caveats).
+
+US-201 trace of one `Procesada` row with a Case and one without:
+
+| Identidad__c | Asset | Occurred_At__c | Publicado_At__c | Procesado_At__c | Delay publish (s) | Latency process (s) | Case |
+|---|---|---|---|---|---|---|---|
+| `nova-casa-simulator\|msg_000007` | Medidor de agua torre única | 2026-10-14T15:42:41Z | 2026-10-14T15:35:40Z | 2026-10-14T15:35:45Z | -421 | 5 | `En curso`, `Critica` |
+| `nova-casa-simulator\|msg_000004` | Sala técnica principal | 2026-10-14T15:39:39Z | 2026-10-14T15:35:40Z | 2026-10-14T15:35:45Z | -239 | 5 | none |
+
+`Delay publish` is negative because the simulator stamps `Occurred_At__c` later than the org's clock (here by 4 and 7 minutes; the `CAMERA_OUTAGE` section below shows the same, and D020 covers the future-date warning). The figure that means something is `Latency process`: 5 s from published to processed.
+
 ## Results — final reruns, 2026-10-05 (post chain-depth fix, trigger as integration user)
 
 All five scenarios below were re-run on 2026-10-05 after the Queueable chain-depth fix (D013, point 1.bis, PR #36) was deployed. `SenialSensorTrigger` ran as `novacasa.integracion@novacasa-telemetria.demo` (D017) for all five: `Log_Senial__c` rows are created by the caller (John's System Administrator user, running `iniciar`), `Lectura_Vigente__c` and `Case` rows are created by the integration user as the Platform Event subscriber. None of these five runs produced an `AsyncApexJob` with status `Failed` — the fix held for every chain depth these runs reached.
