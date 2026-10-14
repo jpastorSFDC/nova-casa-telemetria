@@ -319,9 +319,12 @@
                         <div>
                             <span class="rot">Intervención</span>
                             <p class="val">Ninguna abierta</p>
+                            <template if:true={selectedRow.hasLastClosed}>
+                                <p class="ultima-int">Última intervención: <button type="button" class="enlace" data-id={selectedRow.lastClosedCaseId} onclick={handleOpenCase}>Caso {selectedRow.lastClosedCaseNumber}</button>{selectedRow.lastClosedWhen}</p>
+                            </template>
                             <p>{selectedRow.noInterventionText}</p>
                             <template if:true={selectedRow.canCreate}>
-                                <button type="button" class="boton urgente" data-mode="crear" onclick={openForm}>Crear intervención</button>
+                                <button type="button" class="boton urgente" data-mode="crear" onclick={openForm}>{selectedRow.createLabel}</button>
                             </template>
                         </div>
                     </section>
@@ -330,7 +333,10 @@
                 <template if:true={formMode}>
                     <section class="card-extra form-accion" aria-label="Acción sobre la intervención">
                         <template if:true={isCreating}>
-                            <h3>Crear intervención</h3>
+                            <h3>{selectedRow.createLabel}</h3>
+                            <template if:true={selectedRow.hasLastClosed}>
+                                <p class="nota">{selectedRow.lastClosedSentence}</p>
+                            </template>
                             <label class="filtro-label" for="a-motivo">Motivo (obligatorio)</label>
                             <textarea class="campo campo-texto" id="a-motivo" maxlength="1000" rows="3" value={motivo} oninput={handleMotivo}></textarea>
                         </template>
