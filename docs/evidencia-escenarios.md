@@ -29,7 +29,7 @@ US-201 trace of one `Procesada` row with a Case and one without:
 | `nova-casa-simulator\|msg_000007` | Medidor de agua torre única | 2026-10-14T15:42:41Z | 2026-10-14T15:35:40Z | 2026-10-14T15:35:45Z | -421 | 5 | `En curso`, `Critica` |
 | `nova-casa-simulator\|msg_000004` | Sala técnica principal | 2026-10-14T15:39:39Z | 2026-10-14T15:35:40Z | 2026-10-14T15:35:45Z | -239 | 5 | none |
 
-`Delay publish` is negative in every trace row, and it grows with the message number: `msg_000004` is 4 minutes ahead of its publish time, `msg_000007` 7, `msg_000122` 122 and `msg_000176` 176 (run 2). The simulator's timeline advances one minute per message from the start of the session, so `Occurred_At__c` is in the future when the message is published, by more the later it comes in the stream; it is not a fixed offset of the simulator's clock (D020 covers the future-date warning, and the `CAMERA_OUTAGE` section below shows the same). The figure that means something is `Latency process`: 5 s from published to processed in run 1.
+`Delay publish` is negative in every trace row of runs 1 to 3, and it grows with the message number: `msg_000004` is 4 minutes ahead of its publish time, `msg_000007` 7, `msg_000122` 122 and `msg_000176` 176 (run 2). In `QA_200`, `DUPLICATES` and `BOUNDARIES` the simulator's timeline advances one minute per message from the start of the session, so `Occurred_At__c` is in the future when the message is published, by more the later it comes in the stream; it is not a fixed offset of the simulator's clock (D020 covers the future-date warning, and the `CAMERA_OUTAGE` section below shows the same). `LATE_MESSAGES` stamps its messages differently (run 4). The figure that means something is `Latency process`: 5 s from published to processed in run 1.
 
 ### Run 2 — `DUPLICATES` (10 pages, batch 200, started 2026-10-14T16:30:52Z)
 
@@ -76,6 +76,30 @@ US-201 trace:
 | `nova-casa-simulator\|msg_000007` | Medidor de energía torre única | 2026-10-14T17:50:19Z | 2026-10-14T17:43:19Z | 2026-10-14T17:43:29Z | -420 | 10 | none |
 
 The delays follow the message number again: `msg_000419` is about 419 minutes ahead of its publish time (7 hours, so its `Occurred_At__c` falls on the next day) and `msg_000007` 7 minutes.
+
+### Run 4 — `LATE_MESSAGES` (10 pages, batch 200, started 2026-10-14T17:58:56Z)
+
+| Scenario | Log rows | Readings | Cases | Breakdown of logs |
+|---|---|---|---|---|
+| `LATE_MESSAGES` | 1929 | 9 | 12 | 91 Procesada, 1709 Atrasada, 71 Rechazada, 57 Conflicto, 1 Superada |
+
+- **Gates:** 1 job (`TelemetriaIngesta`), `Completed`, 0 errors; 0 rows `Publicada`. The job took 37 s from creation to completion; the first `Publicado_At__c` to the last `Procesado_At__c` took 48 s. The run read the 10 pages it was given (`flujoTerminado=false`): 2000 messages received and published.
+- **Counters:** 1929 log rows created, 71 `yaExistentes` (2000 − 1929), 0 log failures, 0 publish failures. 13 rows have `Reenvios__c > 0` and 57 are `Conflicto`.
+- **Latest readings by severity (US-206):** 1 `Crítica`, 1 `Advertencia`, 7 `Normal`, 0 without a level.
+- **Cases:** 12, all `Critica` and `En curso`, each tied to a `Procesada` log row (12 of 12).
+- **`Atrasada` (1709), US-203:** 1703 lost to a newer message of the same batch (D011 h) and 6 to the reading already stored from an earlier batch. Those 6 are the case the agreement describes: a signal that arrives after a newer one for the same asset and measurement, kept as evidence without changing the current state or opening a Case.
+- **`Superada` (1), US-203, D003:** a signal with the same `occurredAt` as the stored reading or the batch winner that loses the tie-break (D011, points 3 and 6). It is the first row of this result in a real run; before, only tests covered it. The `Atrasada` and `Superada` rows are separate results: `Superada` is reserved for the tie.
+- **`Rechazada` (71):** the output lists the 10 most common reasons, which cover 36 of the 71 rows: 17 `Valor ausente o no numérico: null`; 11 `No hay umbral activo para UNKNOWN WATER_PRESSURE`; and one each of `WATER_CONSUMPTION 6219 LITER_PER_15_MIN` above `GT 5000`, `WATER_CONSUMPTION -377 LITER_PER_15_MIN` below `LT 0`, `TEMPERATURE 119.5 CELSIUS` reaching `GE 81`, `TEMPERATURE -26.8` and `-39.6 CELSIUS` reaching `LE -11`, `WATER_CONSUMPTION 281` and `225 GALLON_PER_15_MIN` and `ENERGY_CONSUMPTION 21.7 WATT` not in the expected unit.
+- **Against 2026-10-05:** that run had 385 log rows, 6 Cases, 10 `Conflicto` and 17 `Rechazada`, and no `Superada`; this one has 1929, 12, 57 and 71.
+
+US-201 trace:
+
+| Identidad__c | Asset | Occurred_At__c | Publicado_At__c | Procesado_At__c | Delay publish (s) | Latency process (s) | Case |
+|---|---|---|---|---|---|---|---|
+| `nova-casa-simulator\|msg_000016` | Sala técnica principal | 2026-10-14T18:00:02Z | 2026-10-14T17:58:58Z | 2026-10-14T17:59:35Z | -64 | 37 | `En curso`, `Critica` |
+| `nova-casa-simulator\|msg_000022` | Cámara azotea | 2026-10-14T17:44:01Z | 2026-10-14T17:58:58Z | 2026-10-14T17:59:35Z | 897 | 37 | none |
+
+Here the delays do not follow the message number: `msg_000016` is 64 s ahead of its publish time, and `msg_000022` was published 897 s (about 15 minutes) after it occurred, a message stamped in the past. It was still `Procesada`: by D011 (h) that means it was the newest of its asset and measurement in its batch and not older than the reading stored at that moment.
 
 ## Results — final reruns, 2026-10-05 (post chain-depth fix, trigger as integration user)
 
