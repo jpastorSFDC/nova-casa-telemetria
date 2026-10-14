@@ -45,9 +45,10 @@ private class ActivosOperadorControllerTest {
                     Field = 'Lectura_Vigente__c.Sensor_Id__c', PermissionsRead = true, PermissionsEdit = false)
             };
             // Standard fields flagged permissionable in the describe need explicit FLS too (object Read is not enough):
-            // Asset.AccountId, Case.AssetId, Case.Subject. CaseNumber, Status, IsClosed, Name, CreatedDate do not.
+            // Asset.AccountId, Case.AssetId, Case.Subject, Case.ClosedDate (read-only, like the shipped sets). CaseNumber, Status,
+            // IsClosed, Name, CreatedDate do not.
             for (PermissionSet ps : new List<PermissionSet>{ fullPs, noFlsPs }) {
-                for (String f : new List<String>{ 'Asset.AccountId', 'Case.AssetId', 'Case.Subject' }) {
+                for (String f : new List<String>{ 'Asset.AccountId', 'Case.AssetId', 'Case.Subject', 'Case.ClosedDate' }) {
                     fieldPerms.add(new FieldPermissions(ParentId = ps.Id, SobjectType = f.substringBefore('.'),
                         Field = f, PermissionsRead = true, PermissionsEdit = false));
                 }
@@ -1368,7 +1369,7 @@ private class ActivosOperadorControllerTest {
             }
             insert objectPerms;
             List<FieldPermissions> fieldPerms = new List<FieldPermissions>();
-            for (String f : new List<String>{ 'Asset.AccountId', 'Case.AssetId', 'Case.Subject', 'Lectura_Vigente__c.Sensor_Id__c' }) {
+            for (String f : new List<String>{ 'Asset.AccountId', 'Case.AssetId', 'Case.Subject', 'Case.ClosedDate', 'Lectura_Vigente__c.Sensor_Id__c' }) {
                 // Required and master-detail fields are always readable; Severidad_Nivel__c is the only one left out.
                 fieldPerms.add(new FieldPermissions(ParentId = ps.Id, SobjectType = f.substringBefore('.'),
                     Field = f, PermissionsRead = true, PermissionsEdit = false));
@@ -1865,28 +1866,150 @@ private class ActivosOperadorControllerTest {
         Assert.isNull(openJson.get('lastClosedIntervention'));
     }
 
-    @isTest
-    static void caseClosedDateIsReadableInUserModeByAUserWithNoFieldPermissionOnIt() {
-        // Given a closed case and the test operator, whose permission set grants Case.AssetId and Case.Subject but nothing on ClosedDate
-        Account building = newAccount('Edificio Fecha Cierre');
-        Case closed = newCase(newAsset('AST-LAST-FLS', building, 'WATER_PUMP'), 'Closed', 'Cerrado FLS');
+    // Case.ClosedDate is permissionable (it needs read FLS like Case.Subject), so the closed lookup of getAssets is only allowed
+    // for a user whose permission set grants it. The tests below pin that from every side: the lookup really enforces it, it
+    // only runs when it has to, the four shipped sets grant it, and the roles above the operator receive the line.
 
-        // When that operator reads ClosedDate in USER_MODE, as getAssets does
-        List<SObject> rows;
-        Boolean denied = false;
-        System.runAs(userLike('nc207operator')) {
+    @isTest
+    static void listFailsWithTheSafeAccessMessageWhenTheUserCannotReadCaseClosedDateAndAnAssetHasNoOpenCase() {
+        // Given a user whose permission set grants everything the list needs EXCEPT Case.ClosedDate, who owns a building with
+        // an asset that has a reading and only a closed case, so the closed lookup has to run
+        User noClosedDate = newUserWithEverythingButClosedDate();
+        Account building = newAccount('Edificio Sin Fecha Cierre', noClosedDate.Id);
+        Asset asset = newAsset('AST-NOCD-CLOSED', building, 'WATER_PUMP');
+        newReading(asset, 'TEMPERATURE', 'CELSIUS', 95, baseTime(), 2);
+        newCase(asset, 'Closed', 'Cerrado sin permiso');
+
+        // When that user loads the list
+        ActivosOperadorController.AssetPage page;
+        AuraHandledException error;
+        System.runAs(noClosedDate) {
             try {
-                rows = Database.query('SELECT Id, ClosedDate FROM Case WHERE IsClosed = true', AccessLevel.USER_MODE);
-            } catch (QueryException e) {
-                denied = true;
+                page = ActivosOperadorController.getAssets(null, null, null);
+            } catch (AuraHandledException e) {
+                error = e;
             }
         }
 
-        // Then the read is allowed: ClosedDate has no field-level security, so getAssets cannot fail for lack of it
-        Assert.isFalse(denied, 'Case.ClosedDate must be readable in USER_MODE without a field permission; if not, getAssets fails for every operator (D038 risk)');
-        Assert.areEqual(1, rows.size());
-        Assert.areEqual(closed.Id, rows[0].Id);
-        Assert.isNotNull(rows[0].get('ClosedDate'));
+        // Then the call fails with the static access message and returns no data. This is what proves the closed lookup runs
+        // WITH USER_MODE: the user can see the asset, its reading and its case, and lacks only FLS on ClosedDate, so if the
+        // query ran in system mode (or without enforcement) nothing would throw and this test would fail.
+        Assert.isNotNull(error, 'Missing FLS on Case.ClosedDate must raise an AuraHandledException when the closed lookup runs');
+        Assert.areEqual(ActivosOperadorController.ACCESS_MESSAGE, error.getMessage());
+        Assert.isFalse(error.getMessage().contains('ClosedDate'), 'the message must not name the field');
+        Assert.isNull(page, 'no partial data may be returned');
+    }
+
+    @isTest
+    static void listLoadsForAUserWithoutCaseClosedDateAccessWhenEveryAssetOnThePageHasAnOpenCase() {
+        // Given the same kind of user (everything except Case.ClosedDate) and a building whose only asset has an open case
+        // and an older closed one, so no asset needs the closed lookup
+        User noClosedDate = newUserWithEverythingButClosedDate();
+        Account building = newAccount('Edificio Todo Abierto Sin Permiso', noClosedDate.Id);
+        Asset asset = newAsset('AST-NOCD-OPEN', building, 'WATER_PUMP');
+        newReading(asset, 'TEMPERATURE', 'CELSIUS', 95, baseTime(), 2);
+        newCase(asset, 'Closed', 'Cerrado viejo');
+        Case open = newCase(asset, 'New', 'Abierto actual');
+
+        // When that user loads the list
+        ActivosOperadorController.AssetPage page;
+        AuraHandledException error;
+        System.runAs(noClosedDate) {
+            try {
+                page = ActivosOperadorController.getAssets(null, null, null);
+            } catch (AuraHandledException e) {
+                error = e;
+            }
+        }
+
+        // Then nothing throws: the closed lookup is skipped, so the missing ClosedDate access does not matter. This is also the
+        // control of the test above: it shows ClosedDate is the only thing that user lacks for the list.
+        Assert.isNull(error, 'the closed lookup must not run (and so not need ClosedDate) when every asset has an open case');
+        Assert.areEqual(1, page.assets.size());
+        Assert.areEqual(asset.Id, page.assets[0].assetId);
+        Assert.areEqual(2, page.assets[0].severityLevel);
+        Assert.areEqual(1, page.assets[0].openInterventionCount);
+        Assert.areEqual(open.Id, page.assets[0].openIntervention.caseId);
+        Assert.isNull(page.assets[0].lastClosedIntervention, 'an asset with an open case never offers a closed one');
+    }
+
+    @isTest
+    static void everyShippedPermissionSetGrantsReadOnlyAccessToCaseClosedDate() {
+        // Given the four shipped permission sets of the screen
+        List<String> shipped = new List<String>{ 'Nova_Casa_Operator', 'Nova_Casa_Coordinator', 'Nova_Casa_Gerente', 'Nova_Casa_Admin' };
+        Map<Id, PermissionSet> sets = new Map<Id, PermissionSet>([SELECT Id, Name FROM PermissionSet WHERE Name IN :shipped]);
+        Assert.areEqual(4, sets.size(), 'all four shipped permission sets must be deployed to the org');
+
+        // When their field permissions on Case.ClosedDate are read
+        List<FieldPermissions> fieldPerms = [
+            SELECT ParentId, PermissionsRead, PermissionsEdit
+            FROM FieldPermissions
+            WHERE SobjectType = 'Case' AND Field = 'Case.ClosedDate' AND ParentId IN :sets.keySet()
+        ];
+        Map<String, FieldPermissions> bySet = new Map<String, FieldPermissions>();
+        for (FieldPermissions fieldPerm : fieldPerms) {
+            bySet.put(sets.get(fieldPerm.ParentId).Name, fieldPerm);
+        }
+
+        // Then every set grants read and not edit, and there is exactly one row per set
+        for (String setName : shipped) {
+            FieldPermissions fieldPerm = bySet.get(setName);
+            Assert.isNotNull(fieldPerm, setName + ' must have a field permission on Case.ClosedDate');
+            Assert.isTrue(fieldPerm.PermissionsRead, setName + ' must grant read on Case.ClosedDate (getAssets reads it in USER_MODE)');
+            Assert.isFalse(fieldPerm.PermissionsEdit, setName + ' must not grant edit on Case.ClosedDate');
+        }
+        Assert.areEqual(4, fieldPerms.size(), 'expected exactly one Case.ClosedDate field permission per shipped permission set');
+    }
+
+    @isTest
+    static void realCoordinatorAndGerentePermissionSetsReceiveTheLastClosedInterventionOfAVisibleCase() {
+        // Given a coordinator and a Gerente, each holding only their shipped permission set, above the building's operator,
+        // and an asset whose only case is closed
+        User coordinator = newUserWithPermissionSet('nc207closedcoord', 'Nova_Casa_Coordinator', COORDINATOR_ROLE);
+        User gerente = newUserWithPermissionSet('nc207closedger', 'Nova_Casa_Gerente', GERENTE_ROLE);
+        Account building = newAccount('Edificio Cerrado Roles');
+        Asset asset = newAsset('AST-CLOSED-ROLES', building, 'WATER_PUMP');
+        Case closed = reloaded(newCase(asset, 'Closed', 'Cerrado roles'));
+        Assert.isNotNull(closed.ClosedDate, 'precondition: closing a case stamps ClosedDate');
+
+        // When each loads the list
+        Map<String, ActivosOperadorController.AssetPage> pages = new Map<String, ActivosOperadorController.AssetPage>();
+        pages.put('Nova_Casa_Coordinator', loadResult(coordinator, null, null, null));
+        pages.put('Nova_Casa_Gerente', loadResult(gerente, null, null, null));
+
+        // Then both see the asset through the role hierarchy and receive its closed case, which needs read FLS on ClosedDate
+        for (String setName : pages.keySet()) {
+            ActivosOperadorController.AssetPage page = pages.get(setName);
+            Assert.areEqual(1, page.assets.size(), setName + ' must see the operator asset');
+            ActivosOperadorController.AssetView view = page.assets[0];
+            Assert.areEqual(asset.Id, view.assetId, setName);
+            Assert.isNotNull(view.lastClosedIntervention, setName + ' must receive the last closed intervention of a case it can see');
+            Assert.areEqual(closed.Id, view.lastClosedIntervention.caseId, setName);
+            Assert.areEqual(closed.CaseNumber, view.lastClosedIntervention.caseNumber, setName);
+            Assert.areEqual(closed.ClosedDate, view.lastClosedIntervention.closedDate, setName);
+            Assert.isNull(view.openIntervention, setName);
+        }
+    }
+
+    @isTest
+    static void realAdminPermissionSetReceivesTheLastClosedInterventionWithoutAnyRole() {
+        // Given a user holding only the shipped Nova_Casa_Admin set and no role (it sees the building through View All, as in
+        // realCoordinatorAndAdminPermissionSetsCanOpenTheAssetState), and an asset whose only case is closed
+        User admin = newUserWithPermissionSet('nc207closedadmin', 'Nova_Casa_Admin', null);
+        Account building = newAccount('Edificio Cerrado Admin');
+        Asset asset = newAsset('AST-CLOSED-ADMIN', building, 'WATER_PUMP');
+        Case closed = reloaded(newCase(asset, 'Closed', 'Cerrado admin'));
+        Assert.isNotNull(closed.ClosedDate, 'precondition: closing a case stamps ClosedDate');
+
+        // When that user loads the list
+        ActivosOperadorController.AssetPage page = loadResult(admin, null, null, null);
+
+        // Then the asset and its closed case come back, with the closing date
+        Assert.areEqual(1, page.assets.size(), 'Nova_Casa_Admin must see the operator asset');
+        Assert.isNotNull(page.assets[0].lastClosedIntervention, 'Nova_Casa_Admin must receive the last closed intervention');
+        Assert.areEqual(closed.Id, page.assets[0].lastClosedIntervention.caseId);
+        Assert.areEqual(closed.CaseNumber, page.assets[0].lastClosedIntervention.caseNumber);
+        Assert.areEqual(closed.ClosedDate, page.assets[0].lastClosedIntervention.closedDate);
     }
 
     // ---------- helpers ----------
@@ -1904,6 +2027,36 @@ private class ActivosOperadorControllerTest {
             }
             insert u;
             insert new PermissionSetAssignment(AssigneeId = u.Id, PermissionSetId = sets[0].Id);
+        }
+        return u;
+    }
+
+    // A fresh user (no role) with a throwaway permission set that mirrors NC207_Operator_Full (Read on the five objects the list
+    // queries, read-only FLS on its fields) minus Case.ClosedDate. Call before inserting data rows in the test.
+    private static User newUserWithEverythingButClosedDate() {
+        User u;
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            PermissionSet ps = newPermissionSet('NC207_Operator_NoClosedDate');
+            insert ps;
+            List<ObjectPermissions> objectPerms = new List<ObjectPermissions>();
+            for (String obj : new List<String>{ 'Asset', 'Account', 'Contact', 'Case', 'Lectura_Vigente__c' }) {
+                objectPerms.add(new ObjectPermissions(ParentId = ps.Id, SobjectType = obj, PermissionsRead = true));
+            }
+            insert objectPerms;
+            List<FieldPermissions> fieldPerms = new List<FieldPermissions>();
+            for (String f : new List<String>{
+                'Asset.AccountId', 'Asset.Tipo_Activo__c', 'Asset.External_Id__c',
+                'Case.AssetId', 'Case.Subject',
+                'Lectura_Vigente__c.Severidad_Nivel__c', 'Lectura_Vigente__c.Sensor_Id__c'
+            }) {
+                fieldPerms.add(new FieldPermissions(ParentId = ps.Id, SobjectType = f.substringBefore('.'),
+                    Field = f, PermissionsRead = true, PermissionsEdit = false));
+            }
+            insert fieldPerms;
+            Profile p = [SELECT Id FROM Profile WHERE Name = 'Minimum Access - Salesforce' LIMIT 1];
+            u = newUser(p.Id, 'nc207noclosed', String.valueOf(Crypto.getRandomInteger()).replace('-', 'n'));
+            insert u;
+            insert new PermissionSetAssignment(AssigneeId = u.Id, PermissionSetId = ps.Id);
         }
         return u;
     }
