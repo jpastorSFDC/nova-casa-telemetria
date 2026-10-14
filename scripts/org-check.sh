@@ -179,7 +179,9 @@ telemetry_counts() {
 
 # ---------------------------------------------------------------- Apex sources
 
-# One delete pass, logs first (they point at Cases), then Cases, then readings. Status codes only: no messages.
+# One delete pass: logs first (they point at Cases). Cases and readings only once no log is left, because deleting a
+# Case clears Caso__c on every log that still points at it, and with thousands of logs left that hit the CPU limit
+# (2026-10-14, 10,200 logs). Status codes only: no messages.
 src_purge() {
   cat <<APEX
 Integer ok; Integer bad; StatusCode sc;
@@ -189,18 +191,23 @@ for (Database.DeleteResult r : Database.delete(logs, false)) {
     if (r.isSuccess()) { ok++; } else { bad++; sc = r.getErrors()[0].getStatusCode(); }
 }
 System.debug('NC|Log_Senial__c deleted=' + ok + ' failed=' + bad + (sc == null ? '' : ' code=' + sc));
-List<Case> cases = [SELECT Id FROM Case WHERE Origin = 'Telemetria' LIMIT $PURGE_CHUNK];
-ok = 0; bad = 0; sc = null;
-for (Database.DeleteResult r : Database.delete(cases, false)) {
-    if (r.isSuccess()) { ok++; } else { bad++; sc = r.getErrors()[0].getStatusCode(); }
+Integer logsLeft = [SELECT COUNT() FROM Log_Senial__c];
+if (logsLeft > 0) {
+    System.debug('NC|Case and Lectura_Vigente__c wait until no Log_Senial__c is left (' + logsLeft + ' left)');
+} else {
+    List<Case> cases = [SELECT Id FROM Case WHERE Origin = 'Telemetria' LIMIT $PURGE_CHUNK];
+    ok = 0; bad = 0; sc = null;
+    for (Database.DeleteResult r : Database.delete(cases, false)) {
+        if (r.isSuccess()) { ok++; } else { bad++; sc = r.getErrors()[0].getStatusCode(); }
+    }
+    System.debug('NC|Case deleted=' + ok + ' failed=' + bad + (sc == null ? '' : ' code=' + sc));
+    List<Lectura_Vigente__c> reads = [SELECT Id FROM Lectura_Vigente__c LIMIT $PURGE_CHUNK];
+    ok = 0; bad = 0; sc = null;
+    for (Database.DeleteResult r : Database.delete(reads, false)) {
+        if (r.isSuccess()) { ok++; } else { bad++; sc = r.getErrors()[0].getStatusCode(); }
+    }
+    System.debug('NC|Lectura_Vigente__c deleted=' + ok + ' failed=' + bad + (sc == null ? '' : ' code=' + sc));
 }
-System.debug('NC|Case deleted=' + ok + ' failed=' + bad + (sc == null ? '' : ' code=' + sc));
-List<Lectura_Vigente__c> reads = [SELECT Id FROM Lectura_Vigente__c LIMIT $PURGE_CHUNK];
-ok = 0; bad = 0; sc = null;
-for (Database.DeleteResult r : Database.delete(reads, false)) {
-    if (r.isSuccess()) { ok++; } else { bad++; sc = r.getErrors()[0].getStatusCode(); }
-}
-System.debug('NC|Lectura_Vigente__c deleted=' + ok + ' failed=' + bad + (sc == null ? '' : ' code=' + sc));
 APEX
 }
 
@@ -271,7 +278,7 @@ mode_clean() {
     exit 1
   fi
   echo "Clean. Unchanged: $STAYS"
-  echo "The rows went to the recycle bin. After the first run, evidence must show yaExistentes=0 and about 0 Conflicto."
+  echo "The rows went to the recycle bin. After the first run, check that logsCreados + yaExistentes = recibidos and logsFallidos = 0: the repeats a scenario sends by itself (QA_200: 10 resends and 1 Conflicto) count as yaExistentes, so it is not 0. Far fewer logsCreados than the same scenario made on a clean org means old rows are still blocking."
 }
 
 mode_run() {
