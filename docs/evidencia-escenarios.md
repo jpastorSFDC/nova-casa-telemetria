@@ -54,6 +54,29 @@ US-201 trace:
 
 Both rows were processed 53 s after they were published, against 5 s in run 1: this run had 2000 events to process instead of 200.
 
+### Run 3 — `BOUNDARIES` (10 pages, batch 200, started 2026-10-14T17:43:18Z)
+
+| Scenario | Log rows | Readings | Cases | Breakdown of logs |
+|---|---|---|---|---|
+| `BOUNDARIES` | 2000 | 9 | 2 | 97 Procesada, 1903 Atrasada, 0 Conflicto, 0 Rechazada |
+
+- **Gates:** 1 job (`TelemetriaIngesta`), `Completed`, 0 errors; 0 rows `Publicada`. The job took 10 s from creation to completion; the first `Publicado_At__c` to the last `Procesado_At__c` took 19 s. The run read the 10 pages it was given (`flujoTerminado=false`): 2000 messages received and published.
+- **Counters:** 2000 log rows created, 0 `yaExistentes`, 0 log failures, 0 publish failures, no resends. Every message of this scenario has its own identity.
+- **Latest readings by severity (US-206):** 0 `Crítica`, 6 `Advertencia`, 3 `Normal`, 0 without a level.
+- **Cases:** 2, both `Critica` and `En curso`, each tied to a `Procesada` log row (2 of 2). No latest reading is `Crítica` now, so the Cases were opened by critical readings that a newer `Procesada` reading of the same asset and measurement replaced later (97 `Procesada` rows wrote 9 readings); the Cases stay open.
+- **`Atrasada` (1903):** all 1903 lost to a newer message of the same batch (D011 h), none to the stored reading.
+- **`Rechazada`:** none.
+- **Against 2026-10-05:** that run had 400 log rows, 9 readings and 2 Cases (36 `Procesada`, 364 `Atrasada`); this one has 2000, 9 and 2 (97 and 1903). The scenario's shape is the same, with more messages read.
+
+US-201 trace:
+
+| Identidad__c | Asset | Occurred_At__c | Publicado_At__c | Procesado_At__c | Delay publish (s) | Latency process (s) | Case |
+|---|---|---|---|---|---|---|---|
+| `nova-casa-simulator\|msg_000419` | Cámara azotea | 2026-10-15T00:42:17Z | 2026-10-14T17:43:21Z | 2026-10-14T17:43:30Z | -25136 | 9 | `En curso`, `Critica` |
+| `nova-casa-simulator\|msg_000007` | Medidor de energía torre única | 2026-10-14T17:50:19Z | 2026-10-14T17:43:19Z | 2026-10-14T17:43:29Z | -420 | 10 | none |
+
+The delays follow the message number again: `msg_000419` is about 419 minutes ahead of its publish time (7 hours, so its `Occurred_At__c` falls on the next day) and `msg_000007` 7 minutes.
+
 ## Results — final reruns, 2026-10-05 (post chain-depth fix, trigger as integration user)
 
 All five scenarios below were re-run on 2026-10-05 after the Queueable chain-depth fix (D013, point 1.bis, PR #36) was deployed. `SenialSensorTrigger` ran as `novacasa.integracion@novacasa-telemetria.demo` (D017) for all five: `Log_Senial__c` rows are created by the caller (John's System Administrator user, running `iniciar`), `Lectura_Vigente__c` and `Case` rows are created by the integration user as the Platform Event subscriber. None of these five runs produced an `AsyncApexJob` with status `Failed` — the fix held for every chain depth these runs reached.
