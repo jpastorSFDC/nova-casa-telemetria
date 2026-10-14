@@ -6,7 +6,7 @@ Runs of `TelemetriaIngesta.iniciar('<scenario>', 10)` against `nova-cdo`, each o
 
 Nine runs in a fixed order, each on a cleaned org: `clean confirm=<org>:<n>` → `run <SCENARIO>` → `wait` → `evidence`, started and read by Juan Diego with his own user, seed 42. Gates for every run: no `AsyncApexJob` in `Failed` and no row left `Publicada`. The tables below are the `evidence` output of each run; this section grows as the runs come in.
 
-**The cleans.** The first one removed 10,200 `Log_Senial__c`, 10 `Lectura_Vigente__c` and the 70 `Case` with `Origin = 'Telemetria'`; the 3 other Cases, the buildings, the assets and the thresholds were not part of it. Everything went to the recycle bin. The script's own pass failed on the Apex CPU limit (also with chunks of 500, and nothing was deleted). Juan Diego deleted the logs in passes of 2000 and then ran the script's clean for the Cases and the readings, and both parts worked. The cleans before runs 2, 3 and 4 worked with the script as it was. The clean before run 5 (1929 logs, 9 readings and 12 Cases) failed on the same limit and also deleted nothing, so the failure does not need thousands of logs. The cause was not confirmed (no debug log was read): what the failures have in common is that logs, Cases and readings were deleted in one Apex execution, and what worked every time was deleting each kind on its own. The script now deletes one kind per execution, logs first, and goes on to the Cases and the readings only when no log is left.
+**The cleans.** The first one removed 10,200 `Log_Senial__c`, 10 `Lectura_Vigente__c` and the 70 `Case` with `Origin = 'Telemetria'`; the 3 other Cases, the buildings, the assets and the thresholds were not part of it. Everything went to the recycle bin. The script's own pass failed on the Apex CPU limit (also with chunks of 500, and nothing was deleted). Juan Diego deleted the logs in passes of 2000 and then ran the script's clean for the Cases and the readings, and both parts worked. The cleans before runs 2, 3 and 4 worked with the script as it was. The clean before run 5 (1929 logs, 9 readings and 12 Cases) failed on the same limit and also deleted nothing, so the failure does not need thousands of logs. The cause was not confirmed (no debug log was read): what the failures have in common is that logs, Cases and readings were deleted in one Apex execution, and what worked every time was deleting each kind on its own. Juan Diego then did the clean in two steps: one pass of logs only, which removed 1962 `Log_Senial__c` (33 more than the preview had shown, because "Traer señales" was pressed after run 4's evidence was captured; run 4's figures are unaffected), and then `clean confirm=<org>:0` for the 12 Cases and the 9 readings. The preview came back at 0 / 0 / 0. The script now deletes one kind per execution, logs first, and goes on to the Cases and the readings only when no log is left; that version has not been run in the org yet.
 
 ### Run 1 — `QA_200` (10 pages requested, batch 200, started 2026-10-14T15:35:30Z)
 
@@ -100,6 +100,29 @@ US-201 trace:
 | `nova-casa-simulator\|msg_000022` | Cámara azotea | 2026-10-14T17:44:01Z | 2026-10-14T17:58:58Z | 2026-10-14T17:59:35Z | 897 | 37 | none |
 
 Here the delays do not follow the message number: `msg_000016` is 64 s ahead of its publish time, and `msg_000022` was published 897 s (about 15 minutes) after it occurred, a message stamped in the past. It was still `Procesada`: by D011 (h) that means it was the newest of its asset and measurement in its batch and not older than the reading stored at that moment.
+
+### Run 5 — `INVALID_DATA` (10 pages, batch 200, started 2026-10-14T21:12:26Z)
+
+| Scenario | Log rows | Readings | Cases | Breakdown of logs |
+|---|---|---|---|---|
+| `INVALID_DATA` | 1861 | 6 | 2 | 1203 Rechazada, 563 Atrasada, 63 Procesada, 32 Conflicto |
+
+- **Gates:** 1 job (`TelemetriaIngesta`), `Completed`, 0 errors; 0 rows `Publicada`. The job took 48 s from creation to completion; the first `Publicado_At__c` to the last `Procesado_At__c` took 58 s. The run read the 10 pages it was given (`flujoTerminado=false`): 2000 messages received and published. It is the first live run of this scenario in this evidence: the 2026-10-05 batch below did not include it.
+- **Counters:** 1861 log rows created, 139 `yaExistentes` (2000 − 1861), 0 log failures, 0 publish failures. `rechazados=0` and `descartados=0`: the ingestion itself rejected nothing, every message had a usable identity, so all 1203 `Rechazada` rows come from the handler (D032). 105 rows have `Reenvios__c > 0` and 32 are `Conflicto`.
+- **Latest readings by severity (US-206):** 0 `Crítica`, 0 `Advertencia`, 6 `Normal`, 0 without a level.
+- **Cases:** 2, both `Critica` and `En curso`, each tied to a `Procesada` log row (2 of 2). As in run 3, no latest reading is `Crítica` now, so the Cases were opened by critical readings that a newer `Procesada` reading of the same asset and measurement replaced later (63 `Procesada` rows wrote 6 readings); the Cases stay open.
+- **`Atrasada` (563), US-203:** all 563 lost to a newer message of the same batch (D011 h), none to the stored reading.
+- **`Rechazada` (1203), US-202, D032:** the output lists the 10 most common reasons, which cover 622 of the 1203 rows: 309 `Valor ausente o no numérico: null` (rule 1); 293 `No hay umbral activo para UNKNOWN WATER_PRESSURE` (rule 4); 14 with a unit that is not the expected one (`ENERGY_CONSUMPTION` in `WATT` instead of `KWH_PER_15_MIN`, 12 rows, and `WATER_CONSUMPTION` in `GALLON_PER_15_MIN` instead of `LITER_PER_15_MIN`, 2 rows; rule 5); and 6 outside the physical range (`TEMPERATURE 104.6 CELSIUS` reaching `GE 81`, and `WATER_CONSUMPTION` of -491 and -263 `LITER_PER_15_MIN` below `LT 0`, 2 rows each; rule 7). The other 581 rows are not listed, so this run does not show rules 2 (unknown asset), 3 (building that is not the asset's) or 6 (field too long or `Message_Type` not allowed), nor a bad date; the tests listed in D032 are the evidence for those.
+- **Valid signals went on:** 63 `Procesada` rows wrote the 6 readings next to the 1203 rejected ones, so a bad signal did not stop the others (BR-202).
+
+US-201 trace:
+
+| Identidad__c | Asset | Occurred_At__c | Publicado_At__c | Procesado_At__c | Delay publish (s) | Latency process (s) | Case |
+|---|---|---|---|---|---|---|---|
+| `nova-casa-simulator\|msg_000224` | Sala técnica principal | 2026-10-15T00:56:28Z | 2026-10-14T21:12:31Z | 2026-10-14T21:13:16Z | -13437 | 45 | `En curso`, `Critica` |
+| `nova-casa-simulator\|msg_000016` | Sala técnica principal | 2026-10-14T21:28:25Z | 2026-10-14T21:12:27Z | 2026-10-14T21:13:16Z | -958 | 49 | none |
+
+The delays follow the message number again: `msg_000224` is about 224 minutes ahead of its publish time (3 h 44 min, so its `Occurred_At__c` falls on the next day) and `msg_000016` about 16 minutes.
 
 ## Results — final reruns, 2026-10-05 (post chain-depth fix, trigger as integration user)
 
