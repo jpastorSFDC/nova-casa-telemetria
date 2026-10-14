@@ -6,7 +6,7 @@ Runs of `TelemetriaIngesta.iniciar('<scenario>', 10)` against `nova-cdo`, each o
 
 Nine runs in a fixed order, each on a cleaned org: `clean confirm=<org>:<n>` → `run <SCENARIO>` → `wait` → `evidence`, started and read by Juan Diego with his own user, seed 42. Gates for every run: no `AsyncApexJob` in `Failed` and no row left `Publicada`. The tables below are the `evidence` output of each run; this section grows as the runs come in.
 
-**The cleans.** The first one removed 10,200 `Log_Senial__c`, 10 `Lectura_Vigente__c` and the 70 `Case` with `Origin = 'Telemetria'`; the 3 other Cases, the buildings, the assets and the thresholds were not part of it. Everything went to the recycle bin. The script's own pass failed on the Apex CPU limit (also with chunks of 500, and nothing was deleted). Juan Diego deleted the logs in passes of 2000 and then ran the script's clean for the Cases and the readings, and both parts worked. The cleans before runs 2, 3 and 4 worked with the script as it was. The clean before run 5 (1929 logs, 9 readings and 12 Cases) failed on the same limit and also deleted nothing, so the failure does not need thousands of logs. The cause was not confirmed (no debug log was read): what the failures have in common is that logs, Cases and readings were deleted in one Apex execution, and what worked every time was deleting each kind on its own. Juan Diego then did the clean in two steps: one pass of logs only, which removed 1962 `Log_Senial__c` (33 more than the preview had shown, because "Traer señales" was pressed after run 4's evidence was captured; run 4's figures are unaffected), and then `clean confirm=<org>:0` for the 12 Cases and the 9 readings. The preview came back at 0 / 0 / 0. The cleans before runs 6 and 7 (previews 1861 / 6 / 2 and 1434 / 9 / 27) used the same two steps and also ended at 0 / 0 / 0. The script now deletes one kind per execution, logs first, and goes on to the Cases and the readings only when no log is left; that version has not been run in the org yet.
+**The cleans.** The first one removed 10,200 `Log_Senial__c`, 10 `Lectura_Vigente__c` and the 70 `Case` with `Origin = 'Telemetria'`; the 3 other Cases, the buildings, the assets and the thresholds were not part of it. Everything went to the recycle bin. The script's own pass failed on the Apex CPU limit (also with chunks of 500, and nothing was deleted). Juan Diego deleted the logs in passes of 2000 and then ran the script's clean for the Cases and the readings, and both parts worked. The cleans before runs 2, 3 and 4 worked with the script as it was. The clean before run 5 (1929 logs, 9 readings and 12 Cases) failed on the same limit and also deleted nothing, so the failure does not need thousands of logs. The cause was not confirmed (no debug log was read): what the failures have in common is that logs, Cases and readings were deleted in one Apex execution, and what worked every time was deleting each kind on its own. Juan Diego then did the clean in two steps: one pass of logs only, which removed 1962 `Log_Senial__c` (33 more than the preview had shown, because "Traer señales" was pressed after run 4's evidence was captured; run 4's figures are unaffected), and then `clean confirm=<org>:0` for the 12 Cases and the 9 readings. The preview came back at 0 / 0 / 0. The cleans before runs 6, 7 and 8 (previews 1861 / 6 / 2, 1434 / 9 / 27 and 600 / 2 / 6) used the same two steps and also ended at 0 / 0 / 0. The script now deletes one kind per execution, logs first, and goes on to the Cases and the readings only when no log is left; that version has not been run in the org yet.
 
 ### Run 1 — `QA_200` (10 pages requested, batch 200, started 2026-10-14T15:35:30Z)
 
@@ -168,6 +168,29 @@ US-201 trace:
 | `nova-casa-simulator\|msg_000027` | Cámara acceso vehicular | 2026-10-14T22:39:08Z | 2026-10-14T22:12:07Z | 2026-10-14T22:12:12Z | -1621 | 5 | none |
 
 The delays follow the message number again: `msg_000024` is about 24 minutes ahead of its publish time and `msg_000027` about 27.
+
+### Run 8 — `BOUNDARIES` with batch 50 (10 pages, started 2026-10-14T22:18:52Z)
+
+| Scenario | Log rows | Readings | Cases | Breakdown of logs |
+|---|---|---|---|---|
+| `BOUNDARIES` (batch 50) | 500 | 9 | 1 | 465 Atrasada, 35 Procesada |
+
+- **Gates:** 1 job (`TelemetriaIngesta`), `Completed`, 0 errors; 0 rows `Publicada`. The job took 4 s from creation to completion; the first `Publicado_At__c` to the last `Procesado_At__c` took 6 s. The run read the 10 pages it was given (`flujoTerminado=false`): with a batch of 50 that is 500 messages received and published, against 2000 in run 3 with a batch of 200.
+- **Counters:** 500 log rows created, 0 `yaExistentes`, 0 log failures, 0 publish failures, no resends, no `Conflicto`, no `Rechazada`, and nothing rejected by the ingestion (`rechazados=0`, `descartados=0`).
+- **The batch size:** 10 pages and 500 messages mean 50 per page. The page limit sent to `GET /telemetry` is the batch size, and D023 (1d) treats that limit as the reliable bound, so this does not show whether the simulator also honors `batchSize` in `POST /session`.
+- **Latest readings by severity (US-206):** 0 `Crítica`, 1 `Advertencia`, 8 `Normal`, 0 without a level.
+- **Cases:** 1, `Critica` and `En curso`, tied to a `Procesada` log row (1 of 1). No latest reading is `Crítica`, so, as in runs 3 and 5, the Case was opened by a critical reading that a newer `Procesada` reading of the same asset and measurement replaced later.
+- **`Atrasada` (465):** all 465 lost to a newer message of the same batch (D011 h), none to the stored reading.
+- **Against run 3 (same scenario and seed, batch 200):** that run had 2000 log rows, 9 readings, 2 Cases (97 `Procesada`, 1903 `Atrasada`); this one has 500, 9, 1 (35 and 465). The trace Case is the same message, `msg_000419` of `Cámara azotea`, with the same delay of -25136 s, so the two runs read the same stream from the start. The shape is the same (almost every row `Atrasada` to the batch); the counts follow the number of messages read.
+
+US-201 trace:
+
+| Identidad__c | Asset | Occurred_At__c | Publicado_At__c | Procesado_At__c | Delay publish (s) | Latency process (s) | Case |
+|---|---|---|---|---|---|---|---|
+| `nova-casa-simulator\|msg_000419` | Cámara azotea | 2026-10-15T05:17:51Z | 2026-10-14T22:18:55Z | 2026-10-14T22:18:58Z | -25136 | 3 | `En curso`, `Critica` |
+| `nova-casa-simulator\|msg_000016` | Medidor de agua torre única | 2026-10-14T22:34:52Z | 2026-10-14T22:18:53Z | 2026-10-14T22:18:56Z | -959 | 3 | none |
+
+The delays follow the message number again: `msg_000419` is about 419 minutes ahead of its publish time (7 hours, so its `Occurred_At__c` falls on the next day) and `msg_000016` about 16.
 
 ## Results — final reruns, 2026-10-05 (post chain-depth fix, trigger as integration user)
 
