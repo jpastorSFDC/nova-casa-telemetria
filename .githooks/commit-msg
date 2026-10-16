@@ -1,9 +1,9 @@
 #!/bin/sh
-# Checks the commit header against CONTRIBUTING.md and removes Cursor's co-author lines.
+# Checks the commit header against CONTRIBUTING.md and removes Cursor's and Claude's co-author lines.
 
 msg_file="$1"
 
-grep -v -e '^Co-authored-by: Cursor <cursoragent@cursor\.com>$' -e '^Made-with: Cursor$' "$msg_file" > "$msg_file.tmp"
+grep -v -e '^Co-authored-by: Cursor <cursoragent@cursor\.com>$' -e '^Made-with: Cursor$' -e '^Co-authored-by: Claude.*$' -e '^Generated with \[Claude Code\].*$' "$msg_file" > "$msg_file.tmp"
 mv "$msg_file.tmp" "$msg_file"
 
 header=$(grep -v '^#' "$msg_file" | sed '/^[[:space:]]*$/d' | head -n 1)
