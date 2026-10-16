@@ -1,0 +1,14 @@
+{
+  "name": "nova-casa-telemetria",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Nova Casa Telemetry: Salesforce DX project. This file only exists to run the LWC Jest tests.",
+  "scripts": {
+    "test:unit": "sfdx-lwc-jest",
+    "test:unit:watch": "sfdx-lwc-jest --watch",
+    "test:unit:coverage": "sfdx-lwc-jest --coverage"
+  },
+  "devDependencies": {
+    "@salesforce/sfdx-lwc-jest": "^7.9.0"
+  }
+}
