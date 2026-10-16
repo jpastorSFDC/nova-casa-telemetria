@@ -150,10 +150,11 @@ private class SesionSimuladorTest {
 
     @isTest
     static void conLaParticionRealElMarcadorDeProgramacionNoLanza() {
-        // In a test the real partition holds nothing: either unavailable or empty, and never an exception.
+        // Real partition, no map. Where the partition has capacity (nova-cdo) the write is read back inside the test;
+        // where it is missing nothing is saved. Either way nothing throws, and once cleared the marker reads as null.
         SesionSimulador.guardarProgramacion('MIXED');
-        Assert.isNull(SesionSimulador.leerProgramacion(), 'Nothing survives in a test');
         SesionSimulador.borrarProgramacion();
+        Assert.isNull(SesionSimulador.leerProgramacion(), 'A cleared marker reads as null');
     }
 
     @isTest
