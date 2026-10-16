@@ -45,9 +45,10 @@ private class ActivosOperadorControllerTest {
                     Field = 'Lectura_Vigente__c.Sensor_Id__c', PermissionsRead = true, PermissionsEdit = false)
             };
             // Standard fields flagged permissionable in the describe need explicit FLS too (object Read is not enough):
-            // Asset.AccountId, Case.AssetId, Case.Subject. CaseNumber, Status, IsClosed, Name, CreatedDate do not.
+            // Asset.AccountId, Case.AssetId, Case.Subject, Case.ClosedDate (read-only, like the shipped sets). CaseNumber, Status,
+            // IsClosed, Name, CreatedDate do not.
             for (PermissionSet ps : new List<PermissionSet>{ fullPs, noFlsPs }) {
-                for (String f : new List<String>{ 'Asset.AccountId', 'Case.AssetId', 'Case.Subject' }) {
+                for (String f : new List<String>{ 'Asset.AccountId', 'Case.AssetId', 'Case.Subject', 'Case.ClosedDate' }) {
                     fieldPerms.add(new FieldPermissions(ParentId = ps.Id, SobjectType = f.substringBefore('.'),
                         Field = f, PermissionsRead = true, PermissionsEdit = false));
                 }
@@ -1368,7 +1369,7 @@ private class ActivosOperadorControllerTest {
             }
             insert objectPerms;
             List<FieldPermissions> fieldPerms = new List<FieldPermissions>();
-            for (String f : new List<String>{ 'Asset.AccountId', 'Case.AssetId', 'Case.Subject', 'Lectura_Vigente__c.Sensor_Id__c' }) {
+            for (String f : new List<String>{ 'Asset.AccountId', 'Case.AssetId', 'Case.Subject', 'Case.ClosedDate', 'Lectura_Vigente__c.Sensor_Id__c' }) {
                 // Required and master-detail fields are always readable; Severidad_Nivel__c is the only one left out.
                 fieldPerms.add(new FieldPermissions(ParentId = ps.Id, SobjectType = f.substringBefore('.'),
                     Field = f, PermissionsRead = true, PermissionsEdit = false));
@@ -1504,6 +1505,513 @@ private class ActivosOperadorControllerTest {
         Assert.areEqual(0, result[2].severityLevel);
     }
 
+    // ---------- last closed intervention (HP-07, D038) ----------
+    // Case.ClosedDate is stamped by the platform when a Case closes and cannot be written from Apex. The one test that needs
+    // two different close times lets real time pass between the closings (letOneSecondPass). The others only rely on a case
+    // that is created, and so closed, later never having an older ClosedDate nor a lower Id than an earlier one.
+
+    @isTest
+    static void lastClosedInterventionCarriesTheIdNumberAndClosedDateOfTheOnlyClosedCase() {
+        // Given an asset whose only case is closed
+        Account building = newAccount('Edificio Ultima Cerrada');
+        Asset asset = newAsset('AST-LAST-ONE', building, 'WATER_PUMP');
+        Case closed = reloaded(newCase(asset, 'Closed', 'Cerrado unico'));
+        Assert.isNotNull(closed.ClosedDate, 'precondition: closing a case stamps ClosedDate');
+
+        // When the operator loads the list
+        List<ActivosOperadorController.AssetView> result = load(userLike('nc207operator'), null, null, null);
+
+        // Then the asset carries that case as its last closed intervention, and has no open one
+        Assert.areEqual(1, result.size());
+        ActivosOperadorController.AssetView view = result[0];
+        Assert.isNotNull(view.lastClosedIntervention, 'an asset with only closed cases must show the last one');
+        Assert.areEqual(closed.Id, view.lastClosedIntervention.caseId);
+        Assert.areEqual(closed.CaseNumber, view.lastClosedIntervention.caseNumber);
+        Assert.areEqual(closed.ClosedDate, view.lastClosedIntervention.closedDate);
+        Assert.isNull(view.openIntervention);
+        Assert.areEqual(0, view.openInterventionCount);
+    }
+
+    @isTest
+    static void lastClosedInterventionIsTheCaseClosedMostRecentlyEvenWhenAnotherHasAHigherId() {
+        // Given an asset with two open cases: the one created second (higher Id) is closed first, and the one created
+        // first (lower Id) is closed a second later
+        Account building = newAccount('Edificio Cierre Reciente');
+        Asset asset = newAsset('AST-LAST-NEWEST', building, 'WATER_PUMP');
+        Case createdFirst = newCase(asset, 'New', 'Creado primero');
+        Case createdSecond = newCase(asset, 'New', 'Creado segundo');
+        closeCase(createdSecond);
+        letOneSecondPass();
+        closeCase(createdFirst);
+        Case closedLast = reloaded(createdFirst);
+        Case closedEarlier = reloaded(createdSecond);
+        Assert.isTrue(
+            closedLast.ClosedDate > closedEarlier.ClosedDate,
+            'precondition: the two closings must get different ClosedDate values (the test waits between them because ClosedDate cannot be written)'
+        );
+
+        // When the operator loads the list
+        List<ActivosOperadorController.AssetView> result = load(userLike('nc207operator'), null, null, null);
+
+        // Then the newest ClosedDate wins, not the highest Id and not the oldest close
+        Assert.areEqual(1, result.size());
+        Assert.isNotNull(result[0].lastClosedIntervention);
+        Assert.areEqual(createdFirst.Id, result[0].lastClosedIntervention.caseId, 'the most recently closed case must win over a higher Id');
+        Assert.areNotEqual(createdSecond.Id, result[0].lastClosedIntervention.caseId);
+        Assert.areEqual(closedLast.CaseNumber, result[0].lastClosedIntervention.caseNumber);
+        Assert.areEqual(closedLast.ClosedDate, result[0].lastClosedIntervention.closedDate);
+    }
+
+    @isTest
+    static void whenTwoCasesShareTheSameClosedDateTheHigherCaseIdIsTheLastClosed() {
+        // Given two cases inserted already closed in ONE statement, so the platform stamps both with the same ClosedDate
+        Account building = newAccount('Edificio Empate Cierre');
+        Asset asset = newAsset('AST-LAST-TIE', building, 'WATER_PUMP');
+        Id ownerId = userLike('nc207operator').Id;
+        insert new List<Case>{
+            caseDraft(asset, ownerId, 'Closed', 'Cerrado uno'),
+            caseDraft(asset, ownerId, 'Closed', 'Cerrado dos')
+        };
+        List<Case> byIdDesc = [SELECT Id, CaseNumber, ClosedDate FROM Case WHERE AssetId = :asset.Id ORDER BY Id DESC];
+        Assert.areEqual(2, byIdDesc.size());
+        Assert.areEqual(
+            byIdDesc[0].ClosedDate,
+            byIdDesc[1].ClosedDate,
+            'precondition: cases closed by the same DML statement must share ClosedDate'
+        );
+
+        // When the operator loads the list
+        List<ActivosOperadorController.AssetView> result = load(userLike('nc207operator'), null, null, null);
+
+        // Then the tie resolves to the higher Id every time
+        Assert.areEqual(1, result.size());
+        Assert.isNotNull(result[0].lastClosedIntervention);
+        Assert.areEqual(byIdDesc[0].Id, result[0].lastClosedIntervention.caseId, 'a tie on ClosedDate must resolve to the higher Id');
+        Assert.areEqual(byIdDesc[0].CaseNumber, result[0].lastClosedIntervention.caseNumber);
+        Assert.areNotEqual(byIdDesc[1].Id, result[0].lastClosedIntervention.caseId);
+    }
+
+    @isTest
+    static void eachAssetGetsItsOwnNewestClosedCaseWhenSeveralAssetsShareTheQuery() {
+        // Given three assets whose closed cases are interleaved, one asset having two
+        Account building = newAccount('Edificio Varios Cerrados');
+        Asset x = newAsset('AST-LAST-X', building, 'WATER_PUMP');
+        Asset y = newAsset('AST-LAST-Y', building, 'WATER_PUMP');
+        Asset z = newAsset('AST-LAST-Z', building, 'WATER_PUMP');
+        newCase(x, 'Closed', 'X viejo');
+        Case yOnly = newCase(y, 'Closed', 'Y unico');
+        Case xNewest = newCase(x, 'Closed', 'X nuevo');
+        Case zOnly = newCase(z, 'Closed', 'Z unico');
+
+        // When the operator loads the list
+        Map<String, ActivosOperadorController.AssetView> views = byName(load(userLike('nc207operator'), null, null, null));
+
+        // Then every asset shows its own newest case: not the oldest one of its own, and not a neighbour's
+        Assert.areEqual(3, views.size());
+        Assert.areEqual(xNewest.Id, views.get('AST-LAST-X').lastClosedIntervention.caseId, 'X has two closed cases: its newest wins');
+        Assert.areEqual(yOnly.Id, views.get('AST-LAST-Y').lastClosedIntervention.caseId);
+        Assert.areEqual(zOnly.Id, views.get('AST-LAST-Z').lastClosedIntervention.caseId);
+    }
+
+    @isTest
+    static void assetWithAnOpenCaseHasNoLastClosedInterventionEvenWhenItHasClosedOnes() {
+        // Given an asset with closed cases and an open one, an asset with only an open one, and an asset with only a closed one
+        Account building = newAccount('Edificio Abierto Y Cerrado');
+        Asset both = newAsset('AST-LAST-BOTH', building, 'WATER_PUMP');
+        Asset onlyOpen = newAsset('AST-LAST-OPEN', building, 'WATER_PUMP');
+        Asset onlyClosed = newAsset('AST-LAST-CLOSED', building, 'WATER_PUMP');
+        newCase(both, 'Closed', 'Cerrado viejo uno');
+        newCase(both, 'Closed', 'Cerrado viejo dos');
+        Case current = newCase(both, 'New', 'Abierto actual');
+        newCase(onlyOpen, 'New', 'Solo abierto');
+        Case closed = newCase(onlyClosed, 'Closed', 'Solo cerrado');
+
+        // When the operator loads the list
+        Map<String, ActivosOperadorController.AssetView> views = byName(load(userLike('nc207operator'), null, null, null));
+
+        // Then the asset with an open case keeps it and shows no closed one, while the control asset does show its closed case
+        ActivosOperadorController.AssetView withBoth = views.get('AST-LAST-BOTH');
+        Assert.isNotNull(withBoth.openIntervention);
+        Assert.areEqual(current.Id, withBoth.openIntervention.caseId);
+        Assert.areEqual(1, withBoth.openInterventionCount);
+        Assert.isNull(withBoth.lastClosedIntervention, 'a closed case must not be offered while another is open');
+        Assert.isNull(views.get('AST-LAST-OPEN').lastClosedIntervention);
+        Assert.isNotNull(views.get('AST-LAST-CLOSED').lastClosedIntervention, 'control: the lookup did run for the asset without an open case');
+        Assert.areEqual(closed.Id, views.get('AST-LAST-CLOSED').lastClosedIntervention.caseId);
+        Assert.isNull(views.get('AST-LAST-CLOSED').openIntervention);
+    }
+
+    @isTest
+    static void assetWithoutAnyCaseHasNoLastClosedInterventionAndNeverBorrowsANeighboursCase() {
+        // Given an asset with no case at all next to an asset with a closed case
+        Account building = newAccount('Edificio Sin Casos');
+        Asset noCases = newAsset('AST-LAST-NONE', building, 'WATER_PUMP');
+        Asset neighbour = newAsset('AST-LAST-NEIGHBOUR', building, 'WATER_PUMP');
+        newReading(noCases, 'TEMPERATURE', 'CELSIUS', 20, baseTime(), 0);
+        Case neighbourCase = newCase(neighbour, 'Closed', 'Cerrado del vecino');
+
+        // When the operator loads the list
+        Map<String, ActivosOperadorController.AssetView> views = byName(load(userLike('nc207operator'), null, null, null));
+
+        // Then only the neighbour shows a closed intervention
+        Assert.isNull(views.get('AST-LAST-NONE').lastClosedIntervention, 'no case at all means no line');
+        Assert.isNull(views.get('AST-LAST-NONE').openIntervention);
+        Assert.areEqual(0, views.get('AST-LAST-NONE').openInterventionCount);
+        Assert.areEqual(neighbourCase.Id, views.get('AST-LAST-NEIGHBOUR').lastClosedIntervention.caseId);
+    }
+
+    @isTest
+    static void operatorWhoCannotSeeTheBuildingGetsNeitherTheAssetNorItsClosedCase() {
+        // Given two operators (A with the test permission set, B with the shipped one) with a building each, and an asset
+        // with a closed case in each building
+        User operatorA = userLike('nc207operator');
+        User operatorB = newUserWithPermissionSet('nc207closediso', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Account buildingA = newAccount('Edificio Cerrado A', operatorA.Id);
+        Account buildingB = newAccount('Edificio Cerrado B', operatorB.Id);
+        Asset assetA = newAsset('AST-CLOSED-ISO-A', buildingA, 'WATER_PUMP');
+        Asset assetB = newAsset('AST-CLOSED-ISO-B', buildingB, 'WATER_PUMP');
+        Case closedA = newCase(assetA, 'Closed', 'Cerrado de A');
+        Case closedB = newCase(assetB, 'Closed', 'Cerrado de B');
+
+        // When each operator loads the list
+        ActivosOperadorController.AssetPage pageA = loadResult(operatorA, null, null, null);
+        ActivosOperadorController.AssetPage pageB = loadResult(operatorB, null, null, null);
+
+        // Then each one gets only their own asset and their own closed case, and nothing of the other building leaks
+        Assert.areEqual(new List<String>{ 'AST-CLOSED-ISO-B' }, names(pageB.assets), 'operator B must not see operator A building');
+        Assert.areEqual(closedB.Id, pageB.assets[0].lastClosedIntervention.caseId, 'the shipped Nova_Casa_Operator set must read its own closed case');
+        String payloadB = JSON.serialize(pageB);
+        Assert.isFalse(payloadB.contains(String.valueOf(closedA.Id)), 'operator B must never receive the closed case of building A');
+        Assert.isFalse(payloadB.contains(String.valueOf(assetA.Id)), 'operator B must never receive the asset of building A');
+        Assert.areEqual(new List<String>{ 'AST-CLOSED-ISO-A' }, names(pageA.assets), 'operator A must not see operator B building');
+        Assert.areEqual(closedA.Id, pageA.assets[0].lastClosedIntervention.caseId);
+        String payloadA = JSON.serialize(pageA);
+        Assert.isFalse(payloadA.contains(String.valueOf(closedB.Id)), 'operator A must never receive the closed case of building B');
+    }
+
+    @isTest
+    static void closedCaseTheUserCannotSeeIsNeverReturnedEvenWhenTheAssetIsVisible() {
+        // Given an asset the operator can see, with a closed case the operator owns and a closed case (higher Id, never older)
+        // owned by a stranger outside the role hierarchy, and a second visible asset whose only closed case is the stranger's
+        User operator = userLike('nc207operator');
+        User stranger = newUserWithPermissionSet('nc207closedstr', 'Nova_Casa_Operator', null);
+        Account building = newAccount('Edificio Caso Oculto', operator.Id);
+        Asset withBoth = newAsset('AST-HIDDEN-BOTH', building, 'WATER_PUMP');
+        Asset withHiddenOnly = newAsset('AST-HIDDEN-ONLY', building, 'WATER_PUMP');
+        Case visible = caseDraft(withBoth, operator.Id, 'Closed', 'Cerrado visible');
+        Case hiddenNewer = caseDraft(withBoth, stranger.Id, 'Closed', 'Cerrado oculto');
+        Case hiddenOnly = caseDraft(withHiddenOnly, stranger.Id, 'Closed', 'Solo oculto');
+        insert new List<Case>{ visible, hiddenNewer, hiddenOnly };
+        Boolean strangerCaseVisible;
+        System.runAs(operator) {
+            strangerCaseVisible = !Database.queryWithBinds(
+                'SELECT Id FROM Case WHERE Id = :hiddenId',
+                new Map<String, Object>{ 'hiddenId' => hiddenNewer.Id },
+                AccessLevel.USER_MODE
+            ).isEmpty();
+        }
+        Assert.isFalse(strangerCaseVisible, 'precondition: a Case owned by a user outside the hierarchy must be private to the operator');
+
+        // When the operator loads the list
+        ActivosOperadorController.AssetPage page = loadResult(operator, null, null, null);
+        Map<String, ActivosOperadorController.AssetView> views = byName(page.assets);
+
+        // Then both assets are listed, but only the case the operator can see is ever returned
+        Assert.areEqual(2, views.size());
+        Assert.isNotNull(views.get('AST-HIDDEN-BOTH').lastClosedIntervention);
+        Assert.areEqual(visible.Id, views.get('AST-HIDDEN-BOTH').lastClosedIntervention.caseId, 'the hidden case must not win even though it is newer');
+        Assert.isNull(views.get('AST-HIDDEN-ONLY').lastClosedIntervention, 'an asset whose only closed case is hidden shows no line');
+        String payload = JSON.serialize(page);
+        Assert.isFalse(payload.contains(String.valueOf(hiddenNewer.Id)), 'a case the user cannot see must not be serialized');
+        Assert.isFalse(payload.contains(String.valueOf(hiddenOnly.Id)), 'a case the user cannot see must not be serialized');
+    }
+
+    @isTest
+    static void getAssetsRunsTheSameNumberOfQueriesForOneAssetAndForManyAndNeverMoreThanFour() {
+        // Given one asset with a closed case
+        Account building = newAccount('Edificio Consultas');
+        newCase(newAsset('AST-SOQL-1', building, 'WATER_PUMP'), 'Closed', 'Cerrado 1');
+        User operator = userLike('nc207operator');
+        List<Integer> used = new List<Integer>();
+
+        // When the operator loads the list with one asset, and again after adding five more assets with a closed case, one
+        // with an open case and one with no case at all
+        ActivosOperadorController.AssetPage one = loadCountingQueries(operator, used);
+        for (Integer i = 2; i <= 6; i++) {
+            newCase(newAsset('AST-SOQL-' + i, building, 'WATER_PUMP'), 'Closed', 'Cerrado ' + i);
+        }
+        newCase(newAsset('AST-SOQL-OPEN', building, 'WATER_PUMP'), 'New', 'Abierto');
+        newAsset('AST-SOQL-EMPTY', building, 'WATER_PUMP');
+        ActivosOperadorController.AssetPage many = loadCountingQueries(operator, used);
+
+        // Then the number of queries does not grow with the number of assets, and stays within four
+        Assert.areEqual(1, one.assets.size());
+        Assert.areEqual(8, many.assets.size());
+        Assert.areEqual(used[0], used[1], 'the closed-case lookup must be one query for the whole page, not one per asset');
+        Assert.isTrue(used[1] <= 4, 'getAssets must run at most 4 queries but ran ' + used[1]);
+        Integer withLine = 0;
+        for (ActivosOperadorController.AssetView view : many.assets) {
+            if (view.lastClosedIntervention != null) {
+                withLine++;
+            }
+        }
+        Assert.areEqual(6, withLine, 'the single lookup must still serve every asset that has a closed case and no open one');
+    }
+
+    @isTest
+    static void closedLookupIsSkippedWhenEveryAssetOnThePageHasAnOpenCase() {
+        // Given two assets that both have an open case (one also has an older closed case)
+        Account building = newAccount('Edificio Todos Abiertos');
+        Asset a = newAsset('AST-SKIP-A', building, 'WATER_PUMP');
+        Asset b = newAsset('AST-SKIP-B', building, 'WATER_PUMP');
+        newCase(a, 'Closed', 'Cerrado viejo');
+        newCase(a, 'New', 'Abierto A');
+        newCase(b, 'New', 'Abierto B');
+        User operator = userLike('nc207operator');
+        List<Integer> used = new List<Integer>();
+
+        // When the operator loads the list, then again after adding an asset with no open case
+        ActivosOperadorController.AssetPage allOpen = loadCountingQueries(operator, used);
+        newCase(newAsset('AST-SKIP-C', building, 'WATER_PUMP'), 'Closed', 'Cerrado quieto');
+        ActivosOperadorController.AssetPage withQuiet = loadCountingQueries(operator, used);
+
+        // Then no closed lookup ran for the first page (one query fewer), and no asset with an open case shows a closed one
+        Assert.areEqual(2, allOpen.assets.size());
+        for (ActivosOperadorController.AssetView view : allOpen.assets) {
+            Assert.areEqual(1, view.openInterventionCount);
+            Assert.isNull(view.lastClosedIntervention);
+        }
+        Assert.areEqual(used[0] + 1, used[1], 'the closed lookup must run exactly once, and only when some asset has no open case');
+        Map<String, ActivosOperadorController.AssetView> views = byName(withQuiet.assets);
+        Assert.isNotNull(views.get('AST-SKIP-C').lastClosedIntervention);
+        Assert.isNull(views.get('AST-SKIP-A').lastClosedIntervention);
+        Assert.isNull(views.get('AST-SKIP-B').lastClosedIntervention);
+    }
+
+    @isTest
+    static void closedLookupRowCapDropsTheLineOfTheAssetOutsideTheCutWithoutFlaggingTruncation() {
+        // Given two assets that each have a closed case, the case of AST-CAP-NEWER being created, and so closed, after the other
+        Account building = newAccount('Edificio Tope Cerrados');
+        Asset older = newAsset('AST-CAP-OLDER', building, 'WATER_PUMP');
+        Asset newer = newAsset('AST-CAP-NEWER', building, 'WATER_PUMP');
+        newCase(older, 'Closed', 'Cerrado antes');
+        Case newerCase = newCase(newer, 'Closed', 'Cerrado despues');
+        User operator = userLike('nc207operator');
+
+        // When the operator loads the list without a cap, with the closed lookup capped at one row, and capped at two
+        ActivosOperadorController.AssetPage uncapped = loadResult(operator, null, null, null);
+        Integer originalCap = ActivosOperadorController.maxClosedCaseRows;
+        ActivosOperadorController.AssetPage cappedAtOne;
+        ActivosOperadorController.AssetPage cappedAtTwo;
+        try {
+            ActivosOperadorController.maxClosedCaseRows = 1;
+            cappedAtOne = loadResult(operator, null, null, null);
+            ActivosOperadorController.maxClosedCaseRows = 2;
+            cappedAtTwo = loadResult(operator, null, null, null);
+        } finally {
+            ActivosOperadorController.maxClosedCaseRows = originalCap;
+        }
+
+        // Then without the cap both assets have a line (control), so the cap alone removes the one outside the cut
+        Map<String, ActivosOperadorController.AssetView> free = byName(uncapped.assets);
+        Assert.isNotNull(free.get('AST-CAP-OLDER').lastClosedIntervention);
+        Assert.isNotNull(free.get('AST-CAP-NEWER').lastClosedIntervention);
+        Assert.isFalse(uncapped.truncated);
+        // and with one row only the asset holding the newest closed case keeps its line, and both assets are still listed
+        Map<String, ActivosOperadorController.AssetView> cut = byName(cappedAtOne.assets);
+        Assert.areEqual(2, cut.size());
+        Assert.isNotNull(cut.get('AST-CAP-NEWER').lastClosedIntervention);
+        Assert.areEqual(newerCase.Id, cut.get('AST-CAP-NEWER').lastClosedIntervention.caseId);
+        Assert.isNull(cut.get('AST-CAP-OLDER').lastClosedIntervention, 'the asset outside the cut must show no line');
+        // and the cap is not reported as a truncated list: this line is only context
+        Assert.areEqual(uncapped.truncated, cappedAtOne.truncated, 'the closed-case cap must not change the truncated flag');
+        Assert.isFalse(cappedAtOne.truncated);
+        Assert.areEqual(uncapped.totalCount, cappedAtOne.totalCount);
+        // and a cap equal to the number of closed cases cuts nothing
+        Map<String, ActivosOperadorController.AssetView> exact = byName(cappedAtTwo.assets);
+        Assert.isNotNull(exact.get('AST-CAP-OLDER').lastClosedIntervention);
+        Assert.isNotNull(exact.get('AST-CAP-NEWER').lastClosedIntervention);
+        Assert.isFalse(cappedAtTwo.truncated);
+    }
+
+    @isTest
+    static void lastClosedInterventionExposesOnlyTheAgreedKeysAndNothingAboutWhoClosedIt() {
+        // Given an asset whose only case is closed (with a recognizable subject) and an asset with an open case
+        Account building = newAccount('Edificio Llaves Cerrado');
+        Asset closedAsset = newAsset('AST-KEYS-1-CLOSED', building, 'WATER_PUMP');
+        Asset openAsset = newAsset('AST-KEYS-2-OPEN', building, 'WATER_PUMP');
+        Case closed = newCase(closedAsset, 'Closed', 'ASUNTO-SECRETO-XYZ');
+        newCase(openAsset, 'New', 'Abierto');
+
+        // When the page is serialized, as the component receives it
+        String payload = JSON.serialize(loadResult(userLike('nc207operator'), null, null, null));
+        Map<String, Object> top = (Map<String, Object>) JSON.deserializeUntyped(payload);
+        List<Object> assets = (List<Object>) top.get('assets');
+        Map<String, Object> closedJson = (Map<String, Object>) assets[0];
+        Map<String, Object> openJson = (Map<String, Object>) assets[1];
+        Map<String, Object> line = (Map<String, Object>) closedJson.get('lastClosedIntervention');
+
+        // Then the closed intervention has exactly caseId, caseNumber and closedDate, and no other case data or "closed by"
+        Assert.areEqual('AST-KEYS-1-CLOSED', (String) closedJson.get('name'));
+        Assert.isNotNull(line, 'the closed asset must carry lastClosedIntervention');
+        Assert.areEqual(new Set<String>{ 'caseId', 'caseNumber', 'closedDate' }, line.keySet());
+        Assert.areEqual(String.valueOf(closed.Id), (String) line.get('caseId'));
+        Assert.isNotNull(line.get('caseNumber'));
+        Assert.isNotNull(line.get('closedDate'));
+        Assert.isFalse(payload.contains('SECRETO'), 'the subject of a closed case must not leave the controller');
+        Assert.isFalse(payload.containsIgnoreCase('closedBy'), 'there is no "closed by": Case has no history tracking here');
+        // and an asset with an open case still carries the key, empty, so the component has one contract
+        Assert.areEqual('AST-KEYS-2-OPEN', (String) openJson.get('name'));
+        Assert.isTrue(openJson.containsKey('lastClosedIntervention'));
+        Assert.isNull(openJson.get('lastClosedIntervention'));
+    }
+
+    // Case.ClosedDate is permissionable (it needs read FLS like Case.Subject), so the closed lookup of getAssets is only allowed
+    // for a user whose permission set grants it. The tests below pin that from every side: the lookup really enforces it, it
+    // only runs when it has to, the four shipped sets grant it, and the roles above the operator receive the line.
+
+    @isTest
+    static void listFailsWithTheSafeAccessMessageWhenTheUserCannotReadCaseClosedDateAndAnAssetHasNoOpenCase() {
+        // Given a user whose permission set grants everything the list needs EXCEPT Case.ClosedDate, who owns a building with
+        // an asset that has a reading and only a closed case, so the closed lookup has to run
+        User noClosedDate = newUserWithEverythingButClosedDate();
+        Account building = newAccount('Edificio Sin Fecha Cierre', noClosedDate.Id);
+        Asset asset = newAsset('AST-NOCD-CLOSED', building, 'WATER_PUMP');
+        newReading(asset, 'TEMPERATURE', 'CELSIUS', 95, baseTime(), 2);
+        newCase(asset, 'Closed', 'Cerrado sin permiso');
+
+        // When that user loads the list
+        ActivosOperadorController.AssetPage page;
+        AuraHandledException error;
+        System.runAs(noClosedDate) {
+            try {
+                page = ActivosOperadorController.getAssets(null, null, null);
+            } catch (AuraHandledException e) {
+                error = e;
+            }
+        }
+
+        // Then the call fails with the static access message and returns no data. This is what proves the closed lookup runs
+        // WITH USER_MODE: the user can see the asset, its reading and its case, and lacks only FLS on ClosedDate, so if the
+        // query ran in system mode (or without enforcement) nothing would throw and this test would fail.
+        Assert.isNotNull(error, 'Missing FLS on Case.ClosedDate must raise an AuraHandledException when the closed lookup runs');
+        Assert.areEqual(ActivosOperadorController.ACCESS_MESSAGE, error.getMessage());
+        Assert.isFalse(error.getMessage().contains('ClosedDate'), 'the message must not name the field');
+        Assert.isNull(page, 'no partial data may be returned');
+    }
+
+    @isTest
+    static void listLoadsForAUserWithoutCaseClosedDateAccessWhenEveryAssetOnThePageHasAnOpenCase() {
+        // Given the same kind of user (everything except Case.ClosedDate) and a building whose only asset has an open case
+        // and an older closed one, so no asset needs the closed lookup
+        User noClosedDate = newUserWithEverythingButClosedDate();
+        Account building = newAccount('Edificio Todo Abierto Sin Permiso', noClosedDate.Id);
+        Asset asset = newAsset('AST-NOCD-OPEN', building, 'WATER_PUMP');
+        newReading(asset, 'TEMPERATURE', 'CELSIUS', 95, baseTime(), 2);
+        newCase(asset, 'Closed', 'Cerrado viejo');
+        Case open = newCase(asset, 'New', 'Abierto actual');
+
+        // When that user loads the list
+        ActivosOperadorController.AssetPage page;
+        AuraHandledException error;
+        System.runAs(noClosedDate) {
+            try {
+                page = ActivosOperadorController.getAssets(null, null, null);
+            } catch (AuraHandledException e) {
+                error = e;
+            }
+        }
+
+        // Then nothing throws: the closed lookup is skipped, so the missing ClosedDate access does not matter. This is also the
+        // control of the test above: it shows ClosedDate is the only thing that user lacks for the list.
+        Assert.isNull(error, 'the closed lookup must not run (and so not need ClosedDate) when every asset has an open case');
+        Assert.areEqual(1, page.assets.size());
+        Assert.areEqual(asset.Id, page.assets[0].assetId);
+        Assert.areEqual(2, page.assets[0].severityLevel);
+        Assert.areEqual(1, page.assets[0].openInterventionCount);
+        Assert.areEqual(open.Id, page.assets[0].openIntervention.caseId);
+        Assert.isNull(page.assets[0].lastClosedIntervention, 'an asset with an open case never offers a closed one');
+    }
+
+    @isTest
+    static void everyShippedPermissionSetGrantsReadOnlyAccessToCaseClosedDate() {
+        // Given the four shipped permission sets of the screen
+        List<String> shipped = new List<String>{ 'Nova_Casa_Operator', 'Nova_Casa_Coordinator', 'Nova_Casa_Gerente', 'Nova_Casa_Admin' };
+        Map<Id, PermissionSet> sets = new Map<Id, PermissionSet>([SELECT Id, Name FROM PermissionSet WHERE Name IN :shipped]);
+        Assert.areEqual(4, sets.size(), 'all four shipped permission sets must be deployed to the org');
+
+        // When their field permissions on Case.ClosedDate are read
+        List<FieldPermissions> fieldPerms = [
+            SELECT ParentId, PermissionsRead, PermissionsEdit
+            FROM FieldPermissions
+            WHERE SobjectType = 'Case' AND Field = 'Case.ClosedDate' AND ParentId IN :sets.keySet()
+        ];
+        Map<String, FieldPermissions> bySet = new Map<String, FieldPermissions>();
+        for (FieldPermissions fieldPerm : fieldPerms) {
+            bySet.put(sets.get(fieldPerm.ParentId).Name, fieldPerm);
+        }
+
+        // Then every set grants read and not edit, and there is exactly one row per set
+        for (String setName : shipped) {
+            FieldPermissions fieldPerm = bySet.get(setName);
+            Assert.isNotNull(fieldPerm, setName + ' must have a field permission on Case.ClosedDate');
+            Assert.isTrue(fieldPerm.PermissionsRead, setName + ' must grant read on Case.ClosedDate (getAssets reads it in USER_MODE)');
+            Assert.isFalse(fieldPerm.PermissionsEdit, setName + ' must not grant edit on Case.ClosedDate');
+        }
+        Assert.areEqual(4, fieldPerms.size(), 'expected exactly one Case.ClosedDate field permission per shipped permission set');
+    }
+
+    @isTest
+    static void realCoordinatorAndGerentePermissionSetsReceiveTheLastClosedInterventionOfAVisibleCase() {
+        // Given a coordinator and a Gerente, each holding only their shipped permission set, above the building's operator,
+        // and an asset whose only case is closed
+        User coordinator = newUserWithPermissionSet('nc207closedcoord', 'Nova_Casa_Coordinator', COORDINATOR_ROLE);
+        User gerente = newUserWithPermissionSet('nc207closedger', 'Nova_Casa_Gerente', GERENTE_ROLE);
+        Account building = newAccount('Edificio Cerrado Roles');
+        Asset asset = newAsset('AST-CLOSED-ROLES', building, 'WATER_PUMP');
+        Case closed = reloaded(newCase(asset, 'Closed', 'Cerrado roles'));
+        Assert.isNotNull(closed.ClosedDate, 'precondition: closing a case stamps ClosedDate');
+
+        // When each loads the list
+        Map<String, ActivosOperadorController.AssetPage> pages = new Map<String, ActivosOperadorController.AssetPage>();
+        pages.put('Nova_Casa_Coordinator', loadResult(coordinator, null, null, null));
+        pages.put('Nova_Casa_Gerente', loadResult(gerente, null, null, null));
+
+        // Then both see the asset through the role hierarchy and receive its closed case, which needs read FLS on ClosedDate
+        for (String setName : pages.keySet()) {
+            ActivosOperadorController.AssetPage page = pages.get(setName);
+            Assert.areEqual(1, page.assets.size(), setName + ' must see the operator asset');
+            ActivosOperadorController.AssetView view = page.assets[0];
+            Assert.areEqual(asset.Id, view.assetId, setName);
+            Assert.isNotNull(view.lastClosedIntervention, setName + ' must receive the last closed intervention of a case it can see');
+            Assert.areEqual(closed.Id, view.lastClosedIntervention.caseId, setName);
+            Assert.areEqual(closed.CaseNumber, view.lastClosedIntervention.caseNumber, setName);
+            Assert.areEqual(closed.ClosedDate, view.lastClosedIntervention.closedDate, setName);
+            Assert.isNull(view.openIntervention, setName);
+        }
+    }
+
+    @isTest
+    static void realAdminPermissionSetReceivesTheLastClosedInterventionWithoutAnyRole() {
+        // Given a user holding only the shipped Nova_Casa_Admin set and no role (it sees the building through View All, as in
+        // realCoordinatorAndAdminPermissionSetsCanOpenTheAssetState), and an asset whose only case is closed
+        User admin = newUserWithPermissionSet('nc207closedadmin', 'Nova_Casa_Admin', null);
+        Account building = newAccount('Edificio Cerrado Admin');
+        Asset asset = newAsset('AST-CLOSED-ADMIN', building, 'WATER_PUMP');
+        Case closed = reloaded(newCase(asset, 'Closed', 'Cerrado admin'));
+        Assert.isNotNull(closed.ClosedDate, 'precondition: closing a case stamps ClosedDate');
+
+        // When that user loads the list
+        ActivosOperadorController.AssetPage page = loadResult(admin, null, null, null);
+
+        // Then the asset and its closed case come back, with the closing date
+        Assert.areEqual(1, page.assets.size(), 'Nova_Casa_Admin must see the operator asset');
+        Assert.isNotNull(page.assets[0].lastClosedIntervention, 'Nova_Casa_Admin must receive the last closed intervention');
+        Assert.areEqual(closed.Id, page.assets[0].lastClosedIntervention.caseId);
+        Assert.areEqual(closed.CaseNumber, page.assets[0].lastClosedIntervention.caseNumber);
+        Assert.areEqual(closed.ClosedDate, page.assets[0].lastClosedIntervention.closedDate);
+    }
+
     // ---------- helpers ----------
 
     // Assigns a SHIPPED permission set (by Name) to a fresh user. Call before inserting data rows in the test.
@@ -1519,6 +2027,36 @@ private class ActivosOperadorControllerTest {
             }
             insert u;
             insert new PermissionSetAssignment(AssigneeId = u.Id, PermissionSetId = sets[0].Id);
+        }
+        return u;
+    }
+
+    // A fresh user (no role) with a throwaway permission set that mirrors NC207_Operator_Full (Read on the five objects the list
+    // queries, read-only FLS on its fields) minus Case.ClosedDate. Call before inserting data rows in the test.
+    private static User newUserWithEverythingButClosedDate() {
+        User u;
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            PermissionSet ps = newPermissionSet('NC207_Operator_NoClosedDate');
+            insert ps;
+            List<ObjectPermissions> objectPerms = new List<ObjectPermissions>();
+            for (String obj : new List<String>{ 'Asset', 'Account', 'Contact', 'Case', 'Lectura_Vigente__c' }) {
+                objectPerms.add(new ObjectPermissions(ParentId = ps.Id, SobjectType = obj, PermissionsRead = true));
+            }
+            insert objectPerms;
+            List<FieldPermissions> fieldPerms = new List<FieldPermissions>();
+            for (String f : new List<String>{
+                'Asset.AccountId', 'Asset.Tipo_Activo__c', 'Asset.External_Id__c',
+                'Case.AssetId', 'Case.Subject',
+                'Lectura_Vigente__c.Severidad_Nivel__c', 'Lectura_Vigente__c.Sensor_Id__c'
+            }) {
+                fieldPerms.add(new FieldPermissions(ParentId = ps.Id, SobjectType = f.substringBefore('.'),
+                    Field = f, PermissionsRead = true, PermissionsEdit = false));
+            }
+            insert fieldPerms;
+            Profile p = [SELECT Id FROM Profile WHERE Name = 'Minimum Access - Salesforce' LIMIT 1];
+            u = newUser(p.Id, 'nc207noclosed', String.valueOf(Crypto.getRandomInteger()).replace('-', 'n'));
+            insert u;
+            insert new PermissionSetAssignment(AssigneeId = u.Id, PermissionSetId = ps.Id);
         }
         return u;
     }
@@ -1703,5 +2241,39 @@ private class ActivosOperadorControllerTest {
         Case c = new Case(AssetId = asset.Id, OwnerId = ownerId, Status = status, Subject = subject, Origin = 'Web');
         insert c;
         return c;
+    }
+
+    // A Case that is not inserted yet, for tests that need several in one DML statement or a chosen owner.
+    private static Case caseDraft(Asset asset, Id ownerId, String status, String subject) {
+        return new Case(AssetId = asset.Id, OwnerId = ownerId, Status = status, Subject = subject, Origin = 'Web');
+    }
+
+    // Closing is what makes the platform stamp Case.ClosedDate (with the time of that DML statement).
+    private static void closeCase(Case c) {
+        update new Case(Id = c.Id, Status = 'Closed');
+    }
+
+    // Apex has no sleep: spin until the clock has moved on, so two closings get different ClosedDate values.
+    private static void letOneSecondPass() {
+        Long deadline = System.currentTimeMillis() + 1100;
+        while (System.currentTimeMillis() < deadline) {
+            // busy wait on purpose
+        }
+    }
+
+    // Re-reads the system-stamped fields that the insert result does not carry (CaseNumber is auto-number).
+    private static Case reloaded(Case c) {
+        return [SELECT Id, CaseNumber, ClosedDate FROM Case WHERE Id = :c.Id];
+    }
+
+    // Same as loadResult, also recording how many SOQL queries getAssets itself consumed (setup queries are not counted).
+    private static ActivosOperadorController.AssetPage loadCountingQueries(User runAs, List<Integer> queriesUsed) {
+        ActivosOperadorController.AssetPage result;
+        System.runAs(runAs) {
+            Integer before = Limits.getQueries();
+            result = ActivosOperadorController.getAssets(null, null, null);
+            queriesUsed.add(Limits.getQueries() - before);
+        }
+        return result;
     }
 }

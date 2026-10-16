@@ -74,12 +74,12 @@ C/R/E/D = Create/Read/Edit/Delete from the permission set; after the dot, where 
 
 ## Fields (FLS)
 
-- **Everyone who sees `Lectura_Vigente__c`** sees its required fields (`Asset__c`, `Tipo_Medicion__c`, `Valor__c`, `Unidad__c`, `Occurred_At__c`): the platform doesn't allow FLS on required fields.
-- **Operator**: read on `Asset.AccountId`, `Asset.Tipo_Activo__c`, the `Asset` summaries (`Severidad_Actual__c`, `Severidad_Nivel__c`, `Ultima_Senal__c`), `Case.AssetId`, `Case.Subject`, `Lectura_Vigente__c.Sensor_Id__c`, `Lectura_Vigente__c.Severidad_Nivel__c`, `Lectura_Vigente__c.Severidad__c` and the technical keys.
-- **Coordinator**: the operator's, plus edit on `Umbral__c.Activo__c` and read on `Umbral__c.Severidad_Nivel__c`.
-- **Manager**: the operator's. Nothing editable.
-- **Technical keys** (`Account.External_Id__c`, `Asset.External_Id__c`, `Lectura_Vigente__c.Clave__c`, `Identidad_Senal__c` on `Case` and `Lectura_Vigente__c`): read-only for every persona (aligned with PR #26); only Admin edits them. The operator screen queries `Asset.External_Id__c` in `USER_MODE`, so without that FLS it shows an access error; the other four are for the `Case`, `Account` and `Lectura_Vigente__c` layouts.
-- **Admin only**: all of `Log_Senial__c`. Exception (D024): operator, coordinator and manager see the "Historial de señales" in the asset detail (signal type, origin date, result and, since D034, measurement type, value and unit) for the assets they already see, read through Apex without giving them permissions on the object.
+- **Todos los que ven `Lectura_Vigente__c`** ven sus campos requeridos (`Asset__c`, `Tipo_Medicion__c`, `Valor__c`, `Unidad__c`, `Occurred_At__c`): la plataforma no permite FLS sobre campos requeridos.
+- **Operador**: lectura en `Asset.AccountId`, `Asset.Tipo_Activo__c`, los resúmenes de `Asset` (`Severidad_Actual__c`, `Severidad_Nivel__c`, `Ultima_Senal__c`), `Case.AssetId`, `Case.Subject`, `Case.ClosedDate`, `Lectura_Vigente__c.Sensor_Id__c`, `Lectura_Vigente__c.Severidad_Nivel__c`, `Lectura_Vigente__c.Severidad__c` y las claves técnicas. `Case.ClosedDate` es solo lectura y la tienen también el coordinador, el gerente y `Nova_Casa_Admin` (D038): la pantalla del operador lo consulta en `USER_MODE` para la línea "Última intervención", así que sin esa FLS la lista muestra el error de acceso en cuanto un activo de la página no tiene intervención abierta.
+- **Coordinador**: lo del operador, más edición en `Umbral__c.Activo__c` y lectura en `Umbral__c.Severidad_Nivel__c`.
+- **Gerente**: lo del operador. Nada editable.
+- **Claves técnicas** (`Account.External_Id__c`, `Asset.External_Id__c`, `Lectura_Vigente__c.Clave__c`, `Identidad_Senal__c` en `Case` y `Lectura_Vigente__c`): solo lectura para todas las personas (alineado con PR #26); solo Admin las edita. La pantalla del operador consulta `Asset.External_Id__c` en `USER_MODE`, así que sin esa FLS muestra error de acceso; las otras cuatro son para los layouts de `Case`, `Account` y `Lectura_Vigente__c`.
+- **Solo Admin**: todo `Log_Senial__c`. Excepción (D024): operador, coordinador y gerente ven en el detalle del activo el "Historial de señales" (tipo de señal, fecha de origen, resultado y, desde D034, tipo de medición, valor y unidad) de los activos que ya ven, leído por Apex sin darles permisos sobre el objeto.
 
 ## Actions
 
