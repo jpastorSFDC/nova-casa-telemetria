@@ -2,7 +2,7 @@
 
 T8.1. Quién ve y hace qué, y de dónde sale cada acceso (BR-208). El acceso efectivo es siempre la intersección de dos cosas: el permiso de objeto/campo (permission set o perfil) y el acceso al registro (OWD, ownership, role hierarchy o View All). El modelo de edificio como `Account` viene de [D005](decisiones.md#d005--el-edificio-es-account-external_id__c-para-upsert-del-catálogo).
 
-**Estado al 2026-10-06**: OWD Private aplicado (T8.2, PR #38), los usuarios persona en Minimum Access - Salesforce y cada edificio a nombre de un operador ([D022](decisiones.md#d022--coordinador-y-gerente-ven-por-role-hierarchy-cada-edificio-es-de-un-operador-personas-en-minimum-access-us-208)). `Nova_Casa_Gerente` ya está desplegado sin View All: el 2026-10-07 una consulta a `ObjectPermissions` en `nova-cdo` devolvió solo lectura (`PermissionsViewAllRecords`, `ModifyAll`, `Edit`, `Create` y `Delete` en false) en `Account`, `Asset`, `Case`, `Contact` y `Lectura_Vigente__c`. Falta repetir las consultas de visibilidad de "Jerarquía en vez de View All (D022)" con el gerente.
+**Estado al 2026-10-07**: OWD Private aplicado (T8.2, PR #38), los usuarios persona en Minimum Access - Salesforce, cada edificio a nombre de un operador y el gerente sin View All ([D022](decisiones.md#d022--coordinador-y-gerente-ven-por-role-hierarchy-cada-edificio-es-de-un-operador-personas-en-minimum-access-us-208)). Lo que falta está en "Orden de pasos", paso 7.
 
 ## Personas
 
@@ -20,9 +20,9 @@ El admin persona no lleva rol: View All / Modify All ya le da todos los registro
 `novacasa.operador2@novacasa-telemetria.demo` es dato del org, no está en el repo. Se creó el 2026-10-06 con perfil Minimum Access - Salesforce, rol `Operador_Edificios`, alias `ncoper2`, locale `es_CO`, zona `America/Bogota`, y los permission sets `Nova_Casa_Operator` y `Nova_Casa_Lightning`; después se le pasó el `OwnerId` de BLD-BAQ-001 (antes de John). Los `Asset` y `Case` de BAQ no cambiaron de dueño (`Asset` es Controlled by Parent). Para reproducirlo:
 
 ```bash
-sf data create record -o novacasa_sprint_2 -s User -v "Username='novacasa.operador2@novacasa-telemetria.demo' FirstName='Operador 2' LastName='Nova Casa' Alias='ncoper2' Email='<email>' TimeZoneSidKey='America/Bogota' LocaleSidKey='es_CO' LanguageLocaleKey='es' EmailEncodingKey='UTF-8' ProfileId='<Id de Minimum Access - Salesforce>' UserRoleId='<Id de Operador_Edificios>'"
-sf org assign permset -o novacasa_sprint_2 -n Nova_Casa_Operator -n Nova_Casa_Lightning -b novacasa.operador2@novacasa-telemetria.demo
-sf data update record -o novacasa_sprint_2 -s Account -w "External_Id__c='BLD-BAQ-001'" -v "OwnerId='<Id de operador2>'"
+sf data create record -o nova-cdo -s User -v "Username='novacasa.operador2@novacasa-telemetria.demo' FirstName='Operador 2' LastName='Nova Casa' Alias='ncoper2' Email='<email>' TimeZoneSidKey='America/Bogota' LocaleSidKey='es_CO' LanguageLocaleKey='es' EmailEncodingKey='UTF-8' ProfileId='<Id de Minimum Access - Salesforce>' UserRoleId='<Id de Operador_Edificios>'"
+sf org assign permset -o nova-cdo -n Nova_Casa_Operator -n Nova_Casa_Lightning -b novacasa.operador2@novacasa-telemetria.demo
+sf data update record -o nova-cdo -s Account -w "External_Id__c='BLD-BAQ-001'" -v "OwnerId='<Id de operador2>'"
 ```
 
 **Edificio no autorizado (T8.6)**: `Edificio de prueba (fuera de jerarquía)`, `External_Id__c` `BLD-TEST-NOAUT`, dueño Juan Diego (System Administrator, sin rol), sin activos. Nadie de la jerarquía debe verlo: es el registro de prueba de coordinador y gerente. No choca con el catálogo, que solo hace upsert de los `External_Id__c` que manda el simulador.
@@ -83,15 +83,20 @@ C/R/E/D = Create/Read/Edit/Delete del permission set; después del punto, de dó
 
 ## Acciones
 
-| Acción | Quién | Autorización |
-|---|---|---|
-| Ver la pantalla "Activos del operador" | Operador, Coordinador, Gerente, Admin | Tab + `classAccesses` a `ActivosOperadorController`; el controlador es `with sharing` y consulta en `USER_MODE` |
-| Seguir una intervención (editar `Case`) | Coordinador, Admin | Edit en `Case` en `Nova_Casa_Coordinator`; nadie la crea a mano, la crea la ingesta |
-| Cambiar umbrales | Coordinador (crear/editar), Admin (todo) | CRUD de `Umbral__c` en el permission set; requiere el OWD Public Read/Write de arriba |
-| Ver errores técnicos y motivo de rechazo | Admin | `Log_Senial__c` solo en `Nova_Casa_Admin`; la pestaña "Registros de Señal" de la app Nova Casa Telemetry se declara visible solo en ese permission set (`tabSettings`); sin Read sobre el objeto nadie más llega a los datos aunque vea la pestaña. Medido en la org el 2026-10-07 (`ObjectPermissions`): Read sobre `Log_Senial__c` solo en `Nova_Casa_Admin`, `Nova_Casa_Procesamiento` y los perfiles o permission sets de administración e integración de Salesforce; ningún permission set de Operador, Coordinador o Gerente. Que el perfil Minimum Access no muestre la pestaña se comprueba en la org tras el deploy |
-| Ver el historial de señales de un activo (sin motivo ni detalle técnico) | Operador, Coordinador, Gerente, Admin | `ActivosOperadorController.getHistorial`: comprueba el activo en `USER_MODE` y lee el log en modo sistema; ver D024 |
-| Saber si una señal se puede reintentar, y reintentarla | Admin | La columna `Accion_Reintento__c` de `Log_Senial__c` (fórmula de solo lectura, FLS de solo lectura en `Nova_Casa_Admin`, D014) dice si el reintento es seguro o qué corregir antes. Reintentar es volver a correr la ingesta ("Traer señales"), que pide la custom permission `Nova_Casa_Traer_Senales` y además `Nova_Casa_Simulator_Integration` y Create sobre `Senial_Sensor__e` (cabecera de `IngestaController`). `Reintento_Seguro__c` quedó reemplazado por esa fórmula, pero el campo sigue en el repo, editable en `Nova_Casa_Admin` y en `Nova_Casa_Procesamiento`, hasta que se decida borrarlo en su propio PR (D014) |
-| Ingestar señales | Usuario de integración | `Nova_Casa_Simulator_Integration` + permiso de ingesta propio (T2.10), separado del operador |
+Todos ven la misma pantalla "Activos del operador" y los mismos datos de los registros que su acceso les deja ver; cambian las acciones. Cada acción de la pantalla vive detrás de una custom permission o de un permiso de objeto, y el servidor la vuelve a comprobar (D020).
+
+| Acción | Operador | Coordinador | Gerente | Admin | Autorización |
+|---|---|---|---|---|---|
+| Ver activos, lecturas, intervención abierta y resumen por edificio | sí | sí | sí | sí | Tab + `classAccesses` a `ActivosOperadorController`; el controlador es `with sharing` y consulta en `USER_MODE` |
+| Ver el historial de señales de un activo (sin motivo ni detalle técnico) | sí | sí | sí | sí | `ActivosOperadorController.getHistorial`: comprueba el activo en `USER_MODE` y lee el log en modo sistema (D024) |
+| Crear una intervención manual | sí | sí | no | sí | Custom permission `Nova_Casa_Crear_Intervencion`. La creación corre en modo sistema porque el operador no tiene Create sobre `Case`; la custom permission es su única llave (D020). Las intervenciones por señal crítica las crea la ingesta |
+| Cambiar el estado de una intervención, o cerrar en bloque las abiertas de un activo | no | sí (necesita además Edit en `Case`) | no | sí | Custom permission `Nova_Casa_Seguir_Intervencion` (D035). Las opciones de estado son los valores activos de `Case.Status` (D036); la lista la puede leer quien tenga acceso a la clase (operador, coordinador, admin), pero solo cambia el estado quien tiene el permiso |
+| Cambiar umbrales ("Ver límites") | no | sí (crear y editar) | no | sí (todo) | CRUD de `Umbral__c` en el permission set; requiere el OWD Public Read/Write de la matriz por objeto |
+| Traer señales del simulador | no | no | no | sí (necesita además `Nova_Casa_Simulator_Integration`) | Custom permission `Nova_Casa_Traer_Senales` |
+| Ver errores técnicos y motivo de rechazo | no | no | no | sí | `Log_Senial__c` solo en `Nova_Casa_Admin`; la pestaña "Registros de Señal" de la app Nova Casa Telemetry se declara visible solo en ese permission set (`tabSettings`); sin Read sobre el objeto nadie más llega a los datos aunque vea la pestaña. Medido en la org el 2026-10-07 (`ObjectPermissions`): Read sobre `Log_Senial__c` solo en `Nova_Casa_Admin`, `Nova_Casa_Procesamiento` y los perfiles o permission sets de administración e integración de Salesforce; ningún permission set de Operador, Coordinador o Gerente. Que el perfil Minimum Access no muestre la pestaña se comprueba en la org tras el deploy |
+| Saber si una señal se puede reintentar, y reintentarla | no | no | no | sí | La columna `Accion_Reintento__c` de `Log_Senial__c` (fórmula de solo lectura, FLS de solo lectura en `Nova_Casa_Admin`, D014) dice si el reintento es seguro o qué corregir antes. Reintentar es volver a correr la ingesta ("Traer señales"), que pide la custom permission `Nova_Casa_Traer_Senales` y además `Nova_Casa_Simulator_Integration` y Create sobre `Senial_Sensor__e` (cabecera de `IngestaController`). `Reintento_Seguro__c` quedó reemplazado por esa fórmula, pero el campo sigue en el repo, editable en `Nova_Casa_Admin` y en `Nova_Casa_Procesamiento`, hasta que se decida borrarlo en su propio PR (D014) |
+
+La ingesta no usa ninguno de estos permisos: la corre el usuario de integración con `Nova_Casa_Simulator_Integration` y su propio permiso de ingesta (T2.10), separado del operador.
 
 ## Orden de pasos
 
@@ -101,7 +106,7 @@ C/R/E/D = Create/Read/Edit/Delete del permission set; después del punto, de dó
 4. **Perfil** (hecho 2026-10-06): los cuatro usuarios persona en Minimum Access - Salesforce con `Nova_Casa_Lightning` (ver abajo).
 5. **T8.6** (hecho 2026-10-06): consultas repetidas antes y después del cambio de perfil, ver "Resultado (T8.6)".
 6. **Segundo operador y dueños** (hecho 2026-10-06, D022): `novacasa.operador2@` creado y dueño de BLD-BAQ-001; BLD-TEST-NOAUT creado como edificio fuera de la jerarquía.
-7. **Gerente sin View All** (permisos hechos, verificado 2026-10-07): `Nova_Casa_Gerente` desplegado con el resto de `main`; la consulta a `ObjectPermissions` confirma solo lectura. Pendiente: repetir las consultas de visibilidad de "Jerarquía en vez de View All (D022)" (el gerente debe ver None en BLD-TEST-NOAUT).
+7. **Gerente sin View All** (permisos hechos, verificado 2026-10-07): `Nova_Casa_Gerente` desplegado con el resto de `main`; una consulta a `ObjectPermissions` en `nova-cdo` devolvió solo lectura (`PermissionsViewAllRecords`, `ModifyAll`, `Edit`, `Create` y `Delete` en false) en `Account`, `Asset`, `Case`, `Contact` y `Lectura_Vigente__c`. Pendiente: repetir las consultas de visibilidad de "Jerarquía en vez de View All (D022)" (el gerente debe ver None en BLD-TEST-NOAUT).
 
 ## Perfil Minimum Access
 
@@ -110,8 +115,8 @@ Los usuarios persona tenían el perfil Standard User, que da CRED en `Account`, 
 El perfil y las asignaciones son datos del org, no metadata. Para reproducirlos (2026-10-06, en `novacasa.operador@`, `novacasa.coordinador@`, `novacasa.gerente@` y `novacasa.admin@`, todos `@novacasa-telemetria.demo`; `novacasa.integracion@` ya estaba en Minimum Access):
 
 ```bash
-sf data update record -o novacasa_sprint_2 -s User -w "Username='<username>'" -v "ProfileId=<Id de Minimum Access - Salesforce>"
-sf org assign permset -o novacasa_sprint_2 -n Nova_Casa_Lightning -b <username>
+sf data update record -o nova-cdo -s User -w "Username='<username>'" -v "ProfileId=<Id de Minimum Access - Salesforce>"
+sf org assign permset -o nova-cdo -n Nova_Casa_Lightning -b <username>
 ```
 
 Para revertir, el mismo `sf data update record` con el `ProfileId` de Standard User.
@@ -142,24 +147,24 @@ Después de los dos deploys de T8.2 (objetos, luego roles), desde `main`.
 1. OWD: `Account`, `Case` y `Opportunity` en `Private`, `Umbral__c` en `ReadWrite`. `Asset` y `Contact` salen con el valor que heredan de `Account`.
 
    ```bash
-   sf data query --use-tooling-api -o novacasa_sprint_2 -q "SELECT QualifiedApiName, InternalSharingModel, ExternalSharingModel FROM EntityDefinition WHERE QualifiedApiName IN ('Account','Asset','Case','Contact','Opportunity','Umbral__c')"
+   sf data query --use-tooling-api -o nova-cdo -q "SELECT QualifiedApiName, InternalSharingModel, ExternalSharingModel FROM EntityDefinition WHERE QualifiedApiName IN ('Account','Asset','Case','Contact','Opportunity','Umbral__c')"
    ```
 
 2. Ids de las personas y de un registro de cada edificio:
 
    ```bash
-   sf data query -o novacasa_sprint_2 -q "SELECT Id, Username FROM User WHERE Username LIKE 'novacasa.%'"
-   sf data query -o novacasa_sprint_2 -q "SELECT Id, External_Id__c, Owner.Username FROM Account WHERE External_Id__c IN ('BLD-BOG-001','BLD-BAQ-001','BLD-TEST-NOAUT')"
-   sf data query -o novacasa_sprint_2 -q "SELECT Id, Account.External_Id__c FROM Asset WHERE Account.External_Id__c IN ('BLD-BOG-001','BLD-BAQ-001') ORDER BY Account.External_Id__c"
-   sf data query -o novacasa_sprint_2 -q "SELECT Id, Asset__r.Account.External_Id__c FROM Lectura_Vigente__c WHERE Asset__r.Account.External_Id__c IN ('BLD-BOG-001','BLD-BAQ-001') ORDER BY Asset__r.Account.External_Id__c"
-   sf data query -o novacasa_sprint_2 -q "SELECT Id, Account.External_Id__c, Owner.Name FROM Case WHERE Account.External_Id__c IN ('BLD-BOG-001','BLD-BAQ-001') ORDER BY CreatedDate DESC LIMIT 10"
-   sf data query -o novacasa_sprint_2 -q "SELECT Id, CreatedBy.Name FROM Umbral__c LIMIT 1"
+   sf data query -o nova-cdo -q "SELECT Id, Username FROM User WHERE Username LIKE 'novacasa.%'"
+   sf data query -o nova-cdo -q "SELECT Id, External_Id__c, Owner.Username FROM Account WHERE External_Id__c IN ('BLD-BOG-001','BLD-BAQ-001','BLD-TEST-NOAUT')"
+   sf data query -o nova-cdo -q "SELECT Id, Account.External_Id__c FROM Asset WHERE Account.External_Id__c IN ('BLD-BOG-001','BLD-BAQ-001') ORDER BY Account.External_Id__c"
+   sf data query -o nova-cdo -q "SELECT Id, Asset__r.Account.External_Id__c FROM Lectura_Vigente__c WHERE Asset__r.Account.External_Id__c IN ('BLD-BOG-001','BLD-BAQ-001') ORDER BY Asset__r.Account.External_Id__c"
+   sf data query -o nova-cdo -q "SELECT Id, Account.External_Id__c, Owner.Name FROM Case WHERE Account.External_Id__c IN ('BLD-BOG-001','BLD-BAQ-001') ORDER BY CreatedDate DESC LIMIT 10"
+   sf data query -o nova-cdo -q "SELECT Id, CreatedBy.Name FROM Umbral__c LIMIT 1"
    ```
 
 3. Una consulta por persona (operador, coordinador, gerente). `UserRecordAccess` solo acepta Ids literales: un `UserId` y una lista de `RecordId`.
 
    ```bash
-   sf data query -o novacasa_sprint_2 -q "SELECT RecordId, MaxAccessLevel FROM UserRecordAccess WHERE UserId = '<UserId>' AND RecordId IN ('<Id1>','<Id2>')"
+   sf data query -o nova-cdo -q "SELECT RecordId, MaxAccessLevel FROM UserRecordAccess WHERE UserId = '<UserId>' AND RecordId IN ('<Id1>','<Id2>')"
    ```
 
 ## Resultado (T8.6)
@@ -217,8 +222,8 @@ Solo lectura del gerente sobre registros de otro dueño:
 `CatalogoService` hace upsert de `Account` sin tocar `OwnerId`: un edificio nuevo queda a nombre de quien corre la carga del catálogo y, hasta reasignarlo, ni la jerarquía ni su operador lo ven (D022). El administrador de Salesforce (Juan Diego o John) asigna el operador dueño justo después de cada carga:
 
 ```bash
-sf data query -o novacasa_sprint_2 -q "SELECT Id, External_Id__c, Name, Owner.Username FROM Account WHERE External_Id__c LIKE 'BLD-%' AND External_Id__c != 'BLD-TEST-NOAUT' AND Owner.UserRole.DeveloperName != 'Operador_Edificios'"
-sf data update record -o novacasa_sprint_2 -s Account -w "External_Id__c='<BLD-…>'" -v "OwnerId='<Id del operador>'"
+sf data query -o nova-cdo -q "SELECT Id, External_Id__c, Name, Owner.Username FROM Account WHERE External_Id__c LIKE 'BLD-%' AND External_Id__c != 'BLD-TEST-NOAUT' AND Owner.UserRole.DeveloperName != 'Operador_Edificios'"
+sf data update record -o nova-cdo -s Account -w "External_Id__c='<BLD-…>'" -v "OwnerId='<Id del operador>'"
 ```
 
 La primera consulta debe volver vacía. Los `Asset` no se tocan: son Controlled by Parent.
@@ -228,19 +233,4 @@ La primera consulta debe volver vacía. Los `Asset` no se tocan: son Controlled 
 - **Ingesta con OWD Private**: un `SYSTEM_MODE` dentro de una clase `with sharing` sigue aplicando sharing. El usuario de integración no es dueño de los edificios ni está sobre el operador en la jerarquía, así que necesita View All / Modify All en los objetos que lee y escribe, en su propio permission set (T2.10). Eso además deja la autorización de la ingesta explícita y separada del operador, como pide US-208.
 - **`Case.AccountId`**: el operador ve un caso porque es dueño de su `Account` (nivel del rol). Si la ingesta crea un caso sin `AccountId`, el operador no lo ve. Los casos actuales sí lo traen.
 - **Tests con `System.runAs`**: `ActivosOperadorControllerTest` e `IntervencionOperadorControllerTest` crean el edificio como el usuario que corre el test y consultan como otro usuario sin rol ni ownership. Con `Account` Private ese usuario no ve el edificio y los asserts de conteo fallan. Resuelto en PR #39: el edificio de prueba queda a nombre del usuario del `runAs`.
-- **Dueño del edificio**: `CatalogoService` no toca `OwnerId`; un edificio nuevo queda a nombre de quien corre la carga y es invisible para la jerarquía hasta que el administrador lo reasigne a un operador (ver "Dueño de los edificios" y D022).
-
-## Acciones de la pantalla (D020)
-
-Todos ven la misma pantalla y los mismos datos; cambian las acciones. Cada acción vive detrás de una custom permission y el servidor la vuelve a comprobar.
-
-| Acción | Operador | Coordinador | Gerente | Admin |
-|---|---|---|---|---|
-| Ver activos, lecturas, intervención abierta y resumen por edificio | sí | sí | sí | sí |
-| Crear intervención manual (`Nova_Casa_Crear_Intervencion`) | sí | sí | no | sí |
-| Cambiar estado de la intervención, o cerrar en bloque las abiertas de un activo (`Nova_Casa_Seguir_Intervencion`, D035). Las opciones de estado son los valores activos de `Case.Status` (D036); la lista la puede leer quien tenga acceso a la clase (operador, coordinador, admin), pero solo cambia el estado quien tiene el permiso | no | sí (necesita además Edit en `Case`) | no | sí |
-| Ir a los límites (`Umbral__c`, por permiso de objeto) | no | sí | no | sí |
-| Traer señales del simulador (`Nova_Casa_Traer_Senales`) | no | no | no | sí (necesita además `Nova_Casa_Simulator_Integration`) |
-
-La creación del `Case` corre en modo sistema porque el operador no tiene Create sobre `Case`; la custom permission es su única llave (ver D020).
-
+- **Dueño del edificio**: un edificio nuevo del catálogo es invisible para la jerarquía hasta reasignarlo; el paso está en "Dueño de los edificios".
