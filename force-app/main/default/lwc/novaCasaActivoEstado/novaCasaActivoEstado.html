@@ -20,40 +20,47 @@
 
             <template if:true={hasData}>
                 <template if:true={isTruncated}>
-                    <p class="nota">{truncatedText}</p>
+                    <p class="nota aviso-truncado">{truncatedText}</p>
                 </template>
                 <section class="bloque" aria-label="Lecturas actuales">
                     <h3 class="titulo">Lecturas actuales</h3>
                     <template if:true={hasReadings}>
-                        <table>
-                            <caption class="slds-assistive-text">Última lectura de cada tipo de medición</caption>
-                            <thead>
-                                <tr>
-                                    <th scope="col">Medición</th>
-                                    <th scope="col">Valor</th>
-                                    <th scope="col">Severidad</th>
-                                    <th scope="col">Hora de origen</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <template for:each={readings} for:item="r">
-                                    <tr key={r.key}>
-                                        <td class="fuerte">{r.label}</td>
-                                        <td class="num">{r.valueText}</td>
-                                        <td><span class={r.sevClass}><span aria-hidden="true">{r.sevGlyph}</span> {r.sevLabel}</span></td>
-                                        <td class="num">
-                                            <lightning-formatted-date-time value={r.occurredAt} year="numeric" month="short" day="2-digit" hour="2-digit" minute="2-digit" second="2-digit" time-zone="UTC"></lightning-formatted-date-time> UTC
-                                            <template if:true={r.ageKnown}>
-                                                <span class="edad">({r.ageText})</span>
-                                            </template>
-                                            <template if:true={r.isStale}>
-                                                <span class="antiguo"><span aria-hidden="true">&#9201;</span> Dato antiguo</span>
-                                            </template>
-                                        </td>
+                        <div class="tabla-marco">
+                            <table>
+                                <caption class="slds-assistive-text">Última lectura de cada tipo de medición</caption>
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Medición</th>
+                                        <th scope="col">Valor</th>
+                                        <th scope="col">Severidad</th>
+                                        <th scope="col">Hora de origen</th>
                                     </tr>
-                                </template>
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    <template for:each={readings} for:item="r">
+                                        <tr key={r.key}>
+                                            <td class="fuerte">{r.label}</td>
+                                            <td class="num fuerte">{r.valueText}</td>
+                                            <td><span class={r.sevClass}><span aria-hidden="true">{r.sevGlyph}</span> {r.sevLabel}</span></td>
+                                            <td class="celda-hora">
+                                                <span class="num">
+                                                    <template if:true={r.isToday}>{r.timeText}</template>
+                                                    <template if:false={r.isToday}>
+                                                        <lightning-formatted-date-time value={r.occurredAt} year="numeric" month="short" day="2-digit" hour="2-digit" minute="2-digit" second="2-digit" time-zone="UTC"></lightning-formatted-date-time> UTC
+                                                    </template>
+                                                    <template if:true={r.ageKnown}>
+                                                        <span class="edad"> · {r.ageText}</span>
+                                                    </template>
+                                                </span>
+                                                <template if:true={r.isStale}>
+                                                    <span class="antiguo"><span aria-hidden="true">&#9201;</span> Dato antiguo</span>
+                                                </template>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
                     </template>
                     <template if:false={hasReadings}>
                         <p class="nota">Este activo todavía no tiene lecturas.</p>
@@ -61,27 +68,28 @@
                 </section>
 
                 <section class="bloque" aria-label="Intervención abierta">
-                    <h3 class="titulo">Intervención abierta</h3>
                     <template if:true={hasIntervention}>
                         <div class="caso">
                             <div class="caso-cabecera">
-                                <span class="caso-glifo" aria-hidden="true">&#9650;</span>
-                                <a class="caso-enlace" href="#" onclick={handleCaseClick}>{caseTitle}</a>
-                                <span class="caso-estado">Estado: {intervention.status}</span>
+                                <h3 class="caso-titulo"><span aria-hidden="true">&#9679;</span> Intervención abierta</h3>
+                                <span class="caso-estado"><span class="slds-assistive-text">Estado: </span>{intervention.status}</span>
                             </div>
-                            <p class="caso-asunto">{caseSubject}</p>
-                            <template if:true={hasMoreInterventions}>
-                                <p class="caso-mas"><button type="button" class="enlace-boton" onclick={handleMoreClick}>{moreInterventionsText}</button></p>
-                            </template>
+                            <div class="caso-cuerpo">
+                                <a class="caso-enlace" href="#" onclick={handleCaseClick}>{caseTitle} <span aria-hidden="true">&#8599;</span></a>
+                                <p class="caso-asunto">{caseSubject}</p>
+                                <template if:true={hasMoreInterventions}>
+                                    <p class="caso-mas"><button type="button" class="enlace-boton" onclick={handleMoreClick}>{moreInterventionsText}</button></p>
+                                </template>
+                            </div>
                         </div>
                     </template>
                     <template if:false={hasIntervention}>
+                        <h3 class="titulo">Intervención abierta</h3>
                         <p class="nota">Este activo no tiene intervenciones abiertas.</p>
                     </template>
                 </section>
 
                 <section class="bloque" aria-label="Historial de señales">
-                    <h3 class="titulo">Historial de señales</h3>
                     <c-nova-casa-historial-senales asset-id={recordId}></c-nova-casa-historial-senales>
                 </section>
             </template>
