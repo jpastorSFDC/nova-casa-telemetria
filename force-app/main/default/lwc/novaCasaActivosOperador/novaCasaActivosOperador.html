@@ -73,6 +73,9 @@
                             <span class={ingestStatusClass}><span class="punto" aria-hidden="true"></span>{ingestStatusText}</span>
                         </template>
                     </div>
+                    <template if:true={hasIngestScheduleLine}>
+                        <p class="programacion" role="status" aria-live="polite"><span class="punto" aria-hidden="true"></span>{ingestScheduleLine}</p>
+                    </template>
                     <div class="ingesta-cuerpo">
                         <div class="ingesta-controles">
                             <div class="control">
@@ -99,7 +102,7 @@
                                 </div>
                             </div>
                             <button type="button" class="boton primario boton-ancho" disabled={ingestRunning} onclick={handleStartIngest}><span aria-hidden="true">&#9654;</span> Traer señales</button>
-                            <p class="nota">Crea lecturas, registros de log y casos reales. Una sola corrida a la vez; avisa al equipo antes de lanzarla. Cada corrida continúa donde quedó la anterior; marca «Reiniciar sesión» para empezar otra vez desde el primer mensaje del simulador.</p>
+                            <p class="nota">La ingesta corre sola cada 5 minutos; este botón es para correr un escenario a mano o reiniciar la sesión. Crea lecturas, registros de log y casos reales. Una sola corrida a la vez (manual o automática); avisa al equipo antes de lanzarla. Cada corrida continúa donde quedó la anterior; marca «Reiniciar sesión» para empezar otra vez desde el primer mensaje del simulador.</p>
                         </div>
                         <template if:true={hasIngestState}>
                             <div class="ingesta-monitor">

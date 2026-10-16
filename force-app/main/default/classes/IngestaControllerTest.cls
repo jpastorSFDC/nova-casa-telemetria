@@ -240,6 +240,56 @@ private class IngestaControllerTest {
     }
 
     @isTest
+    static void getProgramacionRequiresTheCustomPermission() {
+        User coordinator = newUserWithPermissionSet('ncprgcoo', 'Nova_Casa_Coordinator');
+
+        String error;
+        System.runAs(coordinator) {
+            try {
+                IngestaController.getProgramacion();
+            } catch (AuraHandledException e) {
+                error = e.getMessage();
+            }
+        }
+
+        Assert.areEqual(IngestaController.NO_PERMISSION, error);
+    }
+
+    @isTest
+    static void getProgramacionReportsInactiveWhenNothingIsScheduled() {
+        User admin = newUserWithPermissionSet('ncprgoff', 'Nova_Casa_Admin');
+        SesionSimulador.memoriaDePrueba = new Map<String, String>(); // Platform Cache holds nothing in tests
+
+        IngestaController.Programacion p;
+        System.runAs(admin) {
+            p = IngestaController.getProgramacion();
+        }
+
+        Assert.isFalse(p.activa, 'No scheduled jobs means automatic ingestion is off');
+        Assert.isNull(p.proximaEjecucion);
+        Assert.areEqual(TelemetriaIngestaProgramada.INTERVALO_MINUTOS, p.intervaloMinutos);
+    }
+
+    @isTest
+    static void getProgramacionReportsActiveWhenScheduled() {
+        User admin = newUserWithPermissionSet('ncprgon', 'Nova_Casa_Admin');
+        SesionSimulador.memoriaDePrueba = new Map<String, String>(); // Platform Cache holds nothing in tests
+        // Scheduling reads the job tables, which the Nova_Casa_Admin persona cannot (no View Setup): it is done by
+        // the running admin user. The panel read below is the persona's, and must work without those tables (D040).
+        TelemetriaIngestaProgramada.programar('MIXED', 5);
+
+        IngestaController.Programacion p;
+        System.runAs(admin) {
+            p = IngestaController.getProgramacion();
+        }
+
+        Assert.isTrue(p.activa, 'With the jobs scheduled, automatic ingestion is on');
+        Assert.areEqual('MIXED', p.escenario, 'The panel shows the scheduled scenario');
+        Assert.isNotNull(p.proximaEjecucion, 'The panel shows when the next run is');
+        Assert.areEqual(TelemetriaIngestaProgramada.INTERVALO_MINUTOS, p.intervaloMinutos);
+    }
+
+    @isTest
     static void shouldCountLogRowsByResultSinceTheStart() {
         User admin = newUserWithPermissionSet('ncingcnt', 'Nova_Casa_Admin');
         insert new List<Log_Senial__c>{

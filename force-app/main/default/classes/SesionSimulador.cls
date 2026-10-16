@@ -28,6 +28,16 @@ public without sharing class SesionSimulador {
     private static final Integer TTL_RESUMEN_SEGUNDOS = 3600;
     @TestVisible
     private static final String CLAVE_RESUMEN = 'ultimoresumen';
+    // Suffix of the "the stream ended on the saved cursor" marker, kept next to the cursor so the next run knows its
+    // first page is a re-poll of an already-exhausted stream (D040). Alphanumeric like the cursor key it extends.
+    @TestVisible
+    private static final String SUFIJO_FIN = 'fin';
+    // "Automatic ingestion is scheduled" marker (D040). Every scheduled run refreshes it, so the TTL only has to
+    // outlive a few missed runs (3 x 5 min, above the 300 s minimum); a lost marker comes back on the next run.
+    @TestVisible
+    private static final String CLAVE_PROGRAMACION = 'ingestaprogramada';
+    @TestVisible
+    private static final Integer TTL_PROGRAMACION_SEGUNDOS = 900;
 
     // Test seams. Platform Cache does not hold data in Apex tests, so a test supplies a map instead.
     // In production both are left alone: memoriaDePrueba is null and simularNoDisponible is false.
@@ -67,6 +77,7 @@ public without sharing class SesionSimulador {
     }
 
     public static void borrar(String clave) {
+        limpiarFinDeFlujo(clave); // a cleared session carries no end-of-stream marker (D040)
         if (simularNoDisponible) {
             return;
         }
@@ -85,6 +96,44 @@ public without sharing class SesionSimulador {
         }
     }
 
+    /**
+     * Marks that the stream ended on the cursor saved under `clave`, so the next run treats its first page as a
+     * re-poll of an exhausted stream (D040). The marker shares the cursor's TTL; nothing sensitive is stored.
+     */
+    public static Boolean guardarFinDeFlujo(String clave) {
+        return escribir(claveFin(clave), '1', TTL_CURSOR_SEGUNDOS);
+    }
+
+    /** True when the saved cursor of `clave` is a re-poll of a stream that already ended (D040). */
+    public static Boolean flujoTerminadoGuardado(String clave) {
+        return String.isNotBlank(leer(claveFin(clave)));
+    }
+
+    /** Clears the end-of-stream marker: the stream continued, so the next page is genuinely new (D040). */
+    public static void limpiarFinDeFlujo(String clave) {
+        if (simularNoDisponible || String.isBlank(clave)) {
+            return;
+        }
+        String claveMarca = claveFin(clave);
+        if (memoriaDePrueba != null) {
+            memoriaDePrueba.remove(claveMarca);
+            return;
+        }
+        Cache.OrgPartition p = particion();
+        if (p == null) {
+            return;
+        }
+        try {
+            p.remove(claveMarca);
+        } catch (Exception e) {
+            System.debug(LoggingLevel.WARN, 'SesionSimulador: no se pudo limpiar la marca de fin (' + e.getTypeName() + ')');
+        }
+    }
+
+    private static String claveFin(String clave) {
+        return String.isBlank(clave) ? clave : clave + SUFIJO_FIN;
+    }
+
     /** Counters of the last run, as the JSON of TelemetriaIngesta.Resumen (no cursor). */
     public static Boolean guardarResumen(String resumenJson) {
         return escribir(CLAVE_RESUMEN, resumenJson, TTL_RESUMEN_SEGUNDOS);
@@ -94,7 +143,44 @@ public without sharing class SesionSimulador {
         return leer(CLAVE_RESUMEN);
     }
 
+    /**
+     * Marks that the automatic ingestion is scheduled, with its scenario (D040). The panel reads this instead of
+     * the scheduled-job tables, which the Nova_Casa_Admin persona cannot read (no View Setup). The scenario is not a
+     * secret. @return false when it could not be saved (cache unavailable)
+     */
+    public static Boolean guardarProgramacion(String escenario) {
+        return escribir(CLAVE_PROGRAMACION, escenario, TTL_PROGRAMACION_SEGUNDOS);
+    }
+
+    /** The scenario of the scheduled automatic ingestion, or null when there is no marker or no cache. */
+    public static String leerProgramacion() {
+        return leer(CLAVE_PROGRAMACION);
+    }
+
+    public static void borrarProgramacion() {
+        quitar(CLAVE_PROGRAMACION);
+    }
+
     // ─── Private helpers ─────────────────────────────────────────────────
+
+    private static void quitar(String clave) {
+        if (simularNoDisponible || String.isBlank(clave)) {
+            return;
+        }
+        if (memoriaDePrueba != null) {
+            memoriaDePrueba.remove(clave);
+            return;
+        }
+        Cache.OrgPartition p = particion();
+        if (p == null) {
+            return;
+        }
+        try {
+            p.remove(clave);
+        } catch (Exception e) {
+            System.debug(LoggingLevel.WARN, 'SesionSimulador: no se pudo quitar una marca (' + e.getTypeName() + ')');
+        }
+    }
 
     private static String leer(String clave) {
         if (simularNoDisponible || String.isBlank(clave)) {

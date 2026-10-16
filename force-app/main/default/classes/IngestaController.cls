@@ -16,7 +16,6 @@ public with sharing class IngestaController {
         'DUPLICATES', 'CONFLICT', 'INVALID_DATA', 'CAMERA_OUTAGE'
     };
     @TestVisible private static final Integer MAX_PAGES = 25;
-    @TestVisible private static final Set<String> ACTIVE_JOB_STATUSES = new Set<String>{ 'Queued', 'Preparing', 'Processing', 'Holding' };
 
     @TestVisible private static final String NO_PERMISSION = 'No tienes permiso para traer señales.';
     @TestVisible private static final String INVALID_SCENARIO = 'El escenario no es válido.';
@@ -98,7 +97,7 @@ public with sharing class IngestaController {
             throw safeError(INVALID_SCENARIO);
         }
         Integer pages = (paginas == null || paginas < 1) ? null : Math.min(paginas, MAX_PAGES);
-        if (hayIngestaEnCurso()) {
+        if (TelemetriaIngesta.hayIngestaEnCurso()) {
             throw safeError(ALREADY_RUNNING);
         }
         try {
@@ -130,11 +129,42 @@ public with sharing class IngestaController {
                 String key = (String) ar.get('result');
                 byResult.put(key == null ? 'Sin resultado' : key, (Integer) ar.get('n'));
             }
-            Estado estado = new Estado(hayIngestaEnCurso(), byResult);
+            Estado estado = new Estado(TelemetriaIngesta.hayIngestaEnCurso(), byResult);
             estado.detalle = detalleDesde(since);
             return estado;
         } catch (Exception e) {
             System.debug(LoggingLevel.ERROR, 'estadoIngesta: ' + e.getTypeName());
+            throw safeError(STATUS_FAILED);
+        }
+    }
+
+    /** Whether automatic ingestion (the scheduled job, D040) is turned on and when it next runs, for the panel. */
+    public class Programacion {
+        @AuraEnabled public Boolean activa { get; private set; }
+        @AuraEnabled public Datetime proximaEjecucion { get; private set; }
+        @AuraEnabled public String escenario { get; private set; }
+        @AuraEnabled public Integer intervaloMinutos { get; private set; }
+        public Programacion(TelemetriaIngestaProgramada.Estado e) {
+            this.activa = e.activa;
+            this.proximaEjecucion = e.proximaEjecucion;
+            this.escenario = e.escenario;
+            this.intervaloMinutos = e.intervaloMinutos;
+        }
+    }
+
+    /**
+     * Whether automatic ingestion (the scheduled job, D040) is on and when it next runs, for the operator panel.
+     * Not cacheable: the schedule and the next fire time change. No cursor and no job ids ever leave here.
+     */
+    @AuraEnabled
+    public static Programacion getProgramacion() {
+        if (!FeatureManagement.checkPermission(PERM_INGESTA)) {
+            throw safeError(NO_PERMISSION);
+        }
+        try {
+            return new Programacion(TelemetriaIngestaProgramada.estado());
+        } catch (Exception e) {
+            System.debug(LoggingLevel.ERROR, 'getProgramacion: ' + e.getTypeName());
             throw safeError(STATUS_FAILED);
         }
     }
@@ -156,16 +186,6 @@ public with sharing class IngestaController {
             System.debug(LoggingLevel.WARN, 'detalleDesde: ' + e.getTypeName());
             return null;
         }
-    }
-
-    // AsyncApexJob is not sharing-controlled for the admin; the name filter keeps other queueables out.
-    @TestVisible
-    private static Boolean hayIngestaEnCurso() {
-        return [
-            SELECT COUNT() FROM AsyncApexJob
-            WHERE ApexClass.Name = 'TelemetriaIngesta' AND Status IN :ACTIVE_JOB_STATUSES
-            WITH SYSTEM_MODE
-        ] > 0;
     }
 
     private static AuraHandledException safeError(String message) {

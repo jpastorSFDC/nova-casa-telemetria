@@ -502,6 +502,24 @@
 .estado-corrida.en-curso .punto {
     background: var(--nc-primario);
 }
+.programacion {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 8px 14px;
+    font-size: 12px;
+    color: var(--nc-tinta-media);
+    background: var(--nc-superficie);
+    border-bottom: 1px solid var(--nc-linea-suave);
+}
+.programacion .punto {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex: none;
+    background: var(--nc-primario);
+}
 .tiles {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 110px), 1fr));
