@@ -398,6 +398,16 @@
 .sev-critico {
     background: var(--nc-critico);
     color: #fff;
+    /* 3 x 1.5 s stays under the 5 s of WCAG 2.2.2, so no pause control is needed */
+    animation: nc-pulso-critico 1.5s ease-out 3;
+}
+@keyframes nc-pulso-critico {
+    from {
+        box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.55);
+    }
+    to {
+        box-shadow: 0 0 0 6px rgba(225, 29, 72, 0);
+    }
 }
 .sev-advertencia {
     background: var(--nc-papel);
@@ -783,6 +793,9 @@ tbody tr:last-child td {
 @media (prefers-reduced-motion: reduce) {
     * {
         transition: none !important;
+    }
+    .sev-critico {
+        animation: none;
     }
 }
 
