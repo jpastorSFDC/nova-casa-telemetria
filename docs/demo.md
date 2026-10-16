@@ -1,166 +1,166 @@
-# Guion de la demo (T9.2)
+# Demo script (T9.2)
 
-Recorrido de punta a punta de la historia de referencia de `Sprint 2 - Nova Casa.md`: Sara, operadora de edificios (usuario Operador Nova Casa), empieza su turno, ve qué equipo necesita atención, la señal crítica abre una sola intervención, el reenvío no abre otra y la lectura atrasada no reemplaza la actual. Después, cada rol ve lo suyo.
+End-to-end walkthrough of the reference story in `Sprint 2 - Nova Casa.md`: Sara, a building operator (Operador Nova Casa user), starts her shift, sees which equipment needs attention, the critical signal opens a single intervention, the resend doesn't open another one and the late reading doesn't replace the current one. Then each role sees its own data.
 
-Duración: unos 14 minutos, más la preparación. La evidencia por historia está en [evidencia-escenarios.md](evidencia-escenarios.md#evidencia-por-historia-t93).
+Duration: about 14 minutes, plus preparation. The evidence by story is in [evidencia-escenarios.md](evidencia-escenarios.md#evidence-by-story-t93).
 
-## Antes de la demo (no cuenta en el tiempo)
+## Before the demo (not timed)
 
 1. **Avisar en Slack** quién corre la ingesta y a qué hora. La corre Juan Diego (o John) con su propio usuario: los dos tienen `Nova_Casa_Admin` y `Nova_Casa_Simulator_Integration`. `novacasa.admin@` no tiene `Nova_Casa_Simulator_Integration`, así que "Traer señales" con ese usuario falla. Una corrida a la vez.
-2. **Org limpio.** El simulador reutiliza `messageId` entre sesiones: si quedan filas de corridas anteriores, todo sale como `Conflicto` o reenvío. El 2026-10-06 el org tenía 400 filas de `Log_Senial__c`, todas `Conflicto`. Antes de la demo se borran los `Log_Senial__c`, las `Lectura_Vigente__c` y los `Case` con `Origin = 'Telemetria'`, como en `evidencia-escenarios.md`. Borrar datos lo acuerdan John y Juan Diego (`CONTRIBUTING.md`). Para hacerlo y para las corridas: `scripts/org-check.sh clean` (muestra qué borraría y qué queda), `clean confirm=<org>:<n>`, `run <ESCENARIO>`, `wait <desde>` y `evidence`.
+2. **Org limpio.** El simulador reutiliza `messageId` entre sesiones: si quedan filas de corridas anteriores, todo sale como `Conflicto` o reenvío. El 2026-10-06 el org tenía 400 filas de `Log_Senial__c`, todas `Conflicto`. Antes de la demo se borran los `Log_Senial__c`, las `Lectura_Vigente__c` y los `Case` con `Origin = 'Telemetria'`, como en `evidencia-escenarios.md`. Borrar datos lo acuerdan John y Juan Diego (`CONTRIBUTING.md`). Para hacerlo y para las corridas: `scripts/org-check.sh clean` (muestra qué borraría y qué queda), `clean confirm=<org>:<n>`, `run <ESCENARIO>`, `wait <desde>` y `evidence`. La limpieza solo borra los `Case` de telemetría: las intervenciones creadas a mano (`Origin` distinto de `Telemetria`) siguen abiertas, así que se cierran a mano antes de la demo si no se quieren ver.
 3. **Catálogo cargado** (README, "Loading the building/asset catalog"): `CatalogoService.loadCatalog();` desde Execute Anonymous. Después, la consulta de "Dueño de los edificios" en `docs/acceso.md` debe volver vacía: BLD-BOG-001 (Edificio Nova Alameda) es de `novacasa.operador@` y BLD-BAQ-001 (Edificio Nova Caribe) de `novacasa.operador2@`. BLD-TEST-NOAUT (Edificio de prueba, fuera de jerarquía) sigue a nombre de Juan Diego, sin activos.
-4. **Usuarios persona** (`docs/acceso.md`, "Personas"), todos `@novacasa-telemetria.demo` y activos: `novacasa.operador`, `novacasa.operador2`, `novacasa.coordinador`, `novacasa.gerente`, `novacasa.admin`. "Log in as" ya está activo en el org (T8.7). Probarlo una vez con cada uno.
+4. **Usuarios persona** (`docs/acceso.md`, "Personas"), todos `@novacasa-telemetria.demo` y activos: `novacasa.operador`, `novacasa.operador2`, `novacasa.coordinador`, `novacasa.gerente`, `novacasa.admin`. "Log in as" ya está activo en el org (T8.7). Probarlo una vez con cada uno y abrir la app **Nova Casa Telemetry** al menos una vez: el 2026-10-13, la primera sesión de cada persona cayó en la app "Servicio" con "No tiene acceso a este registro", y Lightning abre después la última app usada (a comprobar en el ensayo).
 5. **Pruebas corridas el mismo día** y el resultado a mano (paso 9):
 
    ```bash
    sf apex run test --class-names SenialSensorHandlerTest --class-names IntervencionServiceTest --class-names TelemetriaIngestaTest --class-names ActivosOperadorControllerTest --class-names IntervencionOperadorControllerTest --class-names PermisosProcesamientoTest --class-names UmbralValidadorTest --code-coverage --result-format human --wait 15
    ```
 
-6. **Pestañas abiertas** en el navegador del presentador: Setup > Users, Setup > Apex Jobs, Developer Console (Execute Anonymous) y la app **Nova Casa Telemetry**.
+6. **Tabs open** in the presenter's browser: Setup > Users, Setup > Apex Jobs, Developer Console (Execute Anonymous) and the **Nova Casa Telemetry** app.
 
-## Guion
+## Script
 
-| # | Min | Quién | Qué se demuestra | BR / US |
+| # | Min | Who | What it shows | BR / US |
 |---|---|---|---|---|
-| 1 | 1 | Presentador | El problema y la historia de referencia | — |
-| 2 | 2 | Juan Diego (admin) | Recepción real y procesamiento | BR-201, BR-202 · US-201, US-202 |
-| 3 | 3 | Sara (Operador Nova Casa) | Pantalla del operador, severidad, filtros, estados | BR-206, BR-207, BR-208 · US-206, US-207, US-208 |
-| 4 | 1,5 | Juan Diego + Sara | Una sola intervención; el reenvío no abre otra | BR-205 · US-205 |
-| 5 | 1 | Juan Diego (admin) | La señal atrasada no reemplaza la actual | BR-203 · US-203 |
-| 6 | 1,5 | Coordinador | Intervenciones abiertas, seguimiento y límites | BR-204, BR-205 · US-204, US-205 |
-| 7 | 1,5 | Gerente y Operador 2 | Cada quien ve solo lo autorizado | BR-208 · US-208 |
-| 8 | 1,5 | Juan Diego (admin) | Por qué se rechazó una señal y si es seguro reintentar | BR-209 · US-209 |
-| 9 | 1 | Presentador | Pruebas automatizadas | BR-210 |
+| 1 | 1 | Presenter | The problem and the reference story | — |
+| 2 | 2 | Juan Diego (admin) | Real reception and processing | BR-201, BR-202 · US-201, US-202 |
+| 3 | 3 | Sara (Operador Nova Casa) | Operator screen, severity, filters, states | BR-206, BR-207, BR-208 · US-206, US-207, US-208 |
+| 4 | 1.5 | Juan Diego + Sara | A single intervention; the resend doesn't open another one | BR-205 · US-205 |
+| 5 | 1 | Juan Diego (admin) | The late signal doesn't replace the current one | BR-203 · US-203 |
+| 6 | 1.5 | Coordinator | Open interventions, follow-up and thresholds | BR-204, BR-205 · US-204, US-205 |
+| 7 | 1.5 | Manager and Operator 2 | Each one sees only what they're authorized to see | BR-208 · US-208 |
+| 8 | 1.5 | Juan Diego (admin) | Why a signal was rejected and whether it's safe to retry | BR-209 · US-209 |
+| 9 | 1 | Presenter | Automated tests | BR-210 |
 
-### 1. Contexto (1 min)
+### 1. Context (1 min)
 
-- Hoy cada proveedor tiene su portal y el operador se entera tarde. Leer en voz alta la historia de referencia (`Sprint 2 - Nova Casa.md`, "Historia de referencia"): Sara, una operadora con dos edificios, una bomba con presión baja, un reenvío y una lectura antigua.
-- Mostrar en una frase el flujo: simulador → `Senial_Sensor__e` (Platform Event) → `SenialSensorTrigger` como usuario de integración → `Lectura_Vigente__c`, `Log_Senial__c` y `Case` → pantalla "Activos del operador".
+- Today each vendor has its own portal and the operator finds out late. Read the reference story aloud (`Sprint 2 - Nova Casa.md`, "Historia de referencia"): Sara, an operator with two buildings, a pump with low pressure, a resend and an old reading.
+- Show the flow in one sentence: simulator → `Senial_Sensor__e` (Platform Event) → `SenialSensorTrigger` as the integration user → `Lectura_Vigente__c`, `Log_Senial__c` and `Case` → "Activos del operador" screen.
 
-### 2. Llegan las señales (2 min) · BR-201, BR-202
+### 2. The signals arrive (2 min) · BR-201, BR-202
 
-1. Developer Console > Debug > Open Execute Anonymous Window, con el usuario de Juan Diego:
+1. Developer Console > Debug > Open Execute Anonymous Window, with Juan Diego's user:
 
    ```apex
-   TelemetriaIngesta.iniciar('QA_200', 42, 200, 5); // escenario, semilla, tamaño de lote, páginas
+   TelemetriaIngesta.iniciar('QA_200', 42, 200, 5); // scenario, seed, batch size, pages
    ```
 
-2. Setup > Apex Jobs: aparecen los trabajos de `TelemetriaIngesta`, uno por página, en `Completed`.
-3. App Nova Casa Telemetry > pestaña **Registros de Señal** (solo la ve el admin) y elegir la vista **Todas las señales** (la pestaña puede abrir en otra vista; confirmarlo en la verificación en el navegador). También se llega por URL: `/lightning/o/Log_Senial__c/list?filterName=Todas_las_senales`.
+2. Setup > Apex Jobs: the `TelemetriaIngesta` job shows up as `Completed`; a single job reads several pages (D025).
+3. Nova Casa Telemetry app > **Registros de Señal** tab (only the admin sees it), then pick the **Todas las señales** view (the tab may open on another view; confirm it during the browser check). You can also get there by URL: `/lightning/o/Log_Senial__c/list?filterName=Todas_las_senales`.
 
-**Qué debe ver el público**
+**What the audience should see**
 
-- Cada mensaje tiene una fila con su identidad (`source|messageId`), `Occurred_At__c` (origen), `Publicado_At__c` y `Procesado_At__c`: publicar no es procesar.
-- Las filas pasan de `Publicada` a `Procesada` sin que nadie cree nada a mano.
-- Unas pocas filas quedan `Rechazada` con `Motivo__c` y las demás siguen: una señal mala no tumba el lote. En la corrida de `QA_200` del 2026-10-05 fueron 4 de 189.
+- Each message has a row with its identity (`source|messageId`), `Occurred_At__c` (at origin), `Publicado_At__c` and `Procesado_At__c`: publishing isn't processing.
+- Rows go from `Publicada` to `Procesada` without anyone creating anything by hand.
+- A few rows stay `Rechazada` with `Motivo__c` and the rest carry on: one bad signal doesn't bring down the batch. In the `QA_200` run on 2026-10-05 it was 4 of 189.
 
-### 3. Sara empieza su turno (3 min) · BR-206, BR-207, BR-208
+### 3. Sara starts her shift (3 min) · BR-206, BR-207, BR-208
 
 1. Setup > Users > `novacasa.operador@…` > **Login**.
-2. App **Nova Casa Telemetry** > pestaña **Activos del operador**.
+2. **Nova Casa Telemetry** app > **Activos del operador** tab.
 
-**Qué debe ver el público**
+**What the audience should see**
 
-- Solo aparece **BLD-BOG-001, Edificio Nova Alameda**. Nada de BLD-BAQ-001 ni de BLD-TEST-NOAUT.
-- El banner y el resumen por edificio dicen cuántos activos están en Crítica, Precaución o Sin dato. La severidad del activo es la mayor de sus últimas lecturas.
-- Mientras carga, el esqueleto "Cargando activos" (botón **Actualizar**).
-- Filtrar por **Severidad** = Crítica, después por **Edificio**. Elegir una combinación sin resultados: "Ningún activo coincide con esos filtros" y **Limpiar filtros**. Es distinto de "Sin lecturas todavía", que es un activo sin datos.
-- Cada tarjeta muestra la fecha de origen de la lectura y la marca "(desactualizada)" si pasó el corte de 15 minutos (D007).
-- **Ver activo**: el detalle muestra la lectura vigente por tipo de medición (la temperatura no pisa la presión) y, si es crítico, la intervención como "Caso N", que abre el `Case`.
-- Sara no tiene "Actualizar seguimiento" ni "Ver límites"; sí tiene "Crear intervención" para un activo sin intervención abierta (D020).
+- Only **BLD-BOG-001, Edificio Nova Alameda** shows up. Nothing from BLD-BAQ-001 or BLD-TEST-NOAUT.
+- The banner and the per-building summary say how many assets are in Crítica, Precaución or Sin dato. The asset's severity is the highest of its latest readings.
+- While it loads, the "Cargando activos" skeleton shows (**Actualizar** button).
+- Filter by **Severidad** = Crítica, then by **Edificio**. Pick a combination with no results: "Ningún activo coincide con esos filtros" and **Limpiar filtros**. That's different from "Sin lecturas todavía", which is an asset with no data.
+- Each card shows the reading's origin date and the "(desactualizada)" mark if it's past the 15-minute cutoff (D007).
+- **Ver activo**: the detail shows the current reading by measurement type (temperature doesn't overwrite pressure) and, if it's critical, the intervention as "Caso N", which opens the `Case`.
+- Sara doesn't have "Actualizar seguimiento" or "Ver límites"; she does have "Crear intervención" for an asset with no open intervention (D020).
 
-Si en la corrida la bomba no salió crítica, se sigue con el activo crítico que haya: el recorrido es el mismo.
+If the pump didn't come out critical in the run, carry on with whatever critical asset there is: the walkthrough is the same.
 
-### 4. Una sola intervención, aunque llegue repetida (1,5 min) · BR-205
+### 4. A single intervention, even if it arrives twice (1.5 min) · BR-205
 
-1. Antes, como Juan Diego: Cases > list view **Intervenciones abiertas**. Anotar el número de casos.
-2. Repetir la misma corrida, con la misma semilla:
+1. First, as Juan Diego: Cases > **Intervenciones abiertas** list view. Write down the number of Cases.
+2. Repeat the same run, with the same seed:
 
    ```apex
    TelemetriaIngesta.iniciar('QA_200', 42, 200, 5);
    ```
 
-3. Cuando los trabajos terminen, volver a **Intervenciones abiertas** y abrir `/lightning/o/Log_Senial__c/list?filterName=Duplicadas`.
+3. When the jobs finish, go back to **Intervenciones abiertas** and open `/lightning/o/Log_Senial__c/list?filterName=Duplicadas`.
 
-**Qué debe ver el público**
+**What the audience should see**
 
-- El número de casos de **Intervenciones abiertas** no cambia.
-- En **Duplicadas (reenvíos)** las filas tienen `Reenvios__c` > 0 y `Ultimo_Reenvio__c`. El resultado (`Procesada`) y el caso (`Caso__c`) siguen siendo los mismos.
-- Si el simulador no repite el mismo contenido con esa semilla, la misma clave llega con otro contenido y la fila queda `Conflicto` (list view **Conflictos**), también sin caso nuevo. Las dos cosas son lo que pide el acuerdo "Mensaje repetido".
-- De vuelta como Sara, **Actualizar**: la tarjeta sigue mostrando un solo "Caso N".
+- The number of Cases in **Intervenciones abiertas** doesn't change.
+- In **Duplicadas (reenvíos)** the rows have `Reenvios__c` > 0 and `Ultimo_Reenvio__c`. The result (`Procesada`) and the Case (`Caso__c`) stay the same.
+- If the simulator doesn't repeat the same content with that seed, the same key arrives with different content and the row stays `Conflicto` (**Conflictos** list view), also with no new Case. Both are what the "Mensaje repetido" agreement asks for.
+- Back as Sara, **Actualizar**: the card still shows a single "Caso N".
 
-### 5. Una lectura vieja no es la condición actual (1 min) · BR-203
+### 5. An old reading isn't the current condition (1 min) · BR-203
 
-1. `/lightning/o/Log_Senial__c/list?filterName=Atrasadas`. Abrir una fila y su activo.
+1. `/lightning/o/Log_Senial__c/list?filterName=Atrasadas`. Open a row and its asset.
 
-**Qué debe ver el público**
+**What the audience should see**
 
-- La fila `Atrasada` tiene un `Occurred_At__c` más viejo que la lectura vigente del mismo activo y tipo de medición, y su motivo lo dice.
-- La lectura vigente no cambió y la fila no tiene caso, aunque su valor sea crítico.
-- En una corrida completa casi todas las filas quedan `Atrasada`: es lo esperado de D011 (h), porque solo gana la más reciente de cada activo y medición del lote (decisión de John del 2026-10-05; el facilitador del MDSS no la ha confirmado).
+- The `Atrasada` row has an `Occurred_At__c` older than the current reading for the same asset and measurement type, and its reason says so.
+- The current reading didn't change and the row has no Case, even if its value is critical.
+- In a full run almost every row ends up `Atrasada`: that's expected from D011 (h), because only the most recent one per asset and measurement in the batch wins (John's decision of 2026-10-05; the MDSS facilitator hasn't confirmed it).
 
-`LATE_MESSAGES` muestra esto mismo con más casos, pero necesita el org limpio otra vez (los `messageId` se repiten entre escenarios). Su corrida está en `evidencia-escenarios.md`.
+`LATE_MESSAGES` shows the same thing with more examples, but it needs a clean org again (the `messageId` values repeat across scenarios). Its run is in `evidencia-escenarios.md`.
 
-### 6. El coordinador organiza el trabajo (1,5 min) · BR-204, BR-205
+### 6. The coordinator organizes the work (1.5 min) · BR-204, BR-205
 
 1. Setup > Users > `novacasa.coordinador@…` > **Login**.
-2. Pestaña Cases > list view **Intervenciones abiertas**.
-3. Pestaña **Activos del operador** > un activo crítico > **Actualizar seguimiento** (estado On Hold, con comentario) > **Guardar**. Si el activo tiene varias intervenciones abiertas, el botón **Cerrar las N abiertas** las cierra de una vez, hasta 200 por vez (D035).
-4. **Ver límites** (o pestaña Umbrales > **Nova Casa - Umbrales**).
+2. Cases tab > **Intervenciones abiertas** list view.
+3. **Activos del operador** tab > a critical asset > **Actualizar seguimiento** (status On Hold, with a comment) > **Guardar**. If the asset has several open interventions, the **Cerrar las N abiertas** button closes them all at once, up to 200 at a time (D035).
+4. **Ver límites** (or Umbrales tab > **Nova Casa - Umbrales**).
 
-**Qué debe ver el público**
+**What the audience should see**
 
-- Todas las intervenciones abiertas de los dos edificios en un solo lugar, una por mensaje crítico.
-- El coordinador sí puede cambiar el estado de la intervención; Sara no podía.
-- Los límites por tipo de activo y medición son registros de `Umbral__c` que el coordinador edita sin desplegar código. Un rango contradictorio (Advertencia GT 40 con Crítica GT 35) se rechaza al guardar (D018). No cambiar un límite en la demo sin dejarlo como estaba; la prueba de que un cambio cambia la clasificación siguiente es `SenialSensorHandlerTest` (paso 9).
+- All open interventions for both buildings in one place, one per critical message.
+- The coordinator can change the intervention's status; Sara couldn't.
+- The thresholds per asset type and measurement are `Umbral__c` records that the coordinator edits without deploying code. A contradictory range (Advertencia GT 40 with Crítica GT 35) is rejected on save (D018). Don't change a threshold in the demo without putting it back the way it was; the test that proves a change alters the next classification is `SenialSensorHandlerTest` (step 9).
 
-### 7. Cada quien ve lo suyo (1,5 min) · BR-208
+### 7. Everyone sees their own data (1.5 min) · BR-208
 
-1. Setup > Users > `novacasa.gerente@…` > **Login** > **Activos del operador**, y pestaña Accounts > **Nova Casa - Edificios**.
+1. Setup > Users > `novacasa.gerente@…` > **Login** > **Activos del operador**, and Accounts tab > **Nova Casa - Edificios**.
 2. Setup > Users > `novacasa.operador2@…` > **Login** > **Activos del operador**.
 
-**Qué debe ver el público**
+**What the audience should see**
 
-- El gerente ve **BLD-BOG-001 y BLD-BAQ-001** y el resumen por edificio para comparar, sin "Crear intervención", "Actualizar seguimiento" ni "Ver límites": solo lectura.
-- En **Nova Casa - Edificios** no aparece **BLD-TEST-NOAUT**: nadie de la jerarquía lo ve (D022).
-- Operador 2 ve solo **BLD-BAQ-001, Edificio Nova Caribe**, al revés que Sara.
-- La restricción también está en el servidor: el controlador es `with sharing` y consulta en `USER_MODE`. Lo prueban `ActivosOperadorControllerTest.operatorDoesNotSeeAnotherOperatorsBuildingButGerenteSeesBoth` y las consultas de `UserRecordAccess` de `docs/acceso.md`.
+- The manager sees **BLD-BOG-001 and BLD-BAQ-001** and the per-building summary to compare them, without "Crear intervención", "Actualizar seguimiento" or "Ver límites": read-only.
+- **BLD-TEST-NOAUT** doesn't show up in **Nova Casa - Edificios**: nobody in the hierarchy sees it (D022).
+- Operator 2 sees only **BLD-BAQ-001, Edificio Nova Caribe**, the opposite of Sara.
+- The restriction is also on the server: the controller is `with sharing` and queries in `USER_MODE`. This is proven by `ActivosOperadorControllerTest.operatorDoesNotSeeAnotherOperatorsBuildingButGerenteSeesBoth` and the `UserRecordAccess` queries in `docs/acceso.md`.
 
-### 8. El administrador investiga (1,5 min) · BR-209
+### 8. The administrator investigates (1.5 min) · BR-209
 
-Con el usuario de Juan Diego (o `novacasa.admin@…` por Login).
+With Juan Diego's user (or `novacasa.admin@…` via Login).
 
-1. `/lightning/o/Log_Senial__c/list?filterName=Rechazadas`, después `Conflictos` y `Fallidas`.
-2. Buscar una señal por su identidad en la búsqueda global.
+1. `/lightning/o/Log_Senial__c/list?filterName=Rechazadas`, then `Conflictos` and `Fallidas`.
+2. Look up a signal by its identity in global search.
 
-**Qué debe ver el público**
+**What the audience should see**
 
-- Cada fila dice su resultado, el **Motivo** y la **Acción de reintento** (`Accion_Reintento__c`, D014): una `Rechazada` dice "No: corregir el dato en origen…", una `Fallida` dice "Sí: reintentar…", una procesada dice "No hace falta".
-- Reintentar es volver a correr la ingesta: la identidad evita duplicar el caso (paso 4).
-- No hay token, cursor ni secreto en ninguna fila. La bitácora es solo del admin: el operador, el coordinador y el gerente no tienen acceso a `Log_Senial__c`.
+- Each row shows its result, the **Motivo** and the **Acción de reintento** (`Accion_Reintento__c`, D014): a `Rechazada` row says "No: corregir el dato en origen…", a `Fallida` row says "Sí: reintentar…", a processed row says "No hace falta".
+- Retrying means running the ingestion again: the identity prevents a duplicate Case (step 4).
+- There's no token, cursor or secret in any row. The log is admin-only: the operator, the coordinator and the manager have no access to `Log_Senial__c`.
 
-### 9. Calidad (1 min) · BR-210
+### 9. Quality (1 min) · BR-210
 
-Mostrar el resultado del `sf apex run test` de la preparación (`Tests Ran`, `Pass Rate`, cobertura por clase). Nombrar las pruebas que fallan si se rompe lo que acaban de ver:
+Show the result of the `sf apex run test` from the preparation (`Tests Ran`, `Pass Rate`, coverage per class). Name the tests that fail if what the audience just saw breaks:
 
-- Clasificación y frontera: `tresValoresRepresentativosDeTemperaturaSonNormalAdvertenciaYCritica`, `operadorGTUnValorIgualAlLimiteNoLoCumpleYElSiguienteSi`, `editarElLimiteDeUnUmbralCambiaLaClasificacionSinTocarElHistorico`.
-- Duplicados y conflicto: `unReenvioIgualSoloSumaReenviosSinTocarLecturaNiCase`, `mismaIdentidadConOtroContenidoEsConflictoSinCambiarEstado`, `IntervencionServiceTest`.
-- Volumen: `doscientosEventosEnUnLoteUsanUnNumeroFijoDeConsultasYDml`.
-- Orden temporal: `unaSenialMasAntiguaQueLaVigenteQuedaAtrasadaAunqueSeaCritica`, `elDesempateD003NoDependeDelOrdenDeLlegada`.
-- Seguridad: `ActivosOperadorControllerTest`, `PermisosProcesamientoTest`.
+- Classification and boundary: `tresValoresRepresentativosDeTemperaturaSonNormalAdvertenciaYCritica`, `operadorGTUnValorIgualAlLimiteNoLoCumpleYElSiguienteSi`, `editarElLimiteDeUnUmbralCambiaLaClasificacionSinTocarElHistorico`.
+- Duplicates and conflict: `unReenvioIgualSoloSumaReenviosSinTocarLecturaNiCase`, `mismaIdentidadConOtroContenidoEsConflictoSinCambiarEstado`, `IntervencionServiceTest`.
+- Volume: `doscientosEventosEnUnLoteUsanUnNumeroFijoDeConsultasYDml`.
+- Time order: `unaSenialMasAntiguaQueLaVigenteQuedaAtrasadaAunqueSeaCritica`, `elDesempateD003NoDependeDelOrdenDeLlegada`.
+- Security: `ActivosOperadorControllerTest`, `PermisosProcesamientoTest`.
 
-Cierre: lo que falta está en la tabla de evidencia, columna Estado.
+Wrap-up: what's still missing is in the evidence table, Status column.
 
-## Si algo falla
+## If something goes wrong
 
-| Qué pasa | Qué hacer |
+| What happens | What to do |
 |---|---|
-| El simulador no responde o un trabajo queda `Failed` en Apex Jobs | Leer el error en Apex Jobs. Volver a correr el mismo `iniciar`: la identidad evita duplicados (D013, punto 8). Si sigue, mostrar la corrida guardada en `evidencia-escenarios.md` y los datos que ya están en el org. |
-| Todo sale `Conflicto` o reenvío | El org no estaba limpio. Mostrar **Conflictos** y **Duplicadas (reenvíos)** como prueba de BR-205 y seguir con los datos que haya. |
-| No salió ninguna señal crítica, o ningún caso nuevo | El resultado depende de cómo se parten los lotes (D011 h, sin confirmar por el facilitador). Mostrar `CRITICAL_BURST` en `evidencia-escenarios.md` (30 casos, cada uno con su fila `Procesada`). |
-| "Traer señales" da error | Con `novacasa.admin@` falta `Nova_Casa_Simulator_Integration`. Usar Execute Anonymous con el usuario de Juan Diego. |
-| "Login" no aparece en Setup > Users | Revisar "Administrators Can Log in as Any User". Si no se puede, mostrar las tablas de `UserRecordAccess` de `docs/acceso.md`. |
-| La pantalla dice "No pudimos cargar tus activos" | **Reintentar**. Si sigue, es falta de permisos del usuario (FLS): se muestra como el estado de error que pide BR-207 y se sigue con otro rol. |
-| La corrida tarda | Con más de una página, cada página espera `pollAfterMs` redondeado a minutos (D023). Usar `QA_200` con pocas páginas. |
+| The simulator doesn't respond or a job ends up `Failed` in Apex Jobs | Read the error in Apex Jobs. Run the same `iniciar` again: the identity prevents duplicates (D013, point 8). If it keeps failing, show the saved run in `evidencia-escenarios.md` and the data already in the org. |
+| Everything comes out as `Conflicto` or resend | The org wasn't clean. Show **Conflictos** and **Duplicadas (reenvíos)** as proof of BR-205 and carry on with whatever data there is. |
+| No critical signal came out, or no new Case | The result depends on how the batches are split (D011 h, not confirmed by the facilitator). Show a `CRITICAL_BURST` run in `evidencia-escenarios.md` (each Case with its `Procesada` row). |
+| "Traer señales" gives an error | `novacasa.admin@` is missing `Nova_Casa_Simulator_Integration`. Use Execute Anonymous with Juan Diego's user. |
+| "Login" doesn't show up in Setup > Users | Check "Administrators Can Log in as Any User". If that's not possible, show the `UserRecordAccess` tables in `docs/acceso.md`. |
+| The screen says "No pudimos cargar tus activos" | **Reintentar**. If it persists, the user is missing permissions (FLS): it shows as the error state BR-207 asks for, and you carry on with another role. |
+| The run is slow | Pages are requested back to back, without waiting for `pollAfterMs` (D025); the 10-page runs on 2026-10-14 took up to 72 s in the job and 77 s until the last processed row. Use `QA_200` with few pages. |
 
-Las corridas crean registros reales. No borrar lo que creó otra persona; la limpieza se acuerda en Slack.
+Runs create real records. Don't delete what someone else created; cleanup is agreed on in Slack.
