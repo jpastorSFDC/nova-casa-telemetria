@@ -19,7 +19,6 @@ public without sharing class SenialSensorHandler {
     private static final Decimal MAX_LOG_VALOR = 100000000000000L;
     private static final String MEDICION_CONECTIVIDAD = 'CAMERA_CONNECTIVITY';
     private static final String UNIDAD_CONECTIVIDAD = 'SECONDS';
-    private static final String FORMATO_ISO = 'yyyy-MM-dd\'T\'HH:mm:ss.SSS\'Z\'';
     private static final List<String> SEVERIDADES_EN_ORDEN = new List<String>{ 'Invalida', 'Critica', 'Advertencia' };
     private static final Map<String, String> LIMITE_POR_SEVERIDAD = new Map<String, String>{
         'Invalida' => 'de rango físico',
@@ -71,8 +70,6 @@ public without sharing class SenialSensorHandler {
     private static Integer senialesRecibidas = 0;
     @TestVisible
     private static Map<String, Clasificacion> clasificacionPorMessageId = new Map<String, Clasificacion>();
-    @TestVisible
-    private static Map<String, Clasificacion> ganadoraPorClave = new Map<String, Clasificacion>();
     // Señales críticas que ganaron, no son reenvío/conflicto/atrasadas y ya tienen Case.
     @TestVisible
     private static List<Clasificacion> criticasProcesadas = new List<Clasificacion>();
@@ -132,13 +129,6 @@ public without sharing class SenialSensorHandler {
                 clasificacionPorMessageId.put(clasificacion.messageId, clasificacion);
                 System.debug(LoggingLevel.INFO, 'Señal ' + clasificacion.messageId + ' ' + clasificacion.clave + ': '
                     + clasificacion.estado + ' (nivel ' + clasificacion.nivel + ')');
-            }
-
-            ganadoraPorClave = elegirGanadoras(clasificaciones);
-            for (String clave : ganadoraPorClave.keySet()) {
-                Clasificacion ganadora = ganadoraPorClave.get(clave);
-                System.debug(LoggingLevel.INFO, 'Ganadora ' + clave + ': ' + ganadora.messageId + ' '
-                    + ganadora.estado + ' (nivel ' + ganadora.nivel + ', occurredAt ' + ganadora.occurredAt.formatGmt(FORMATO_ISO) + ')');
             }
 
             persistir(clasificaciones);
@@ -748,20 +738,6 @@ public without sharing class SenialSensorHandler {
                 return false;
             }
         }
-    }
-
-    private static Map<String, Clasificacion> elegirGanadoras(List<Clasificacion> clasificaciones) {
-        Map<String, Clasificacion> ganadoras = new Map<String, Clasificacion>();
-        for (Clasificacion candidata : clasificaciones) {
-            if (candidata.nivel == null) {
-                continue;
-            }
-            Clasificacion actual = ganadoras.get(candidata.clave);
-            if (actual == null || candidata.ganaA(actual)) {
-                ganadoras.put(candidata.clave, candidata);
-            }
-        }
-        return ganadoras;
     }
 
     private static Decimal convertirDecimal(String texto) {

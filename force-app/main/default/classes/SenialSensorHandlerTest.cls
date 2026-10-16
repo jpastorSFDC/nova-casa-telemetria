@@ -95,26 +95,35 @@ private class SenialSensorHandlerTest {
         assertClasificacion('msg_fecha_invalida', 'DatoInvalido', null);
         assertClasificacion('msg_otra_unidad', 'MedicionIncompatible', null);
         assertClasificacion('msg_fuera_de_rango', 'Invalida', null);
-        Assert.isTrue(SenialSensorHandler.ganadoraPorClave.isEmpty(), 'Sin nivel válido no debe haber lectura ganadora');
     }
 
+    // D003 dentro de un lote, sobre lo persistido; en cada clave la perdedora llega primero.
     @IsTest
     static void eligeUnaGanadoraPorActivoYMedicionSinDependerDelOrdenDeLlegada() {
         Test.startTest();
         new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{
-            temperatura('msg_000002', 'AST-MISMO-NIVEL', '25', 'CELSIUS', OCURRIDO),
-            temperatura('msg_000001', 'AST-MISMO-NIVEL', '26', 'CELSIUS', OCURRIDO),
-            temperatura('msg_000004', 'AST-OTRO-NIVEL', '36', 'CELSIUS', OCURRIDO),
-            temperatura('msg_000003', 'AST-OTRO-NIVEL', '25', 'CELSIUS', OCURRIDO),
-            temperatura('msg_000006', 'AST-OTRA-FECHA', '25', 'CELSIUS', OCURRIDO),
-            temperatura('msg_000005', 'AST-OTRA-FECHA', '36', 'CELSIUS', ANTERIOR)
+            medicion('msg_000002', SALA, 'TEMPERATURE', '25', 'CELSIUS', OCURRIDO),
+            medicion('msg_000001', SALA, 'TEMPERATURE', '26', 'CELSIUS', OCURRIDO),
+            medicion('msg_000003', SALA_2, 'TEMPERATURE', '25', 'CELSIUS', OCURRIDO),
+            medicion('msg_000004', SALA_2, 'TEMPERATURE', '36', 'CELSIUS', OCURRIDO),
+            medicion('msg_000005', SALA_3, 'TEMPERATURE', '36', 'CELSIUS', ANTERIOR),
+            medicion('msg_000006', SALA_3, 'TEMPERATURE', '25', 'CELSIUS', OCURRIDO)
         });
         Test.stopTest();
 
-        Assert.areEqual(3, SenialSensorHandler.ganadoraPorClave.size(), 'Debe haber una ganadora por activo + medición');
-        Assert.areEqual('msg_000001', ganadora('AST-MISMO-NIVEL'), 'Mismo occurredAt y nivel: gana el messageId menor');
-        Assert.areEqual('msg_000004', ganadora('AST-OTRO-NIVEL'), 'Mismo occurredAt: gana el nivel mayor');
-        Assert.areEqual('msg_000006', ganadora('AST-OTRA-FECHA'), 'Gana el occurredAt más reciente aunque tenga menor nivel');
+        Assert.areEqual(identidad('msg_000001'), lectura(SALA + '|TEMPERATURE').Identidad_Senal__c,
+            'Mismo occurredAt y nivel: gana el messageId menor');
+        Assert.areEqual('Superada', filaLog(identidad('msg_000002')).Resultado__c, 'msg_000002 pierde el desempate por messageId');
+
+        Assert.areEqual(identidad('msg_000004'), lectura(SALA_2 + '|TEMPERATURE').Identidad_Senal__c,
+            'Mismo occurredAt: gana el nivel mayor aunque su messageId sea mayor');
+        Assert.areEqual('Superada', filaLog(identidad('msg_000003')).Resultado__c, 'msg_000003 pierde el desempate por nivel');
+
+        Assert.areEqual(identidad('msg_000006'), lectura(SALA_3 + '|TEMPERATURE').Identidad_Senal__c,
+            'Gana el occurredAt más reciente aunque tenga menor nivel');
+        Log_Senial__c vieja = filaLog(identidad('msg_000005'));
+        Assert.areEqual('Atrasada', vieja.Resultado__c, 'La crítica más antigua queda como evidencia: ' + vieja.Motivo__c);
+        Assert.isNull(vieja.Caso__c, 'La crítica atrasada no abre intervención');
     }
 
     // ─── Persistencia (US-202, D011) ─────────────────────────────────────
@@ -1416,9 +1425,5 @@ private class SenialSensorHandlerTest {
         SenialSensorHandler.Clasificacion clasificacion = SenialSensorHandler.clasificacionPorMessageId.get(messageId);
         Assert.areEqual(estadoEsperado, clasificacion.estado, messageId + ': ' + clasificacion.motivo);
         Assert.areEqual(nivelEsperado, clasificacion.nivel, messageId + ' debe tener nivel ' + nivelEsperado);
-    }
-
-    private static String ganadora(String assetId) {
-        return SenialSensorHandler.ganadoraPorClave.get(assetId + '|TEMPERATURE').messageId;
     }
 }
