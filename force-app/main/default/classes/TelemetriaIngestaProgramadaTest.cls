@@ -115,4 +115,26 @@ private class TelemetriaIngestaProgramadaTest {
         Assert.isNull(TelemetriaIngestaProgramada.proximaEjecucion());
         Assert.isFalse(TelemetriaIngestaProgramada.estado().activa, 'Nothing scheduled means inactive');
     }
+
+    @isTest
+    static void estadoYProximaEjecucionSiguenALosJobsDelPrefijo() {
+        System.schedule('Otro job nocturno', '0 0 1 * * ?', new TelemetriaIngestaProgramada());
+        TelemetriaIngestaProgramada.programar('BOUNDARIES', 3);
+
+        TelemetriaIngestaProgramada.Estado estado = TelemetriaIngestaProgramada.estado();
+
+        Assert.isTrue(estado.activa, 'With the jobs scheduled the automatic ingestion is on');
+        Assert.areEqual('BOUNDARIES', estado.escenario, 'The scenario comes from the name of the job');
+        Assert.areEqual(TelemetriaIngestaProgramada.INTERVALO_MINUTOS, estado.intervaloMinutos);
+        Assert.isNotNull(estado.proximaEjecucion, 'A scheduled job has a next fire time');
+        Assert.areEqual(estado.proximaEjecucion, TelemetriaIngestaProgramada.proximaEjecucion());
+        Assert.isTrue(estado.proximaEjecucion > Datetime.now(), 'The next run is in the future');
+        Assert.isTrue(estado.proximaEjecucion <= Datetime.now().addMinutes(TelemetriaIngestaProgramada.INTERVALO_MINUTOS + 1),
+            'With a job every 5 minutes the soonest one is at most 5 minutes away');
+
+        TelemetriaIngestaProgramada.desprogramar();
+
+        Assert.isFalse(TelemetriaIngestaProgramada.estado().activa, 'A job outside the prefix does not count');
+        Assert.isNull(TelemetriaIngestaProgramada.proximaEjecucion());
+    }
 }
