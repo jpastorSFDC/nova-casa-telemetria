@@ -85,13 +85,8 @@ public without sharing class TelemetriaIngestaProgramada implements Schedulable 
 
     /** Aborts every scheduled job of this prefix and leaves others alone. @return how many were aborted. */
     public static Integer desprogramar() {
-        String patron = PREFIJO + '%';
         Integer total = 0;
-        for (CronTrigger ct : [
-            SELECT Id
-            FROM CronTrigger
-            WHERE CronJobDetail.Name LIKE :patron AND State != 'DELETED'
-        ]) {
+        for (CronTrigger ct : triggersDe(nombresDeTrabajos().keySet())) {
             System.abortJob(ct.Id);
             total++;
         }
@@ -100,26 +95,15 @@ public without sharing class TelemetriaIngestaProgramada implements Schedulable 
 
     /** The soonest next fire time of the scheduled ingestion, or null when nothing is scheduled. */
     public static Datetime proximaEjecucion() {
-        String patron = PREFIJO + '%';
-        List<CronTrigger> triggers = [
-            SELECT NextFireTime
-            FROM CronTrigger
-            WHERE CronJobDetail.Name LIKE :patron AND State != 'DELETED' AND NextFireTime != NULL
-            ORDER BY NextFireTime ASC
-            LIMIT 1
-        ];
+        // Sorted by NextFireTime with nulls last, so the first row is the soonest one (null only if all are null).
+        List<CronTrigger> triggers = triggersDe(nombresDeTrabajos().keySet());
         return triggers.isEmpty() ? null : triggers[0].NextFireTime;
     }
 
     /** Snapshot of the automatic ingestion for the operator panel (D040). No cursor, no job ids. */
     public static Estado estado() {
-        String patron = PREFIJO + '%';
-        List<CronTrigger> triggers = [
-            SELECT NextFireTime, CronJobDetail.Name
-            FROM CronTrigger
-            WHERE CronJobDetail.Name LIKE :patron AND State != 'DELETED'
-            ORDER BY NextFireTime ASC NULLS LAST
-        ];
+        Map<Id, String> nombres = nombresDeTrabajos();
+        List<CronTrigger> triggers = triggersDe(nombres.keySet());
         Estado e = new Estado();
         e.intervaloMinutos = INTERVALO_MINUTOS;
         e.activa = !triggers.isEmpty();
@@ -128,7 +112,7 @@ public without sharing class TelemetriaIngestaProgramada implements Schedulable 
                 e.proximaEjecucion = ct.NextFireTime;
             }
             if (e.escenario == null) {
-                e.escenario = escenarioDeNombre(ct.CronJobDetail.Name);
+                e.escenario = escenarioDeNombre(nombres.get(ct.CronJobDetailId));
             }
         }
         return e;
@@ -140,6 +124,30 @@ public without sharing class TelemetriaIngestaProgramada implements Schedulable 
         public Datetime proximaEjecucion;
         public String escenario;
         public Integer intervaloMinutos;
+    }
+
+    // Job detail id -> job name, for every job of this prefix. The query intentionally uses NO bind variable and
+    // filters by prefix in Apex instead: an inline bind here (WHERE Name LIKE :patron) also threw "Variable does not
+    // exist: tmpVar1" under System.runAs with a limited user (IngestaControllerTest). CronJobDetail is a tiny setup
+    // table (org-wide scheduled jobs), so reading all rows and filtering by prefix stays cheap.
+    private static Map<Id, String> nombresDeTrabajos() {
+        Map<Id, String> nombres = new Map<Id, String>();
+        for (CronJobDetail detalle : [SELECT Id, Name FROM CronJobDetail]) {
+            if (detalle.Name != null && detalle.Name.startsWith(PREFIJO)) {
+                nombres.put(detalle.Id, detalle.Name);
+            }
+        }
+        return nombres;
+    }
+
+    // Live triggers of those jobs, soonest first (no next fire time goes last).
+    private static List<CronTrigger> triggersDe(Set<Id> detalles) {
+        return [
+            SELECT Id, NextFireTime, CronJobDetailId
+            FROM CronTrigger
+            WHERE CronJobDetailId IN :detalles AND State != 'DELETED'
+            ORDER BY NextFireTime ASC NULLS LAST
+        ];
     }
 
     @TestVisible
