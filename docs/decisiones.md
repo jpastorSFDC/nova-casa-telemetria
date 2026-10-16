@@ -485,10 +485,10 @@ Copiar esta plantilla, numerar secuencialmente, y mantener el estado actualizado
 
 ## Pendientes heredados de la sección "Acuerdos" (abiertos desde Discovery, sin cerrar en Development)
 
-Estos puntos necesitaban una entrada D00X cada uno antes de cerrar el entregable 6 de Discovery. El entregable se aprobó y ya estamos en Development (ver `AGENTS.md`), pero solo el objeto de intervención (D001) y el empate de `occurredAt` (D003 arriba) están cerrados del todo; el edificio (D005 arriba) tiene entrada pero solo resuelve el campo de identidad, no el modelo de sharing. Siguen sin cerrar:
+Estos puntos necesitaban una entrada D00X cada uno antes de cerrar el entregable 6 de Discovery. El entregable se aprobó y ya estamos en Development (ver `AGENTS.md`). Estado revisado el 2026-10-16 contra `main` (70f282e):
 
-1. Operadores y valores exactos de umbral por `asset.type` + `measurement.type` (van en metadata, no en código).
-2. Modelo de sharing de edificios/activos para el operador (BR-208) — parcial: D005 define el edificio como `Account`, pero el OWD, el permission set `Nova_Casa_Operator`, las reglas de sharing y el `with sharing`/FLS en Apex siguen pendientes y sin aprobar (ver D005, "Riesgo / dependencia").
+1. Operadores y valores exactos de umbral por `asset.type` + `measurement.type` (van en metadata, no en código). **Sigue abierto.** Los límites viven en `Umbral__c` (D004) y se siembran con la tabla de referencia del equipo (D006); D019 fija qué pasa en el límite exacto. D006 y D019 son Propuesta: el facilitador no ha confirmado operadores ni valores, y no hay una respuesta suya en el repo ni en el canal de Slack.
+2. Modelo de sharing de edificios/activos para el operador (BR-208). **Implementado; falta la confirmación.** D005 define el edificio como `Account`, y D022 (Aceptada) fija la visibilidad: `Account` y `Case` en Private y `Asset` Controlled by Parent (los tres en `force-app/main/default/objects`, PR #38), coordinador y gerente por role hierarchy (PR #41), permission sets `Nova_Casa_*` por rol, y controladores `with sharing` con `USER_MODE`. Lo que sigue abierto: (a) el cambio de OWD toca BR-208 y D005 pide la aprobación del facilitador; no hay una registrada; (b) las excepciones en modo sistema (D020, D021 y D024, las tres Propuesta) no están confirmadas por el facilitador; (c) falta registrar el login as de operador 2, coordinador y gerente y volver a medir la visibilidad del gerente (ver `docs/acceso.md`, "Jerarquía en vez de View All (D022)").
 
 ## Riesgos generales del sprint
 
