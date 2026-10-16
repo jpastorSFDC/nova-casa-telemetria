@@ -110,6 +110,53 @@ private class SesionSimuladorTest {
     }
 
     @isTest
+    static void elMarcadorDeProgramacionSeGuardaLeeYBorraAparteDeLaSesion() {
+        SesionSimulador.memoriaDePrueba = new Map<String, String>();
+        String clave = SesionSimulador.clave('QA_200', null, 200);
+        SesionSimulador.guardar(clave, 'fake-cursor-1');
+
+        Assert.isNull(SesionSimulador.leerProgramacion(), 'No marker until the ingestion is scheduled');
+        Assert.isTrue(SesionSimulador.guardarProgramacion('MIXED'));
+        Assert.areEqual('MIXED', SesionSimulador.leerProgramacion());
+        Assert.isTrue(SesionSimulador.guardarProgramacion('BOUNDARIES'));
+        Assert.areEqual('BOUNDARIES', SesionSimulador.leerProgramacion(), 'The latest scenario wins');
+        Assert.isTrue(Pattern.matches('[A-Za-z0-9]+', SesionSimulador.CLAVE_PROGRAMACION), 'Platform Cache keys must be alphanumeric');
+        Assert.isTrue(SesionSimulador.TTL_PROGRAMACION_SEGUNDOS >= 300, 'Platform Cache TTL is at least 300 s');
+        Assert.areEqual('fake-cursor-1', SesionSimulador.leerCursor(clave), 'The marker does not touch the saved cursor');
+
+        SesionSimulador.borrarProgramacion();
+
+        Assert.isNull(SesionSimulador.leerProgramacion());
+        Assert.areEqual('fake-cursor-1', SesionSimulador.leerCursor(clave), 'Clearing the marker leaves the cursor');
+    }
+
+    @isTest
+    static void noGuardaUnMarcadorDeProgramacionVacio() {
+        SesionSimulador.memoriaDePrueba = new Map<String, String>();
+
+        Assert.isFalse(SesionSimulador.guardarProgramacion(null));
+        Assert.isFalse(SesionSimulador.guardarProgramacion(' '));
+        Assert.isNull(SesionSimulador.leerProgramacion());
+    }
+
+    @isTest
+    static void sinCacheElMarcadorDeProgramacionNoLanzaYEsNulo() {
+        SesionSimulador.simularNoDisponible = true;
+
+        Assert.isFalse(SesionSimulador.guardarProgramacion('MIXED'));
+        Assert.isNull(SesionSimulador.leerProgramacion());
+        SesionSimulador.borrarProgramacion();
+    }
+
+    @isTest
+    static void conLaParticionRealElMarcadorDeProgramacionNoLanza() {
+        // In a test the real partition holds nothing: either unavailable or empty, and never an exception.
+        SesionSimulador.guardarProgramacion('MIXED');
+        Assert.isNull(SesionSimulador.leerProgramacion(), 'Nothing survives in a test');
+        SesionSimulador.borrarProgramacion();
+    }
+
+    @isTest
     static void sinCacheLaMarcaDeFinNoLanzaYEsFalsa() {
         SesionSimulador.simularNoDisponible = true;
         String clave = SesionSimulador.clave('QA_200', null, 200);

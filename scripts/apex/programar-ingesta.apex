@@ -7,4 +7,5 @@
 // Change the scenario or pages per run here if needed (default MIXED, 5 pages).
 Integer total = TelemetriaIngestaProgramada.programar('MIXED', 5);
 System.debug('Scheduled jobs: ' + total);
+// "Next run: null" with 12 jobs scheduled means Platform Cache is unavailable (the panel would show it off, D040).
 System.debug('Next run: ' + TelemetriaIngestaProgramada.proximaEjecucion());

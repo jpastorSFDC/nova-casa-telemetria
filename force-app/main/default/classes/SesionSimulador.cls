@@ -32,6 +32,12 @@ public without sharing class SesionSimulador {
     // first page is a re-poll of an already-exhausted stream (D040). Alphanumeric like the cursor key it extends.
     @TestVisible
     private static final String SUFIJO_FIN = 'fin';
+    // "Automatic ingestion is scheduled" marker (D040). Every scheduled run refreshes it, so the TTL only has to
+    // outlive a few missed runs (3 x 5 min, above the 300 s minimum); a lost marker comes back on the next run.
+    @TestVisible
+    private static final String CLAVE_PROGRAMACION = 'ingestaprogramada';
+    @TestVisible
+    private static final Integer TTL_PROGRAMACION_SEGUNDOS = 900;
 
     // Test seams. Platform Cache does not hold data in Apex tests, so a test supplies a map instead.
     // In production both are left alone: memoriaDePrueba is null and simularNoDisponible is false.
@@ -137,7 +143,44 @@ public without sharing class SesionSimulador {
         return leer(CLAVE_RESUMEN);
     }
 
+    /**
+     * Marks that the automatic ingestion is scheduled, with its scenario (D040). The panel reads this instead of
+     * the scheduled-job tables, which the Nova_Casa_Admin persona cannot read (no View Setup). The scenario is not a
+     * secret. @return false when it could not be saved (cache unavailable)
+     */
+    public static Boolean guardarProgramacion(String escenario) {
+        return escribir(CLAVE_PROGRAMACION, escenario, TTL_PROGRAMACION_SEGUNDOS);
+    }
+
+    /** The scenario of the scheduled automatic ingestion, or null when there is no marker or no cache. */
+    public static String leerProgramacion() {
+        return leer(CLAVE_PROGRAMACION);
+    }
+
+    public static void borrarProgramacion() {
+        quitar(CLAVE_PROGRAMACION);
+    }
+
     // ─── Private helpers ─────────────────────────────────────────────────
+
+    private static void quitar(String clave) {
+        if (simularNoDisponible || String.isBlank(clave)) {
+            return;
+        }
+        if (memoriaDePrueba != null) {
+            memoriaDePrueba.remove(clave);
+            return;
+        }
+        Cache.OrgPartition p = particion();
+        if (p == null) {
+            return;
+        }
+        try {
+            p.remove(clave);
+        } catch (Exception e) {
+            System.debug(LoggingLevel.WARN, 'SesionSimulador: no se pudo quitar una marca (' + e.getTypeName() + ')');
+        }
+    }
 
     private static String leer(String clave) {
         if (simularNoDisponible || String.isBlank(clave)) {

@@ -11,8 +11,16 @@
  * "One ingestion at a time" is shared with the manual button through TelemetriaIngesta.hayIngestaEnCurso(), so a
  * scheduled run and a manual run never fight over the same simulator cursor (D025, D040).
  *
+ * The operator panel does NOT read the scheduled-job tables: the Nova_Casa_Admin persona has no View Setup, so
+ * CronJobDetail is not even a queryable object for it. Instead programar() leaves a small marker in Platform Cache
+ * (SesionSimulador, the scenario only), every scheduled run refreshes it, and desprogramar() clears it. estado()
+ * reads that marker; the next run is the next 5-minute clock slot. The marker can be a few minutes off the real jobs
+ * (D040): an abort done by hand in Setup leaves it "on" until it expires (15 min), and an evicted entry shows "off"
+ * until the next run rewrites it (at most 5 min).
+ *
  * without sharing: cron and async jobs are not record data, there is nothing for sharing to filter. The job runs
  * as whoever schedules it; that user needs Nova_Casa_Simulator_Integration and Create on Senial_Sensor__e (D040).
+ * programar() and desprogramar() read the job tables, so they are run by an admin who can (not by the panel).
  */
 public without sharing class TelemetriaIngestaProgramada implements Schedulable {
 
@@ -51,6 +59,9 @@ public without sharing class TelemetriaIngestaProgramada implements Schedulable 
      * enqueued Queueable makes the callouts after commit.
      */
     public void execute(SchedulableContext contexto) {
+        // Refresh the panel marker first: a run skipped below is still proof that the schedule is alive, and this
+        // also brings the marker back if the cache evicted it or the jobs were scheduled from Setup.
+        SesionSimulador.guardarProgramacion(escenario);
         if (TelemetriaIngesta.hayIngestaEnCurso()) {
             System.debug(LoggingLevel.WARN, 'Ingesta programada: ya hay una corrida en curso, no se encola otra');
             return;
@@ -65,7 +76,7 @@ public without sharing class TelemetriaIngestaProgramada implements Schedulable 
 
     /**
      * Schedules 12 cron jobs (minute 0, 5, ..., 55) so ingestion runs every 5 minutes. Re-running first aborts the
-     * existing jobs of this prefix, so calling it twice still leaves exactly 12.
+     * existing jobs of this prefix, so calling it twice still leaves exactly 12. Leaves the panel marker "on".
      * @param escenario simulator scenario for every run; blank means MIXED
      * @param paginas pages per run; null or less than 1 means 5
      * @return the number of jobs scheduled
@@ -80,40 +91,41 @@ public without sharing class TelemetriaIngestaProgramada implements Schedulable 
             System.schedule(nombre(esc, minuto), cron, new TelemetriaIngestaProgramada(esc, p));
             total++;
         }
+        SesionSimulador.guardarProgramacion(esc);
         return total;
     }
 
-    /** Aborts every scheduled job of this prefix and leaves others alone. @return how many were aborted. */
+    /**
+     * Aborts every scheduled job of this prefix (leaves others alone) and clears the panel marker.
+     * @return how many jobs were aborted
+     */
     public static Integer desprogramar() {
         Integer total = 0;
-        for (CronTrigger ct : triggersDe(nombresDeTrabajos().keySet())) {
+        for (CronTrigger ct : triggersDelPrefijo()) {
             System.abortJob(ct.Id);
             total++;
         }
+        SesionSimulador.borrarProgramacion();
         return total;
     }
 
-    /** The soonest next fire time of the scheduled ingestion, or null when nothing is scheduled. */
+    /** The next 5-minute slot while the automatic ingestion is on, or null when it is off. */
     public static Datetime proximaEjecucion() {
-        // Sorted by NextFireTime with nulls last, so the first row is the soonest one (null only if all are null).
-        List<CronTrigger> triggers = triggersDe(nombresDeTrabajos().keySet());
-        return triggers.isEmpty() ? null : triggers[0].NextFireTime;
+        return estado().proximaEjecucion;
     }
 
-    /** Snapshot of the automatic ingestion for the operator panel (D040). No cursor, no job ids. */
+    /**
+     * Snapshot of the automatic ingestion for the operator panel (D040). No cursor, no job ids. It comes from the
+     * marker, not from the job tables (see the class comment), so any user who can call Apex can get it.
+     */
     public static Estado estado() {
-        Map<Id, String> nombres = nombresDeTrabajos();
-        List<CronTrigger> triggers = triggersDe(nombres.keySet());
         Estado e = new Estado();
         e.intervaloMinutos = INTERVALO_MINUTOS;
-        e.activa = !triggers.isEmpty();
-        for (CronTrigger ct : triggers) {
-            if (e.proximaEjecucion == null && ct.NextFireTime != null) {
-                e.proximaEjecucion = ct.NextFireTime;
-            }
-            if (e.escenario == null) {
-                e.escenario = escenarioDeNombre(nombres.get(ct.CronJobDetailId));
-            }
+        String escenarioMarcado = SesionSimulador.leerProgramacion();
+        e.activa = String.isNotBlank(escenarioMarcado);
+        if (e.activa) {
+            e.escenario = escenarioMarcado;
+            e.proximaEjecucion = proximaFranja(Datetime.now());
         }
         return e;
     }
@@ -126,45 +138,27 @@ public without sharing class TelemetriaIngestaProgramada implements Schedulable 
         public Integer intervaloMinutos;
     }
 
-    // Job detail id -> job name, for every job of this prefix. The query intentionally uses NO bind variable and
-    // filters by prefix in Apex instead: an inline bind here (WHERE Name LIKE :patron) also threw "Variable does not
-    // exist: tmpVar1" under System.runAs with a limited user (IngestaControllerTest). CronJobDetail is a tiny setup
-    // table (org-wide scheduled jobs), so reading all rows and filtering by prefix stays cheap.
-    private static Map<Id, String> nombresDeTrabajos() {
-        Map<Id, String> nombres = new Map<Id, String>();
-        for (CronJobDetail detalle : [SELECT Id, Name FROM CronJobDetail]) {
-            if (detalle.Name != null && detalle.Name.startsWith(PREFIJO)) {
-                nombres.put(detalle.Id, detalle.Name);
-            }
-        }
-        return nombres;
+    // First 5-minute mark strictly after `desde`. The jobs fire at second 0 of minutes 0, 5, ..., 55, so counting
+    // from the epoch lands on the same marks (every current time zone offset is a multiple of 5 minutes) and has no
+    // DST gap.
+    @TestVisible
+    private static Datetime proximaFranja(Datetime desde) {
+        Long paso = INTERVALO_MINUTOS * 60000L;
+        return Datetime.newInstance((desde.getTime() / paso + 1) * paso);
     }
 
-    // Live triggers of those jobs, soonest first (no next fire time goes last).
-    private static List<CronTrigger> triggersDe(Set<Id> detalles) {
+    // Live triggers of the jobs of this prefix. Only programar() and desprogramar() read them.
+    private static List<CronTrigger> triggersDelPrefijo() {
+        String patron = PREFIJO + '%';
         return [
-            SELECT Id, NextFireTime, CronJobDetailId
+            SELECT Id
             FROM CronTrigger
-            WHERE CronJobDetailId IN :detalles AND State != 'DELETED'
-            ORDER BY NextFireTime ASC NULLS LAST
+            WHERE CronJobDetail.Name LIKE :patron AND State != 'DELETED'
         ];
     }
 
     @TestVisible
     private static String nombre(String escenario, Integer minuto) {
         return PREFIJO + ' ' + escenario + ' :' + (minuto < 10 ? '0' + minuto : String.valueOf(minuto));
-    }
-
-    // The scenario is encoded in the job name ("<prefix> <scenario> :MM") so the panel can show it without
-    // reading the job's state; returns null when the name does not follow the pattern.
-    @TestVisible
-    private static String escenarioDeNombre(String nombre) {
-        String inicio = PREFIJO + ' ';
-        if (String.isBlank(nombre) || !nombre.startsWith(inicio)) {
-            return null;
-        }
-        String resto = nombre.substring(inicio.length());
-        Integer corte = resto.indexOf(' :');
-        return corte > 0 ? resto.substring(0, corte) : resto;
     }
 }
