@@ -11,6 +11,8 @@ public with sharing class ActivosOperadorController {
     @TestVisible private static Integer maxBuildings = 2000;
     private static final Integer READING_TYPES = 5;
     private static final Integer MAX_CASE_ROWS = 2000;
+    // Row cap of the last-closed-intervention lookup (D038); a variable only so a test can lower it.
+    @TestVisible private static Integer maxClosedCaseRows = MAX_CASE_ROWS;
     @TestVisible private static final String ACCESS_MESSAGE = 'No tienes acceso a toda la información necesaria para esta lista.';
     @TestVisible private static final String SEVERITY_FILTER_MESSAGE = 'El filtro de severidad no es válido.';
     @TestVisible private static final String BUILDING_FILTER_MESSAGE = 'El filtro de edificio no es válido.';
@@ -114,6 +116,20 @@ public with sharing class ActivosOperadorController {
         }
     }
 
+    // The most recently closed Case of an asset with none open (D038). Deliberately no "closed by": Case has no history
+    // tracking here and LastModifiedBy is not who closed it.
+    public class ClosedInterventionView {
+        @AuraEnabled public Id caseId { get; private set; }
+        @AuraEnabled public String caseNumber { get; private set; }
+        @AuraEnabled public Datetime closedDate { get; private set; }
+
+        public ClosedInterventionView(Case c) {
+            this.caseId = c.Id;
+            this.caseNumber = c.CaseNumber;
+            this.closedDate = c.ClosedDate;
+        }
+    }
+
     public class AssetView implements Comparable {
         @AuraEnabled public Id assetId { get; private set; }
         @AuraEnabled public String name { get; private set; }
@@ -129,8 +145,10 @@ public with sharing class ActivosOperadorController {
         @AuraEnabled public List<ReadingView> readings { get; private set; }
         @AuraEnabled public InterventionView openIntervention { get; private set; }
         @AuraEnabled public Integer openInterventionCount { get; private set; }
+        // Set only when the asset has no open intervention and a closed one is visible to the user; null otherwise.
+        @AuraEnabled public ClosedInterventionView lastClosedIntervention { get; private set; }
 
-        public AssetView(Asset a, List<ReadingView> readings, List<Case> openCases) {
+        public AssetView(Asset a, List<ReadingView> readings, List<Case> openCases, Case lastClosed) {
             this.assetId = a.Id;
             this.name = a.Name;
             this.externalId = a.External_Id__c;
@@ -140,6 +158,7 @@ public with sharing class ActivosOperadorController {
             this.readings = readings;
             this.openInterventionCount = openCases.size();
             this.openIntervention = openCases.isEmpty() ? null : new InterventionView(openCases[0]);
+            this.lastClosedIntervention = openCases.isEmpty() && lastClosed != null ? new ClosedInterventionView(lastClosed) : null;
             for (ReadingView rv : readings) {
                 if (rv.severityLevel != null && (this.severityLevel == null || rv.severityLevel > this.severityLevel)) {
                     this.severityLevel = rv.severityLevel;
@@ -166,7 +185,8 @@ public with sharing class ActivosOperadorController {
     }
 
     /**
-     * Assets the running user can see, most severe first, with latest readings and open intervention.
+     * Assets the running user can see, most severe first, with latest readings and open intervention
+     * (or, when none is open, the last closed one the user can see).
      * Severity is computed over all scanned assets before the page cut, so a critical asset is never dropped.
      * @param accountId building (Account Id); blank means all
      * @param severityLevel 0 normal, 1 warning, 2 critical; null means all
@@ -221,6 +241,13 @@ public with sharing class ActivosOperadorController {
                 pageAssets.add(ranked[i].asset);
             }
             Map<Id, List<Case>> openCases = openInterventions(new Map<Id, Asset>(pageAssets).keySet(), capped);
+            Set<Id> withoutOpenCase = new Set<Id>();
+            for (Asset a : pageAssets) {
+                if (!openCases.containsKey(a.Id)) {
+                    withoutOpenCase.add(a.Id);
+                }
+            }
+            Map<Id, Case> lastClosed = lastClosedInterventions(withoutOpenCase);
 
             List<AssetView> page = new List<AssetView>();
             for (Asset a : pageAssets) {
@@ -234,7 +261,7 @@ public with sharing class ActivosOperadorController {
                     }
                 }
                 List<Case> cases = openCases.containsKey(a.Id) ? openCases.get(a.Id) : new List<Case>();
-                page.add(new AssetView(a, readings, cases));
+                page.add(new AssetView(a, readings, cases, lastClosed.get(a.Id)));
             }
             return new AssetPage(page, total, pageSize, truncated || total > shown || capped[0]);
         } catch (AuraHandledException e) {
@@ -612,6 +639,32 @@ public with sharing class ActivosOperadorController {
                 byAsset.put(c.AssetId, new List<Case>());
             }
             byAsset.get(c.AssetId).add(c);
+        }
+        return byAsset;
+    }
+
+    // Last closed Case (newest ClosedDate) of each given asset, for the "Última intervención" line (D038). One query for
+    // any number of assets; any closed Case counts (no time window). Newest first, so the first row seen for an asset is
+    // its last one. Past maxClosedCaseRows an asset whose closed Cases all fall after the cut gets none and simply shows no
+    // "Última intervención", as before this lookup existed. `capped` is not set: the list's truncated flag means assets or
+    // severities may be missing, and this line is only context. WITH USER_MODE: a Case the user cannot see is never returned.
+    private static Map<Id, Case> lastClosedInterventions(Set<Id> assetIds) {
+        Map<Id, Case> byAsset = new Map<Id, Case>();
+        if (assetIds.isEmpty()) {
+            return byAsset;
+        }
+        Integer closedFetch = maxClosedCaseRows;
+        for (Case c : [
+            SELECT Id, CaseNumber, ClosedDate, AssetId
+            FROM Case
+            WHERE AssetId IN :assetIds AND IsClosed = true
+            WITH USER_MODE
+            ORDER BY ClosedDate DESC, Id DESC
+            LIMIT :closedFetch
+        ]) {
+            if (!byAsset.containsKey(c.AssetId)) {
+                byAsset.put(c.AssetId, c);
+            }
         }
         return byAsset;
     }

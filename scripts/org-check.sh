@@ -179,28 +179,18 @@ telemetry_counts() {
 
 # ---------------------------------------------------------------- Apex sources
 
-# One delete pass, logs first (they point at Cases), then Cases, then readings. Status codes only: no messages.
-src_purge() {
+# Apex that deletes up to PURGE_CHUNK rows of one object: $1 is the object, $2 its query without LIMIT. One object per
+# execution, so each one gets its own CPU budget: the script used to delete logs, Cases and readings in a single
+# execution and hit the Apex CPU limit twice (2026-10-14, with 10,200 logs and again with 1929 logs and 12 Cases).
+# Logs-only passes of 2000 and then the Cases and readings on their own did work. Status codes only: no messages.
+purge_apex() {
   cat <<APEX
-Integer ok; Integer bad; StatusCode sc;
-List<Log_Senial__c> logs = [SELECT Id FROM Log_Senial__c LIMIT $PURGE_CHUNK];
-ok = 0; bad = 0; sc = null;
-for (Database.DeleteResult r : Database.delete(logs, false)) {
+Integer ok = 0; Integer bad = 0; StatusCode sc = null;
+List<$1> rows = [$2 LIMIT $PURGE_CHUNK];
+for (Database.DeleteResult r : Database.delete(rows, false)) {
     if (r.isSuccess()) { ok++; } else { bad++; sc = r.getErrors()[0].getStatusCode(); }
 }
-System.debug('NC|Log_Senial__c deleted=' + ok + ' failed=' + bad + (sc == null ? '' : ' code=' + sc));
-List<Case> cases = [SELECT Id FROM Case WHERE Origin = 'Telemetria' LIMIT $PURGE_CHUNK];
-ok = 0; bad = 0; sc = null;
-for (Database.DeleteResult r : Database.delete(cases, false)) {
-    if (r.isSuccess()) { ok++; } else { bad++; sc = r.getErrors()[0].getStatusCode(); }
-}
-System.debug('NC|Case deleted=' + ok + ' failed=' + bad + (sc == null ? '' : ' code=' + sc));
-List<Lectura_Vigente__c> reads = [SELECT Id FROM Lectura_Vigente__c LIMIT $PURGE_CHUNK];
-ok = 0; bad = 0; sc = null;
-for (Database.DeleteResult r : Database.delete(reads, false)) {
-    if (r.isSuccess()) { ok++; } else { bad++; sc = r.getErrors()[0].getStatusCode(); }
-}
-System.debug('NC|Lectura_Vigente__c deleted=' + ok + ' failed=' + bad + (sc == null ? '' : ' code=' + sc));
+System.debug('NC|$1 deleted=' + ok + ' failed=' + bad + (sc == null ? '' : ' code=' + sc));
 APEX
 }
 
@@ -254,8 +244,13 @@ mode_clean() {
   pass=1
   while [ "$pass" -le "$PURGE_PASSES" ]; do
     echo "-- pass $pass"
-    src_purge | apex || die "a delete pass failed"
+    purge_apex Log_Senial__c "SELECT Id FROM Log_Senial__c" | apex || die "a delete pass failed"
     telemetry_counts
+    if [ "$LOGS" = "0" ]; then # Cases and readings only once no log is left, each in its own execution
+      purge_apex Case "SELECT Id FROM Case WHERE Origin = 'Telemetria'" | apex || die "a delete pass failed"
+      purge_apex Lectura_Vigente__c "SELECT Id FROM Lectura_Vigente__c" | apex || die "a delete pass failed"
+      telemetry_counts
+    fi
     echo "   left: Log_Senial__c=$LOGS Lectura_Vigente__c=$READS Case=$CASES"
     [ "$LOGS/$READS/$CASES" = "0/0/0" ] && break
     [ "$LOGS/$READS/$CASES" != "$before_snap" ] || die "a pass deleted nothing (see the codes above). Stopping."
@@ -271,7 +266,7 @@ mode_clean() {
     exit 1
   fi
   echo "Clean. Unchanged: $STAYS"
-  echo "The rows went to the recycle bin. After the first run, evidence must show yaExistentes=0 and about 0 Conflicto."
+  echo "The rows went to the recycle bin. After the first run, check that logsCreados + yaExistentes = recibidos and logsFallidos = 0: the repeats a scenario sends by itself (QA_200: 10 resends and 1 Conflicto) count as yaExistentes, so it is not 0. Far fewer logsCreados than the same scenario made on a clean org means old rows are still blocking."
 }
 
 mode_run() {
