@@ -639,6 +639,9 @@
     font-size: 0.88rem;
     color: var(--nc-tinta-media);
 }
+.card-sin-int .ultima-int {
+    margin: 0 0 0.35rem;
+}
 
 .extra-label {
     font-size: 0.72rem;

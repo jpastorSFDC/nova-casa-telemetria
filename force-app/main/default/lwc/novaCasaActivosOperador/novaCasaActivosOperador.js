@@ -53,6 +53,8 @@ const ICON_PUMP = 'WATER_PUMP';
 const ICON_VENTILATION = 'VENTILATION';
 
 const NUMBER_FORMAT = new Intl.NumberFormat('es', { maximumFractionDigits: 3 });
+// Day and month in the browser's time zone (the date a person closed a Case on), e.g. 07/10.
+const DAY_MONTH_FORMAT = new Intl.DateTimeFormat('es', { day: '2-digit', month: '2-digit' });
 
 // Response shape of getAssets, isolated here: AssetPage { assets, truncated, assetLimit }.
 // If the final contract differs, change only this function.
@@ -107,6 +109,11 @@ function readingAge(value, nowMs) {
     }
     const withinSkew = ms > nowMs && ms - nowMs <= FUTURE_TOLERANCE_MS;
     return relativeAge(withinSkew ? nowMs : ms, nowMs).text;
+}
+
+function formatDayMonth(value) {
+    const ms = toMillis(value);
+    return ms === null ? '' : DAY_MONTH_FORMAT.format(ms);
 }
 
 function formatUtcTime(value) {
@@ -633,6 +640,10 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         const metaParts = [typeLabel, a.externalId].filter(Boolean);
         const count = a.openInterventionCount || 0;
         const inv = a.openIntervention;
+        // The server only sends it for an asset with no open intervention; checked here too so the two never show together.
+        const closed = inv ? null : a.lastClosedIntervention;
+        const closedDay = closed ? formatDayMonth(closed.closedDate) : '';
+        const closedWhen = closedDay ? `, cerrada el ${closedDay}` : '';
         const unreadable = !hasReadings;
         return {
             key: a.assetId,
@@ -680,6 +691,12 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             hasMoreInterventions: count > 1,
             moreInterventionsText: `y ${count - 1} intervención(es) abierta(s) más`,
             noInterventionText: this.noInterventionText(level, hasReadings),
+            hasLastClosed: Boolean(closed),
+            lastClosedCaseId: closed ? closed.caseId : null,
+            lastClosedCaseNumber: closed ? closed.caseNumber : '',
+            lastClosedWhen: closedWhen,
+            lastClosedSentence: closed ? `La última intervención fue el Caso ${closed.caseNumber}${closedWhen}.` : '',
+            createLabel: closed ? 'Abrir nueva intervención' : 'Crear intervención',
             canCreate: Boolean(this.caps.puedeCrearIntervencion) && hasReadings && !inv,
             canFollow: Boolean(this.caps.puedeSeguirIntervencion) && Boolean(inv),
             openCount: count,
