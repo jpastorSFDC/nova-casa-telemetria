@@ -28,6 +28,10 @@ public without sharing class SesionSimulador {
     private static final Integer TTL_RESUMEN_SEGUNDOS = 3600;
     @TestVisible
     private static final String CLAVE_RESUMEN = 'ultimoresumen';
+    // Suffix of the "the stream ended on the saved cursor" marker, kept next to the cursor so the next run knows its
+    // first page is a re-poll of an already-exhausted stream (D039). Alphanumeric like the cursor key it extends.
+    @TestVisible
+    private static final String SUFIJO_FIN = 'fin';
 
     // Test seams. Platform Cache does not hold data in Apex tests, so a test supplies a map instead.
     // In production both are left alone: memoriaDePrueba is null and simularNoDisponible is false.
@@ -67,6 +71,7 @@ public without sharing class SesionSimulador {
     }
 
     public static void borrar(String clave) {
+        limpiarFinDeFlujo(clave); // a cleared session carries no end-of-stream marker (D039)
         if (simularNoDisponible) {
             return;
         }
@@ -83,6 +88,44 @@ public without sharing class SesionSimulador {
         } catch (Exception e) {
             System.debug(LoggingLevel.WARN, 'SesionSimulador: no se pudo borrar la sesion (' + e.getTypeName() + ')');
         }
+    }
+
+    /**
+     * Marks that the stream ended on the cursor saved under `clave`, so the next run treats its first page as a
+     * re-poll of an exhausted stream (D039). The marker shares the cursor's TTL; nothing sensitive is stored.
+     */
+    public static Boolean guardarFinDeFlujo(String clave) {
+        return escribir(claveFin(clave), '1', TTL_CURSOR_SEGUNDOS);
+    }
+
+    /** True when the saved cursor of `clave` is a re-poll of a stream that already ended (D039). */
+    public static Boolean flujoTerminadoGuardado(String clave) {
+        return String.isNotBlank(leer(claveFin(clave)));
+    }
+
+    /** Clears the end-of-stream marker: the stream continued, so the next page is genuinely new (D039). */
+    public static void limpiarFinDeFlujo(String clave) {
+        if (simularNoDisponible || String.isBlank(clave)) {
+            return;
+        }
+        String claveMarca = claveFin(clave);
+        if (memoriaDePrueba != null) {
+            memoriaDePrueba.remove(claveMarca);
+            return;
+        }
+        Cache.OrgPartition p = particion();
+        if (p == null) {
+            return;
+        }
+        try {
+            p.remove(claveMarca);
+        } catch (Exception e) {
+            System.debug(LoggingLevel.WARN, 'SesionSimulador: no se pudo limpiar la marca de fin (' + e.getTypeName() + ')');
+        }
+    }
+
+    private static String claveFin(String clave) {
+        return String.isBlank(clave) ? clave : clave + SUFIJO_FIN;
     }
 
     /** Counters of the last run, as the JSON of TelemetriaIngesta.Resumen (no cursor). */

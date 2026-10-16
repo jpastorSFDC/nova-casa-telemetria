@@ -81,6 +81,45 @@ private class SesionSimuladorTest {
     }
 
     @isTest
+    static void laMarcaDeFinDeFlujoSeGuardaLeeYLimpiaAparteDelCursor() {
+        SesionSimulador.memoriaDePrueba = new Map<String, String>();
+        String clave = SesionSimulador.clave('QA_200', null, 200);
+        SesionSimulador.guardar(clave, 'fake-cursor-1');
+
+        Assert.isFalse(SesionSimulador.flujoTerminadoGuardado(clave), 'No marker until the stream ends');
+        Assert.isTrue(SesionSimulador.guardarFinDeFlujo(clave));
+        Assert.isTrue(SesionSimulador.flujoTerminadoGuardado(clave), 'The stream ended on this cursor');
+        Assert.areEqual('fake-cursor-1', SesionSimulador.leerCursor(clave), 'The marker does not overwrite the cursor');
+
+        SesionSimulador.limpiarFinDeFlujo(clave);
+        Assert.isFalse(SesionSimulador.flujoTerminadoGuardado(clave), 'The marker is gone once the stream continues');
+        Assert.areEqual('fake-cursor-1', SesionSimulador.leerCursor(clave), 'Clearing the marker leaves the cursor');
+    }
+
+    @isTest
+    static void borrarQuitaTambienLaMarcaDeFinDeFlujo() {
+        SesionSimulador.memoriaDePrueba = new Map<String, String>();
+        String clave = SesionSimulador.clave('QA_200', null, 200);
+        SesionSimulador.guardar(clave, 'fake-cursor-1');
+        SesionSimulador.guardarFinDeFlujo(clave);
+
+        SesionSimulador.borrar(clave);
+
+        Assert.isNull(SesionSimulador.leerCursor(clave));
+        Assert.isFalse(SesionSimulador.flujoTerminadoGuardado(clave), 'A cleared session carries no marker');
+    }
+
+    @isTest
+    static void sinCacheLaMarcaDeFinNoLanzaYEsFalsa() {
+        SesionSimulador.simularNoDisponible = true;
+        String clave = SesionSimulador.clave('QA_200', null, 200);
+
+        Assert.isFalse(SesionSimulador.guardarFinDeFlujo(clave));
+        Assert.isFalse(SesionSimulador.flujoTerminadoGuardado(clave));
+        SesionSimulador.limpiarFinDeFlujo(clave);
+    }
+
+    @isTest
     static void soloLaIngestaPuedeLeerElCursorGuardado() {
         // Any Apex in the org's namespace can read Platform Cache, so the only guard is that no other class asks.
         // Fails if a new class calls SesionSimulador.leerCursor. The probe string is built so this file never

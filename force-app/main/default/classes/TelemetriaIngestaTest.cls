@@ -1239,4 +1239,80 @@ private class TelemetriaIngestaTest {
         Assert.areEqual(7, TelemetriaIngesta.topeDePaginas(7));
         Assert.areEqual(100, TelemetriaIngesta.topeDePaginas(5000));
     }
+
+    // ─── D039: a re-poll of an exhausted stream does not republish what was already processed ───────────────
+
+    @isTest
+    static void unaRelecturaDeUnFlujoTerminadoOmiteLoYaProcesadoYRepublicaLoDemas() {
+        // The saved cursor pointed at an ended stream (marker set). Re-reading its last page brings back msg_dup
+        // (already 'Procesada'), msg_fallida (publish failed, still 'Fallida') and a brand-new message.
+        preparar(new List<Object>{ mensaje('msg_dup'), mensaje('msg_fallida'), mensaje('repoll-nuevo') }, null, false);
+        SesionSimulador.memoriaDePrueba.put(claveQa200(), 'fake-saved-cursor');
+        SesionSimulador.guardarFinDeFlujo(claveQa200());
+        TelemetriaIngesta trabajo = new TelemetriaIngesta('QA_200', 1);
+
+        Test.startTest(); // no stopTest: see the class note on event delivery
+        trabajo.execute(null);
+
+        TelemetriaIngesta.Resumen r = TelemetriaIngesta.ultimoResumen;
+        Assert.areEqual(1, r.omitidosPorRelectura, 'The already-processed message is not published again');
+        Assert.areEqual(2, r.publicados, 'The Fallida and the new message are published');
+        Assert.areEqual(1, r.logsCreados, 'Only the new message gets a new log row');
+        Assert.areEqual(1, r.yaExistentes, 'The Fallida row already existed');
+        Assert.areEqual('Procesada',
+            [SELECT Resultado__c FROM Log_Senial__c WHERE Identidad__c = :SOURCE + '|msg_dup'].Resultado__c,
+            'The processed row is left untouched');
+        Assert.areEqual('Fallida',
+            [SELECT Resultado__c FROM Log_Senial__c WHERE Identidad__c = :SOURCE + '|msg_fallida'].Resultado__c,
+            'The failed row is re-published, not rewritten here');
+    }
+
+    @isTest
+    static void unaPaginaContinuadaSinMarcaDeFinSiguePublicandoLosReenvios() {
+        // Same saved cursor, but no end-of-stream marker: this is a normal continuation, so a resend is still
+        // published and counted (D013 point 5), never silently dropped.
+        preparar(new List<Object>{ mensaje('msg_dup'), mensaje('cont-nuevo') }, null, false);
+        SesionSimulador.memoriaDePrueba.put(claveQa200(), 'fake-saved-cursor');
+        TelemetriaIngesta trabajo = new TelemetriaIngesta('QA_200', 1);
+
+        Test.startTest(); // no stopTest: see the class note on event delivery
+        trabajo.execute(null);
+
+        TelemetriaIngesta.Resumen r = TelemetriaIngesta.ultimoResumen;
+        Assert.areEqual(0, r.omitidosPorRelectura, 'Without the marker nothing is skipped as a re-poll');
+        Assert.areEqual(2, r.publicados, 'The resend is published alongside the new message');
+        Assert.areEqual(1, r.yaExistentes, 'The resend is counted as already existing');
+    }
+
+    @isTest
+    static void elFinDeFlujoSeMarcaCuandoElSimuladorNoTieneMasMensajes() {
+        preparar(mensajes(2, 'fin-'), null, false);
+        TelemetriaIngesta trabajo = new TelemetriaIngesta('QA_200', 3);
+
+        Test.startTest(); // no stopTest: see the class note on event delivery
+        trabajo.execute(null);
+
+        Assert.isTrue(TelemetriaIngesta.ultimoResumen.flujoTerminado);
+        Assert.isTrue(SesionSimulador.flujoTerminadoGuardado(claveQa200()),
+            'A stream with hasMore=false leaves the end-of-stream marker on the saved cursor');
+    }
+
+    @isTest
+    static void laMarcaDeFinSeLimpiaCuandoElFlujoContinua() {
+        // The saved cursor carried the marker, but this run finds more data (maxPaginas stops it mid-stream):
+        // the next page is genuinely new, so the stale marker is cleared.
+        Mock mock = preparar(new List<Object>{ mensaje('msg_dup'), mensaje('sigue-nuevo') }, 'fake-cursor-z', true);
+        SesionSimulador.memoriaDePrueba.put(claveQa200(), 'fake-saved-cursor');
+        SesionSimulador.guardarFinDeFlujo(claveQa200());
+        TelemetriaIngesta trabajo = new TelemetriaIngesta('QA_200', 1); // one page: the stream still has more
+
+        Test.startTest(); // no stopTest: see the class note on event delivery
+        trabajo.execute(null);
+
+        Assert.areEqual(1, TelemetriaIngesta.ultimoResumen.omitidosPorRelectura, 'The first page is still a re-poll');
+        Assert.isFalse(SesionSimulador.flujoTerminadoGuardado(claveQa200()),
+            'The stream advanced, so the end-of-stream marker is cleared');
+        Assert.areEqual('fake-cursor-z', SesionSimulador.memoriaDePrueba.get(claveQa200()),
+            'The run saves the next cursor to read');
+    }
 }
