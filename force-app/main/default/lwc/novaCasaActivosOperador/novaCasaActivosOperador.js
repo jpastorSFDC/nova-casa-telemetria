@@ -195,7 +195,8 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
 
     // Detail view is client-side state: the selected asset comes from the already-loaded getAssets payload.
     selectedAssetId = null;
-    // Signals of the detail curve: { assetId, signals } from getHistorial, tagged so another asset's data is never drawn.
+    // Signals of the detail curve: { assetId, signals } from getHistorial, tagged with the asset selected when the
+    // response arrived (the response itself does not say which asset it belongs to).
     curveData = null;
 
     assets;
