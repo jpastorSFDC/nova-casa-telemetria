@@ -1,4 +1,4 @@
-// Turns on automatic ingestion (US-201, BR-201, D039): schedules 12 jobs (minute 0, 5, ..., 55) so
+// Turns on automatic ingestion (US-201, BR-201, D040): schedules 12 jobs (minute 0, 5, ..., 55) so
 // TelemetriaIngesta runs every 5 minutes. Run as a user with Nova_Casa_Simulator_Integration and Create on
 // Senial_Sensor__e (the jobs run as whoever schedules them). Re-running leaves exactly 12 jobs.
 //

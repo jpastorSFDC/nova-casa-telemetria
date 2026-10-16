@@ -94,7 +94,7 @@ Follow it in Setup > Apex Jobs. The run ends on `hasMore = false`, an empty page
 
 ### Automatic ingestion every 5 minutes
 
-`TelemetriaIngestaProgramada` runs the ingestion on its own every 5 minutes (US-201, BR-201, D039), so reception is continuous and not a manual capture during the demo. Salesforce cron takes a single minute value per job, so "every 5 minutes" is 12 scheduled jobs (minute 0, 5, …, 55); each shows in **Setup > Scheduled Jobs** and each run in **Setup > Apex Jobs**. The scheduled start shares the "one ingestion at a time" guard with the button, so a scheduled run and a manual run never collide on the same cursor. A run that re-reads the last page of an exhausted stream republishes only new or not-yet-processed messages — it does not resend what was already processed (D039), so `Reenvios__c` does not grow on a re-poll.
+`TelemetriaIngestaProgramada` runs the ingestion on its own every 5 minutes (US-201, BR-201, D040), so reception is continuous and not a manual capture during the demo. Salesforce cron takes a single minute value per job, so "every 5 minutes" is 12 scheduled jobs (minute 0, 5, …, 55); each shows in **Setup > Scheduled Jobs** and each run in **Setup > Apex Jobs**. The scheduled start shares the "one ingestion at a time" guard with the button, so a scheduled run and a manual run never collide on the same cursor. A run that re-reads the last page of an exhausted stream republishes only new or not-yet-processed messages — it does not resend what was already processed (D040), so `Reenvios__c` does not grow on a re-poll.
 
 Turn it on from Execute Anonymous (run as a user with `Nova_Casa_Simulator_Integration` and Create on `Senial_Sensor__e`, e.g. John). The job runs as whoever schedules it:
 

@@ -1240,7 +1240,7 @@ private class TelemetriaIngestaTest {
         Assert.areEqual(100, TelemetriaIngesta.topeDePaginas(5000));
     }
 
-    // ─── D039: a re-poll of an exhausted stream does not republish what was already processed ───────────────
+    // ─── D040: a re-poll of an exhausted stream does not republish what was already processed ───────────────
 
     @isTest
     static void unaRelecturaDeUnFlujoTerminadoOmiteLoYaProcesadoYRepublicaLoDemas() {

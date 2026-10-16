@@ -194,7 +194,7 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     ingestStarting = false;
     ingestError = '';
     ingestState = null;
-    // Whether automatic ingestion (the scheduled job, D039) is on and when it next runs; null until loaded or if it fails.
+    // Whether automatic ingestion (the scheduled job, D040) is on and when it next runs; null until loaded or if it fails.
     programacion = null;
     _ingestSince;
     _ingestTimer;
@@ -1013,7 +1013,7 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         return Boolean(this.ingestDetail);
     }
 
-    // Whether automatic ingestion (the scheduled job, D039) is on and when it next runs, so the admin sees that the
+    // Whether automatic ingestion (the scheduled job, D040) is on and when it next runs, so the admin sees that the
     // manual button is not the only path. Empty until getProgramacion answers (or if it fails).
     get ingestScheduleLine() {
         const p = this.programacion;

@@ -138,7 +138,7 @@ public with sharing class IngestaController {
         }
     }
 
-    /** Whether automatic ingestion (the scheduled job, D039) is turned on and when it next runs, for the panel. */
+    /** Whether automatic ingestion (the scheduled job, D040) is turned on and when it next runs, for the panel. */
     public class Programacion {
         @AuraEnabled public Boolean activa { get; private set; }
         @AuraEnabled public Datetime proximaEjecucion { get; private set; }
@@ -153,7 +153,7 @@ public with sharing class IngestaController {
     }
 
     /**
-     * Whether automatic ingestion (the scheduled job, D039) is on and when it next runs, for the operator panel.
+     * Whether automatic ingestion (the scheduled job, D040) is on and when it next runs, for the operator panel.
      * Not cacheable: the schedule and the next fire time change. No cursor and no job ids ever leave here.
      */
     @AuraEnabled

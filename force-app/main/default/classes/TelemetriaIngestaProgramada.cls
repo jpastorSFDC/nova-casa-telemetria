@@ -1,5 +1,5 @@
 /**
- * Scheduled ingestion (US-201, BR-201, D039): runs TelemetriaIngesta automatically every 5 minutes so signals
+ * Scheduled ingestion (US-201, BR-201, D040): runs TelemetriaIngesta automatically every 5 minutes so signals
  * arrive on their own, not from a manual button during the demo. The Schedulable makes no callout itself; it only
  * enqueues TelemetriaIngesta (a Queueable, Database.AllowsCallouts), which does the callouts after this
  * transaction commits, exactly as the manual start does.
@@ -9,10 +9,10 @@
  * all 12 show in Setup > Scheduled Jobs while each run shows in Setup > Apex Jobs.
  *
  * "One ingestion at a time" is shared with the manual button through TelemetriaIngesta.hayIngestaEnCurso(), so a
- * scheduled run and a manual run never fight over the same simulator cursor (D025, D039).
+ * scheduled run and a manual run never fight over the same simulator cursor (D025, D040).
  *
  * without sharing: cron and async jobs are not record data, there is nothing for sharing to filter. The job runs
- * as whoever schedules it; that user needs Nova_Casa_Simulator_Integration and Create on Senial_Sensor__e (D039).
+ * as whoever schedules it; that user needs Nova_Casa_Simulator_Integration and Create on Senial_Sensor__e (D040).
  */
 public without sharing class TelemetriaIngestaProgramada implements Schedulable {
 
@@ -47,7 +47,7 @@ public without sharing class TelemetriaIngestaProgramada implements Schedulable 
     }
 
     /**
-     * Runs one ingestion, unless one is already queued or running (shared guard, D039). No callout here: the
+     * Runs one ingestion, unless one is already queued or running (shared guard, D040). No callout here: the
      * enqueued Queueable makes the callouts after commit.
      */
     public void execute(SchedulableContext contexto) {
@@ -111,7 +111,7 @@ public without sharing class TelemetriaIngestaProgramada implements Schedulable 
         return triggers.isEmpty() ? null : triggers[0].NextFireTime;
     }
 
-    /** Snapshot of the automatic ingestion for the operator panel (D039). No cursor, no job ids. */
+    /** Snapshot of the automatic ingestion for the operator panel (D040). No cursor, no job ids. */
     public static Estado estado() {
         String patron = PREFIJO + '%';
         List<CronTrigger> triggers = [

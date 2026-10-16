@@ -1,5 +1,5 @@
 /**
- * Tests for TelemetriaIngestaProgramada (US-201, BR-201, D039). The simulator is never called: the enqueued
+ * Tests for TelemetriaIngestaProgramada (US-201, BR-201, D040). The simulator is never called: the enqueued
  * Queueable is not run (no Test.stopTest), only enqueued, which is all the "one run at a time" guard looks at.
  * The scheduled jobs are created in the test and read back from CronTrigger; they never fire.
  */

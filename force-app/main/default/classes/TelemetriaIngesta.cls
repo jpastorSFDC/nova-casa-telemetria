@@ -125,7 +125,7 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
     // True once the page being read already reopened its session, so retries of the same page do not reopen it again.
     @TestVisible
     private Boolean sesionReabierta = false;
-    // True when this job resumed a saved cursor that carries the end-of-stream marker (D039): its first page is a
+    // True when this job resumed a saved cursor that carries the end-of-stream marker (D040): its first page is a
     // re-poll of an exhausted stream, so already-processed identities on that page are not published again.
     @TestVisible
     private Boolean relectura = false;
@@ -144,7 +144,7 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
         public Integer descartados = 0; // subset of rechazados: non-object elements of "data"
         public Integer reintentos = 0; // pages re-enqueued after a 429/5xx
         public Integer sesionesReabiertas = 0; // sessions reopened after a 409/410
-        public Integer omitidosPorRelectura = 0; // identities skipped on a re-poll of an ended stream because already processed (D039)
+        public Integer omitidosPorRelectura = 0; // identities skipped on a re-poll of an ended stream because already processed (D040)
         // Where the run started reading (D025). No cursor value ever goes here: only flags and counters.
         public Boolean sesionContinuada = false; // the first page came from the saved cursor
         public Boolean sesionReiniciada = false; // the run was asked to start from a new session
@@ -258,13 +258,13 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
     }
 
     // Async states that count as "a run is still live". Shared by the manual button (IngestaController) and the
-    // scheduled job (TelemetriaIngestaProgramada) so both honour the same "one ingestion at a time" rule (D039).
+    // scheduled job (TelemetriaIngestaProgramada) so both honour the same "one ingestion at a time" rule (D040).
     @TestVisible
     private static final Set<String> ESTADOS_ACTIVOS = new Set<String>{ 'Queued', 'Preparing', 'Processing', 'Holding' };
 
     /**
      * True when a TelemetriaIngesta job is queued or running. The manual start (IngestaController) and the scheduled
-     * start (TelemetriaIngestaProgramada) both check this so two runs never fight over the same cursor (D025, D039).
+     * start (TelemetriaIngestaProgramada) both check this so two runs never fight over the same cursor (D025, D040).
      * AsyncApexJob is not sharing-controlled here; the class-name filter keeps other queueables out.
      */
     public static Boolean hayIngestaEnCurso() {
@@ -334,7 +334,7 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
         }
 
         // 2) DML: per page, log rows first, then the events. On a re-poll of an exhausted stream, the first page
-        // drops identities already processed before writing them, so nothing is published again (D039).
+        // drops identities already processed before writing them, so nothing is published again (D040).
         for (Integer idx = 0; idx < preparadas.size(); idx++) {
             PaginaPreparada preparada = preparadas[idx];
             if (idx == 0 && relectura) {
@@ -361,7 +361,7 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
                 acumulado.cacheNoDisponible = true;
             } else if (flujoTerminado) {
                 // The stream ended on this cursor: mark it so the next run re-polls this last page instead of
-                // re-publishing everything (D039).
+                // re-publishing everything (D040).
                 SesionSimulador.guardarFinDeFlujo(clave);
             } else {
                 // The stream advanced: the next page is genuinely new, so drop any stale end-of-stream marker.
@@ -425,7 +425,7 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
             if (String.isNotBlank(guardado)) {
                 cursor = guardado;
                 acumulado.sesionContinuada = true;
-                // The saved cursor pointed at an exhausted stream: the first page we read is a re-poll (D039).
+                // The saved cursor pointed at an exhausted stream: the first page we read is a re-poll (D040).
                 relectura = SesionSimulador.flujoTerminadoGuardado(clave);
             }
         }
@@ -656,7 +656,7 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
     }
 
     /**
-     * Re-poll of an exhausted stream (D039): drops from a prepared page the candidate messages whose identity
+     * Re-poll of an exhausted stream (D040): drops from a prepared page the candidate messages whose identity
      * already has a log row in a terminal-for-publishing state (anything other than 'Publicada' or 'Fallida', i.e.
      * already processed by the subscriber, D011 point 2), so they are not published again. Identities still
      * 'Publicada' (not yet processed) or 'Fallida' (publication failed), and identities with no row (genuinely new),

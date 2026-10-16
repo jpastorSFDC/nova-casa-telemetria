@@ -29,7 +29,7 @@ public without sharing class SesionSimulador {
     @TestVisible
     private static final String CLAVE_RESUMEN = 'ultimoresumen';
     // Suffix of the "the stream ended on the saved cursor" marker, kept next to the cursor so the next run knows its
-    // first page is a re-poll of an already-exhausted stream (D039). Alphanumeric like the cursor key it extends.
+    // first page is a re-poll of an already-exhausted stream (D040). Alphanumeric like the cursor key it extends.
     @TestVisible
     private static final String SUFIJO_FIN = 'fin';
 
@@ -71,7 +71,7 @@ public without sharing class SesionSimulador {
     }
 
     public static void borrar(String clave) {
-        limpiarFinDeFlujo(clave); // a cleared session carries no end-of-stream marker (D039)
+        limpiarFinDeFlujo(clave); // a cleared session carries no end-of-stream marker (D040)
         if (simularNoDisponible) {
             return;
         }
@@ -92,18 +92,18 @@ public without sharing class SesionSimulador {
 
     /**
      * Marks that the stream ended on the cursor saved under `clave`, so the next run treats its first page as a
-     * re-poll of an exhausted stream (D039). The marker shares the cursor's TTL; nothing sensitive is stored.
+     * re-poll of an exhausted stream (D040). The marker shares the cursor's TTL; nothing sensitive is stored.
      */
     public static Boolean guardarFinDeFlujo(String clave) {
         return escribir(claveFin(clave), '1', TTL_CURSOR_SEGUNDOS);
     }
 
-    /** True when the saved cursor of `clave` is a re-poll of a stream that already ended (D039). */
+    /** True when the saved cursor of `clave` is a re-poll of a stream that already ended (D040). */
     public static Boolean flujoTerminadoGuardado(String clave) {
         return String.isNotBlank(leer(claveFin(clave)));
     }
 
-    /** Clears the end-of-stream marker: the stream continued, so the next page is genuinely new (D039). */
+    /** Clears the end-of-stream marker: the stream continued, so the next page is genuinely new (D040). */
     public static void limpiarFinDeFlujo(String clave) {
         if (simularNoDisponible || String.isBlank(clave)) {
             return;
