@@ -1,52 +1,22 @@
 /**
- * US-201 ingestion: pages GET /telemetry through SimuladorClient and, for every page,
- *   1) inserts one Log_Senial__c row per message with Resultado__c = 'Publicada' (publishing is not processing),
- *   2) publishes one Senial_Sensor__e per message with EventBus.publish, checking each SaveResult.
- * Processing (classification, Lectura_Vigente__c, Cases) is the Senial_Sensor__e subscriber's job.
+ * US-201 ingestion: pages GET /telemetry through SimuladorClient and, for every page, inserts one Log_Senial__c
+ * row per message as 'Publicada' (publishing is not processing), then publishes one Senial_Sensor__e per message
+ * and checks each SaveResult. Processing is the Senial_Sensor__e subscriber's job.
  *
- * Nothing is dropped silently (BR-202, BR-209): a message that cannot be published (no identity, source or
- * messageId longer than its field, identity longer than 60) and every non-object element of "data" get a
- * Log_Senial__c row with Resultado__c = 'Rechazada' and a Motivo__c, keyed by a hash so it stays unique and
- * dedupes on replay. A message whose log row cannot be inserted (anything other than a duplicate) is NOT
- * published, because an event without a log row would be untraceable; it is counted and reported in the
- * final WARN debug line (counts only).
+ * Nothing is dropped silently (BR-202, BR-209): a message that cannot be published and every non-object element of
+ * "data" get a 'Rechazada' row with a Motivo__c, keyed by a hash so a replay dedupes. An event is published only
+ * after its log row exists; one whose row cannot be inserted (other than a duplicate) is counted, never sent.
  *
- * One job reads SEVERAL pages (HP-05, D025). Order inside a job is: restore the saved cursor, then ALL the callouts
- * (POST /session only when there is no cursor, then GET /telemetry once per page, each page turned into log rows
- * and events in memory right away so the raw messages are released), then ALL the DML (log insert, event publish,
- * log update, page by page), then the cache write and, if the run is not done, the enqueue of a continuation job.
- * Salesforce forbids a callout after uncommitted DML in the same transaction, so a job never callouts after DML.
- * The reading stops at maxPaginas, when the simulator says hasMore=false, on an empty page, when the job has
- * gathered maxMensajesPorTrabajo messages (keeps log rows + events under the 10,000 DML-row limit) or when heap,
- * CPU or callouts run short. A job that stopped for budget enqueues a continuation. The platform caps the queueable
- * stack depth (observed: 2 jobs in nova-cdo), so the chain is only for continuation and retries; if it is cut, the
- * saved cursor lets the next run continue.
+ * Salesforce forbids a callout after uncommitted DML, so a job makes ALL its callouts (session, then one GET per
+ * page) before ANY DML, and only then saves the cursor and enqueues a continuation or retry. The cursor is
+ * sensitive: it lives only in Platform Cache (SesionSimulador) and in the next job's private state, and is never
+ * logged, returned or stored in a record. Paging, budgets and the saved session: D025. Retries on 429/5xx and the
+ * 409/410 session reopen: D023. Queueable chain depth: D013.
  *
- * The session continues across runs (HP-05, D025). The cursor of the next page to read is kept OUTSIDE any record,
- * in Platform Cache (SesionSimulador), keyed by scenario+seed+batch and with a TTL. It is written after the DML of
- * the pages it follows, so a failed job re-reads its pages (idempotent by source+messageId). A run asked to restart
- * clears it. When the cache is unavailable the run opens a new session and says so (Resumen.cacheNoDisponible).
- * When the stream ends (hasMore=false) the cursor of the last page read is kept, so the next run re-polls it.
- * The cursor also travels as private state of the next job. It is never logged, returned or stored in a record.
- *
- * Resilience (T4.7). The simulator contract does not document these codes; they are the failures a long run
- * meets in practice. A 429 or 5xx on a callout is retried as a new job for the SAME page (same cursor, same
- * pagina) up to MAX_INTENTOS times: pages read before the failing one are written first, and the callouts of the
- * retry come before any DML, so a retry never repeats a write. If the session is rejected with 409/410 the saved
- * cursor is cleared, the job opens a new session once per page (retries included) and rereads; the new stream
- * restarts from the beginning, which is safe only if the simulator replays the same source+messageId (unconfirmed,
- * D023). A failure on the first page of a job still fails the job; a non-retryable failure after some pages were
- * read cannot fail the job (it would roll the DML back), so the job writes what it read, stops and reports the
- * status in Resumen.interrumpidaPorEstado. Retries wait 1 minute, then 2; Retry-After is not read. The simulator's
- * pollAfterMs is no longer honored with minute delays (D025 supersedes that part of D023). Every enqueue counts
- * against the chain depth (trabajos).
- *
- * Access: without sharing + SYSTEM_MODE makes the DML independent of operator/admin object permissions
- * (AGENTS.md, BR-208). The CALLOUT is not independent: the user who calls iniciar() (the job runs as that
- * user) needs the Nova_Casa_Simulator_Integration permission set, which grants access to the Named
- * Credential's external credential principal. Without it the first callout fails. Publishing needs Create on
- * Senial_Sensor__e for that user; see D013. Not for operator-facing LWC/@AuraEnabled code; the one exception is
- * IngestaController (admin-only manual start, D020).
+ * Access: without sharing + SYSTEM_MODE so ingestion does not depend on operator/admin permissions (BR-208). The
+ * user who calls iniciar() (the job runs as that user) still needs the Nova_Casa_Simulator_Integration permission
+ * set for the callout and Create on Senial_Sensor__e to publish (D013). Not for operator-facing LWC/@AuraEnabled
+ * code; the one exception is IngestaController (admin-only manual start, D020).
  */
 public without sharing class TelemetriaIngesta implements Queueable, Database.AllowsCallouts {
 
@@ -54,25 +24,16 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
     public static final Integer DEFAULT_MAX_PAGINAS = 25;
     private static final Integer HARD_MAX_PAGINAS = 100;
 
-    // Depth we ask the platform to honor for this chain (System.AsyncOptions.MaximumQueueableStackDepth on the
-    // enqueueJob of the next job), above the platform default of 5. Chosen conservatively: this is a trial/dev
-    // org and its real hard ceiling is not confirmed, so we ask for comfortably more than the observed failure
-    // point (job6, i.e. depth 5) without assuming the org will honor something as high as HARD_MAX_PAGINAS (100).
-    // Must stay above DEFAULT_MAX_PAGINAS (25) with margin, or the backstop below would silently shrink the
-    // default run length instead of only guarding against the platform ceiling.
+    // Depth asked of the platform for this chain (AsyncOptions.MaximumQueueableStackDepth, default 5). Must stay
+    // above PROFUNDIDAD_LOCAL_MAXIMA so our own stop always fires first (D013).
     private static final Integer PROFUNDIDAD_COLA_SOLICITADA = 30;
-    // Our own ceiling on pagina, independent of PROFUNDIDAD_COLA_SOLICITADA and of what the platform reports via
-    // AsyncInfo.hasMaxStackDepth(). Margin of 3 below PROFUNDIDAD_COLA_SOLICITADA so a bug, a late platform signal,
-    // or a real per-org cap lower than requested can never again surface as an uncaught Failed job instead of our
-    // WARN stop (see class comment: this is exactly what happened with job6 in nova-cdo). Still above
-    // DEFAULT_MAX_PAGINAS (25): a default-sized run (no explicit maxPaginas) must not be cut short by this
-    // backstop. A run asking for more than this (up to HARD_MAX_PAGINAS, 100) has not been empirically validated
-    // past this ceiling yet; see docs/decisiones.md D013.
+    // Our own ceiling on the chain depth (trabajos), independent of AsyncInfo.hasMaxStackDepth(), so a real cap lower
+    // than requested ends in our WARN stop instead of an uncaught Failed job. Must stay below
+    // PROFUNDIDAD_COLA_SOLICITADA and above DEFAULT_MAX_PAGINAS, so a default-sized run is never cut short (D013).
     private static final Integer PROFUNDIDAD_LOCAL_MAXIMA = 27;
 
     // Messages (and discarded elements) one job gathers before it stops reading. Each message costs a log row and an
-    // event in the DML-row budget (10,000 per transaction), so 4000 leaves room for rejections and updates; it is
-    // 20 full pages. The rest of a 25-page run goes to a continuation job.
+    // event in the DML-row budget (10,000 per transaction), so 4000 leaves room for rejections and updates (D025).
     private static final Integer MAX_MENSAJES_POR_TRABAJO = 4000;
 
     // Wall-clock time a job spends reading before it stops. The platform allows 120 s of cumulative callout time per
@@ -80,7 +41,7 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
     // worst case (45 s + one slow page) under 120 s. Wall-clock overestimates callout time, which is the safe side.
     private static final Long MAX_MS_DE_LECTURA = 45000L;
 
-    // Callout failures worth another job: attempts per page (the first one included) and the delay cap.
+    // Callout failures worth another job: attempts per page (the first one included) and the delay cap (D023).
     @TestVisible
     private static final Integer MAX_INTENTOS = 3;
     private static final Integer MAX_RETRASO_MINUTOS = 10;
@@ -490,8 +451,8 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
     }
 
     private Boolean profundidadAgotada() {
-        // Local backstop first: independent of PROFUNDIDAD_COLA_SOLICITADA and of what the platform reports below,
-        // so a bug or a real per-org cap lower than requested still stops the chain gracefully (see class comment).
+        // Local backstop first: independent of what the platform reports below, so a cap lower than requested still
+        // stops the chain gracefully (D013).
         if (trabajos >= PROFUNDIDAD_LOCAL_MAXIMA) {
             return true;
         }
