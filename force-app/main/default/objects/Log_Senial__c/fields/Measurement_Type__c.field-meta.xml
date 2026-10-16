@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Measurement_Type__c</fullName>
+    <label>Tipo de medición</label>
+    <description>measurement.type tal como llegó en el evento (texto libre, no restringido) para mostrarlo en el historial. Vacío en las filas anteriores a HP-07 y en mensajes de conectividad. No decide nada: la lectura vigente usa Lectura_Vigente__c.Tipo_Medicion__c.</description>
+    <type>Text</type>
+    <length>60</length>
+    <required>false</required>
+    <unique>false</unique>
+</CustomField>

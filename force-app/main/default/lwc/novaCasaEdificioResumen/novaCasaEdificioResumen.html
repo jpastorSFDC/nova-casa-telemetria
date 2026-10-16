@@ -1,0 +1,78 @@
+<template>
+    <lightning-card title="Estado del edificio" icon-name="standard:account">
+        <lightning-button slot="actions" label="Actualizar" variant="neutral" size="small" disabled={isLoading} onclick={handleRefresh}></lightning-button>
+        <div class="slds-var-p-horizontal_medium slds-var-p-bottom_small">
+            <template if:true={isLoading}>
+                <div role="status" aria-live="polite">
+                    <span class="slds-assistive-text">Cargando el estado del edificio</span>
+                    <lightning-spinner alternative-text="Cargando" size="small"></lightning-spinner>
+                    <div class="hueso" aria-hidden="true"></div>
+                </div>
+            </template>
+
+            <template if:true={showError}>
+                <div class="slds-text-color_error" role="alert">
+                    <p class="slds-text-heading_small">No pudimos cargar el estado del edificio</p>
+                    <p>Este resumen no muestra el estado actual. No asumas que todo está normal. Vuelve a intentar; si sigue, avisa a tu administrador.</p>
+                    <p class="slds-text-body_small">{errorMessage}</p>
+                </div>
+            </template>
+
+            <template if:true={isEmpty}>
+                <div role="status">
+                    <p class="slds-text-heading_small">Sin activos para mostrar</p>
+                    <p class="slds-text-color_weak">Este edificio no tiene activos a los que tengas acceso, o aún no se ha cargado el catálogo.</p>
+                </div>
+            </template>
+
+            <template if:true={showSummary}>
+                <div class={bannerClass}>
+                    <p class="lead">
+                        <em><template if:true={leadGlyph}><span class="glifo" aria-hidden="true">{leadGlyph}</span></template>{leadStrong}</em>{leadRest}
+                    </p>
+                    <div class="situacion-meta">
+                        <template if:true={hasOpenCases}>
+                            <strong><span class="glifo" aria-hidden="true">&#9650;</span>{openCasesText}</strong>
+                        </template>
+                        <template if:false={hasOpenCases}>
+                            <span>{openCasesText}</span>
+                        </template>
+                        <span class="ultima-senal">
+                            <template if:true={hasLastSignal}>
+                                <span>{lastSignalText}</span>
+                                <template if:true={lastSignalStale}>
+                                    <span class="desactualizada">(desactualizada)</span>
+                                </template>
+                                <lightning-formatted-date-time class="fecha" value={lastSignalValue} year="numeric" month="short" day="2-digit" hour="2-digit" minute="2-digit"></lightning-formatted-date-time>
+                            </template>
+                            <template if:false={hasLastSignal}>Sin señales todavía</template>
+                        </span>
+                    </div>
+                </div>
+                <template if:true={isTruncated}>
+                    <p class="slds-text-color_error slds-var-m-bottom_small" role="status">
+                        <span aria-hidden="true">&#9650;</span> Resumen parcial: el edificio tiene más activos de los contados; las cifras son "al menos".
+                    </p>
+                </template>
+                <div class="barra" aria-hidden="true">
+                    <template for:each={segmentos} for:item="seg">
+                        <span key={seg.key} class={seg.cls} style={seg.style}></span>
+                    </template>
+                </div>
+                <ul class="grilla" aria-label="Activos por severidad">
+                    <template for:each={items} for:item="it">
+                        <li key={it.key} class={it.cardCls}>
+                            <span class="cifra">{it.count}</span>
+                            <span class={it.cls}><span aria-hidden="true">{it.glyph}</span> {it.label}</span>
+                        </li>
+                    </template>
+                </ul>
+                <div class="calidad">
+                    <span class="rot">Calidad de datos</span>
+                    <span><b>{sinLectura}</b> sin lecturas</span>
+                    <span><b>{sinNivel}</b> con señal sin nivel</span>
+                </div>
+            </template>
+        </div>
+    </lightning-card>
+</template>

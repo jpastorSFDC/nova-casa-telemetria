@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CompactLayout xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Nova_Casa_Senial</fullName>
+    <fields>Name</fields>
+    <fields>Resultado__c</fields>
+    <fields>Motivo__c</fields>
+    <fields>Asset__c</fields>
+    <fields>Publicado_At__c</fields>
+    <label>Nova Casa Señal</label>
+</CompactLayout>

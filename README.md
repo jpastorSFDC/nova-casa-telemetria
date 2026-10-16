@@ -58,7 +58,39 @@ Run one class's tests without deploying:
 sf apex run test --class-names <ClassTest> --code-coverage --result-format human --wait 10
 ```
 
-Still to document once it exists: the connection to the Heroku simulator and how to watch Platform Event processing.
+To watch Platform Event processing: the run itself shows up in Setup > Apex Jobs, but the events are handled by `SenialSensorTrigger` asynchronously. Open the **Todas las señales** list view of `Log_Senial__c` (`/lightning/o/Log_Senial__c/list?filterName=Todas_las_senales`): each message appears as `Publicada` (`Publicado_At__c`) and moves to `Procesada`, `Rechazada`, `Atrasada`, etc. (`Procesado_At__c`) once the subscriber handles it. Publishing and processing are separate moments (D013, D031).
+
+The ingestion continues the simulator session between runs (D025): a second run brings new messages instead of the same ones. Use **Reiniciar sesión** on the screen (or the 5-argument `TelemetriaIngesta.iniciar(escenario, semilla, tamanoLote, maxPaginas, true)`) to start the stream again. The simulator reuses `messageId` across sessions, so before a demo or a recorded run clean the `Log_Senial__c` rows of earlier runs; otherwise everything comes out as `Conflicto` or resend.
+
+## Loading the building/asset catalog
+
+`CatalogoService.loadCatalog()` calls `GET /catalog` on the simulator (via the `Nova_Casa_Simulator` Named Credential) and upserts one `Account` per building and one `Asset` per asset, keyed by `External_Id__c`. Run it from Execute Anonymous after deploying the class:
+
+```apex
+CatalogoService.loadCatalog();
+```
+
+It's safe to run more than once: a building or asset already in the org (matched by `External_Id__c`) gets updated, not duplicated. Sensor and measurement details from the catalog aren't stored on `Asset` — they only drive `Umbral__c` seeding (T3.2).
+
+## Running the ingestion
+
+`TelemetriaIngesta` opens a simulator session, pages `GET /telemetry` and, for each page, writes a `Log_Senial__c` row as `Publicada` and then publishes `Senial_Sensor__e`. Run it from Execute Anonymous, one person at a time (it creates real records):
+
+```apex
+TelemetriaIngesta.iniciar('QA_200', 5); // scenario, max pages (default 25, cap 100)
+```
+
+To repeat a sequence or use smaller pages, pass a seed and a batch size (1 to 200, default 200; anything else is refused before anything is enqueued):
+
+```apex
+TelemetriaIngesta.iniciar('QA_200', 42, 50, 5); // scenario, seed, batch size, max pages
+```
+
+Both go in the `POST /session` body (`seed`, `batchSize`) and the batch size is also the `limit` of every page; a reopened session or a retry asks for the same seed. The simulator decides whether it honors them: `QA_200` was seen returning 200 per page whatever the session asked.
+
+Admins can also start it from the operator screen: **Traer señales** (needs the `Nova_Casa_Traer_Senales` custom permission and `Nova_Casa_Simulator_Integration`). It refuses to start while another run is queued or running, and shows the log rows written by result.
+
+Follow it in Setup > Apex Jobs. The run ends on `hasMore = false`, an empty page or the page cap. Processing is the subscriber's job; a row stays `Publicada` until it has handled the event. The simulator token lives only in Setup; the session cursor is never logged or stored (see D013).
 
 ## Discovery Definition of Done
 

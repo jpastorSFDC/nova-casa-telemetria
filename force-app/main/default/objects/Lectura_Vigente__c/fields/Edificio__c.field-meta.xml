@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Edificio__c</fullName>
+    <label>Edificio</label>
+    <description>Edificio del activo de la lectura (Asset__r.Account.Name, HP-07). Solo lectura.</description>
+    <inlineHelpText>Edificio donde está el activo de esta lectura.</inlineHelpText>
+    <type>Text</type>
+    <formula><![CDATA[Asset__r.Account.Name]]></formula>
+    <formulaTreatBlanksAs>BlankAsZero</formulaTreatBlanksAs>
+</CustomField>

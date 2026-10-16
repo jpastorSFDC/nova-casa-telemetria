@@ -21,4 +21,9 @@
         <default>false</default>
         <label>Telemetría</label>
     </standardValue>
+    <standardValue>
+        <fullName>Operador</fullName>
+        <default>false</default>
+        <label>Operador</label>
+    </standardValue>
 </StandardValueSet>

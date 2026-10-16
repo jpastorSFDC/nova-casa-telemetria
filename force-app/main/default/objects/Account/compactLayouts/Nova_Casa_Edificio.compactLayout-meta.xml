@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CompactLayout xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Nova_Casa_Edificio</fullName>
+    <fields>Name</fields>
+    <fields>External_Id__c</fields>
+    <fields>BillingAddress</fields>
+    <label>Nova Casa Edificio</label>
+</CompactLayout>

@@ -35,6 +35,11 @@
                 <label>Atrasada</label>
             </value>
             <value>
+                <fullName>Superada</fullName>
+                <default>false</default>
+                <label>Superada</label>
+            </value>
+            <value>
                 <fullName>Conflicto</fullName>
                 <default>false</default>
                 <label>Conflicto</label>
