@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Only Lightning Experience access, so the Nova Casa persona users can move to the Minimum Access - Salesforce profile, which lacks it (BR-208, docs/acceso.md). Grants no data access.</description>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>Nova Casa Lightning</label>
+    <userPermissions>
+        <enabled>true</enabled>
+        <name>LightningExperienceUser</name>
+    </userPermissions>
+</PermissionSet>

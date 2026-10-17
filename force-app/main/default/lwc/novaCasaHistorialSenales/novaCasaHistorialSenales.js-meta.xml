@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>67.0</apiVersion>
+    <isExposed>false</isExposed>
+    <masterLabel>Nova Casa - Historial de señales</masterLabel>
+    <description>Read-only signal history of one asset, via ActivosOperadorController.getHistorial (D024). Child of novaCasaActivoEstado.</description>
+</LightningComponentBundle>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Value__c</fullName>
+    <label>Valor</label>
+    <description>measurement.value tal como llegó en el evento, para mostrarlo en el historial. Vacío en las filas anteriores a HP-07, en mensajes de conectividad y cuando el valor no cabe. No decide nada: la lectura vigente usa Lectura_Vigente__c.Valor__c.</description>
+    <type>Number</type>
+    <precision>18</precision>
+    <scale>4</scale>
+    <required>false</required>
+    <unique>false</unique>
+</CustomField>

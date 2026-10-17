@@ -6,40 +6,55 @@ import ASSET_OBJECT from '@salesforce/schema/Asset';
 import TIPO_ACTIVO from '@salesforce/schema/Asset.Tipo_Activo__c';
 import getAssets from '@salesforce/apex/ActivosOperadorController.getAssets';
 import getBuildings from '@salesforce/apex/ActivosOperadorController.getBuildings';
+import getCapacidades from '@salesforce/apex/ActivosOperadorController.getCapacidades';
+import crearIntervencion from '@salesforce/apex/IntervencionOperadorController.crearIntervencion';
+import actualizarSeguimiento from '@salesforce/apex/IntervencionOperadorController.actualizarSeguimiento';
+import getEstadosSeguimiento from '@salesforce/apex/IntervencionOperadorController.getEstadosSeguimiento';
+import cerrarIntervencionesDelActivo from '@salesforce/apex/IntervencionOperadorController.cerrarIntervencionesDelActivo';
+import traerSenales from '@salesforce/apex/IngestaController.traerSenales';
+import estadoIngesta from '@salesforce/apex/IngestaController.estadoIngesta';
+import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import { MEASUREMENT_LABELS, severityUi, reduceError, relativeAge } from 'c/novaCasaEtiquetas';
 
 const TICK_MS = 30000;
+const INGEST_POLL_MS = 5000;
+// A signal dated further ahead than this is flagged: the simulator clock or the source is wrong (display only).
+const FUTURE_TOLERANCE_MS = 5 * 60000;
+const DEFAULT_INGEST_PAGES = 5;
+// Scenarios of the simulator contract; IngestaController validates the same list on the server.
+const SCENARIOS = ['MIXED', 'QA_200', 'BOUNDARIES', 'CRITICAL_BURST', 'LATE_MESSAGES', 'DUPLICATES', 'CONFLICT', 'INVALID_DATA', 'CAMERA_OUTAGE'];
+// API values of Case.Status used only to pick the form's default. The list of options itself comes from the server
+// (getEstadosSeguimiento: the active values of the Case.Status picklist, the same ones the Case record page offers).
+const STATUS_IN_PROGRESS = 'En curso';
+const STATUS_CLOSED = 'Closed';
 // Single source of the stale default (display-only). Keep in sync with the
 // staleMinutes default in novaCasaActivosOperador.js-meta.xml.
 const DEFAULT_STALE_MINUTES = 15;
-const GENERIC_ERROR = 'No se pudo cargar la información. Intenta de nuevo o contacta a tu administrador.';
 const RECORD_ID_PATTERN = /^[a-zA-Z0-9]{15,18}$/;
+// Cases the server closes per call; keep in sync with BULK_CLOSE_MAX in IntervencionOperadorController.
+const BULK_CLOSE_MAX = 200;
 
+// Severity filter labels follow the prototype (Crítico / Precaución / Estable). Values are the controller's levels.
 const SEVERITY_OPTIONS = [
     { label: 'Todas', value: '' },
-    { label: 'Crítica', value: '2' },
-    { label: 'Advertencia', value: '1' },
-    { label: 'Normal', value: '0' }
+    { label: 'Crítico', value: '2' },
+    { label: 'Precaución', value: '1' },
+    { label: 'Estable', value: '0' }
 ];
 
-// Visual treatment per severity level. Icon + text always accompany the color.
-const SEVERITY_UI = {
-    2: { badge: 'slds-theme_error', icon: 'utility:error', card: 'nc-card_critical', chip: 'nc-chip_critical' },
-    1: { badge: 'slds-theme_warning', icon: 'utility:warning', card: 'nc-card_warning', chip: 'nc-chip_warning' },
-    0: { badge: 'slds-theme_success', icon: 'utility:success', card: 'nc-card_normal', chip: 'nc-chip_normal' }
-};
-const SEVERITY_NONE_UI = { badge: '', icon: 'utility:question', card: '', chip: 'nc-chip_none' };
+// Severity glyphs/labels per level live in c/novaCasaEtiquetas; only the "no readings" case is local.
+const SEVERITY_NO_READING_UI = { key: 'nivel', label: 'Sin lecturas', glyph: '?' };
 
-// Only the controller's AuraHandledException message (body.message) is shown; anything else is generic.
-function reduceError(error) {
-    if (!error) {
-        return '';
-    }
-    const body = error.body;
-    if (body && !Array.isArray(body) && typeof body.message === 'string' && body.message) {
-        return body.message;
-    }
-    return GENERIC_ERROR;
-}
+// Active measurement types: the detail table lists the ones an asset has no reading for as "Sin lecturas".
+const MEASUREMENT_TYPES = Object.keys(MEASUREMENT_LABELS);
+
+// Asset.Tipo_Activo__c values that have their own icon; any other type gets the neutral icon.
+const ICON_PUMP = 'WATER_PUMP';
+const ICON_VENTILATION = 'VENTILATION';
+
+const NUMBER_FORMAT = new Intl.NumberFormat('es', { maximumFractionDigits: 3 });
+// Day and month in the browser's time zone (the date a person closed a Case on), e.g. 07/10.
+const DAY_MONTH_FORMAT = new Intl.DateTimeFormat('es', { day: '2-digit', month: '2-digit' });
 
 // Response shape of getAssets, isolated here: AssetPage { assets, truncated, assetLimit }.
 // If the final contract differs, change only this function.
@@ -84,6 +99,45 @@ function relativeTime(value, nowMs) {
     return `hace ${Math.floor(hours / 24)} d`;
 }
 
+// Age of a reading's origin time (BR-207). A time ahead of now by more than FUTURE_TOLERANCE_MS (simulator clock) gets the
+// label of c/novaCasaEtiquetas ("hora del simulador"); within the tolerance it reads as fresh, the same cut signalText uses.
+// Other timestamps (case creation, refresh) keep relativeTime.
+function readingAge(value, nowMs) {
+    const ms = toMillis(value);
+    if (ms === null) {
+        return '';
+    }
+    const withinSkew = ms > nowMs && ms - nowMs <= FUTURE_TOLERANCE_MS;
+    return relativeAge(withinSkew ? nowMs : ms, nowMs).text;
+}
+
+function formatDayMonth(value) {
+    const ms = toMillis(value);
+    return ms === null ? '' : DAY_MONTH_FORMAT.format(ms);
+}
+
+function formatUtcTime(value) {
+    const ms = toMillis(value);
+    return ms === null ? '' : `${new Date(ms).toISOString().slice(11, 19)} UTC`;
+}
+
+function formatValue(value, unit) {
+    const number = value === null || value === undefined ? '—' : NUMBER_FORMAT.format(value);
+    return unit ? `${number} ${unit}` : number;
+}
+
+function severityUiFor(level, hasReadings) {
+    return hasReadings ? severityUi(level) : SEVERITY_NO_READING_UI;
+}
+
+function rankOf(reading) {
+    return reading.severityLevel === null || reading.severityLevel === undefined ? -1 : reading.severityLevel;
+}
+
+function plural(count, one, many) {
+    return `${count} ${count === 1 ? one : many}`;
+}
+
 export default class NovaCasaActivosOperador extends NavigationMixin(LightningElement) {
     /** Minutes without a signal before the asset is flagged as stale. */
     @api staleMinutes = DEFAULT_STALE_MINUTES;
@@ -91,6 +145,9 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     buildingId = '';
     severity = '';
     assetType = '';
+
+    // Detail view is client-side state: the selected asset comes from the already-loaded getAssets payload.
+    selectedAssetId = null;
 
     assets;
     truncated = false;
@@ -110,8 +167,36 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     typeLabels = {};
     typeOptionsRaw = [];
 
+    // What the user may do; all false until getCapacidades answers (and if it fails). The server re-checks each action.
+    caps = {};
+
+    // Inline forms of the detail view: null, 'crear', 'seguir' or 'cerrar-todas'.
+    formMode = null;
+    motivo = '';
+    nuevoEstado = '';
+    comentario = '';
+    isSaving = false;
+    actionError = '';
+
+    // Statuses the follow-up form offers: [{ label, value }], the active values of Case.Status (empty until loaded or if it fails).
+    followUpRaw = [];
+    followUpLoaded = false;
+    followUpError = false;
+
+    // Admin ingestion panel.
+    ingestOpen = false;
+    scenario = 'MIXED';
+    ingestPages = String(DEFAULT_INGEST_PAGES);
+    ingestRestart = false;
+    ingestStarting = false;
+    ingestError = '';
+    ingestState = null;
+    _ingestSince;
+    _ingestTimer;
+
     _assetsResult;
     _timer;
+    _focusTarget; // 'detail' or an asset Id whose "Ver activo" button should regain focus
 
     connectedCallback() {
         // Re-render relative times without hitting the server.
@@ -123,6 +208,24 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
 
     disconnectedCallback() {
         clearInterval(this._timer);
+        clearInterval(this._ingestTimer);
+    }
+
+    renderedCallback() {
+        if (!this._focusTarget) {
+            return;
+        }
+        const target = this._focusTarget;
+        let element = null;
+        if (target === 'detail') {
+            element = this.template.querySelector('[data-focus="detail"]');
+        } else if (RECORD_ID_PATTERN.test(target)) {
+            element = this.template.querySelector(`button[data-id="${target}"]`);
+        }
+        if (element) {
+            element.focus();
+            this._focusTarget = undefined;
+        }
     }
 
     // ---- data ----
@@ -145,11 +248,16 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             this.assetsLoaded = true;
             this.updatedAtMs = Date.now();
             this.nowMs = this.updatedAtMs;
+            // The selected asset left the payload (filters or data changed): fall back to the list.
+            if (this.selectedAssetId && !page.assets.some((a) => a.assetId === this.selectedAssetId)) {
+                this.selectedAssetId = null;
+            }
         } else if (error) {
             this.assets = undefined;
             this.truncated = false;
             this.assetsError = error;
             this.assetsLoaded = true;
+            this.selectedAssetId = null;
         }
         if (data || error) {
             this.isRefreshing = false;
@@ -169,6 +277,35 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             this.buildingsTruncated = false;
             this.buildingsError = reduceError(error);
             this.buildingsLoaded = true;
+        }
+    }
+
+    @wire(getCapacidades)
+    wiredCaps({ data, error }) {
+        this.caps = data || {};
+        if (error) {
+            // Actions stay hidden (caps empty); say why instead of failing silently. actionError is only visible in the
+            // detail view and is cleared on open, so a toast is the only visible channel from the list.
+            this.toast('No se pudieron cargar tus permisos de acción', reduceError(error), 'error');
+        }
+    }
+
+    // Picklist metadata, not record data: the server does not gate it by custom permission. Only the form shows a
+    // failure here, and users without the follow-up action (e.g. no access to the class) never open it.
+    @wire(getEstadosSeguimiento)
+    wiredEstados({ data, error }) {
+        if (data) {
+            this.followUpRaw = data;
+            this.followUpLoaded = true;
+            this.followUpError = false;
+            // The form may already be open when the list arrives.
+            if (!data.some((o) => o.value === this.nuevoEstado)) {
+                this.nuevoEstado = this.defaultFollowUpState();
+            }
+        } else if (error) {
+            this.followUpRaw = [];
+            this.followUpLoaded = true;
+            this.followUpError = true;
         }
     }
 
@@ -206,19 +343,22 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         return this.assetType || null;
     }
 
-    // ---- filters ----
+    // ---- filters (native selects styled as pills; `selected` is precomputed, templates cannot compare) ----
 
+    markSelected(options, current) {
+        return options.map((o) => ({ label: o.label, value: o.value, selected: o.value === current }));
+    }
     get buildingOptions() {
-        return [{ label: 'Todos', value: '' }, ...this.buildings];
+        return this.markSelected([{ label: 'Todos', value: '' }, ...this.buildings], this.buildingId);
     }
     get buildingsDisabled() {
         return !this.buildingsLoaded || this.buildings.length === 0;
     }
     get severityOptions() {
-        return SEVERITY_OPTIONS;
+        return this.markSelected(SEVERITY_OPTIONS, this.severity);
     }
     get typeOptions() {
-        return [{ label: 'Todos', value: '' }, ...this.typeOptionsRaw];
+        return this.markSelected([{ label: 'Todos', value: '' }, ...this.typeOptionsRaw], this.assetType);
     }
     get hasTypeOptions() {
         return this.typeOptionsRaw.length > 0;
@@ -228,8 +368,10 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     }
 
     handleFilterChange(event) {
-        const { name } = event.target;
-        const value = event.detail.value;
+        const { name, value } = event.target;
+        if (name !== 'buildingId' && name !== 'severity' && name !== 'assetType') {
+            return;
+        }
         if (this[name] === value) {
             return;
         }
@@ -274,8 +416,14 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     get showEmptyNoMatch() {
         return !this.isBusy && !this.assetsError && this.assets && !this.hasAssets && this.filtersActive;
     }
+    get showDetail() {
+        return !this.isBusy && !this.assetsError && Boolean(this.selectedRow);
+    }
     get showList() {
-        return !this.isBusy && !this.assetsError && this.hasAssets;
+        return !this.isBusy && !this.assetsError && this.hasAssets && !this.showDetail;
+    }
+    get showFilters() {
+        return !this.showDetail;
     }
     get showTruncated() {
         return this.showList && this.truncated;
@@ -291,11 +439,27 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     get showSummary() {
         return this.showList;
     }
+    get updatedClock() {
+        return this.updatedAtMs
+            ? new Date(this.updatedAtMs).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })
+            : '';
+    }
     get updatedText() {
         return this.updatedAtMs ? relativeTime(this.updatedAtMs, this.nowMs) : '';
     }
+    get countText() {
+        if (this.isBusy) {
+            return 'Cargando activos…';
+        }
+        if (this.assetsError) {
+            return 'No disponible';
+        }
+        const list = this.assets || [];
+        const buildingKeys = new Set(list.map((a) => a.accountId || a.accountName).filter(Boolean));
+        return `${plural(list.length, 'activo', 'activos')} · ${plural(buildingKeys.size, 'edificio', 'edificios')}`;
+    }
 
-    // ---- summary (over the rows returned for the current filters) ----
+    // ---- banner (counts cover the rows returned for the current filtered view, and say so) ----
 
     countWhere(predicate) {
         return (this.assets || []).filter(predicate).length;
@@ -312,95 +476,278 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     get noReadingCount() {
         return this.countWhere((a) => a.severityLevel == null);
     }
+    get knownCount() {
+        return this.countWhere((a) => a.severityLevel != null);
+    }
     get criticalChip() {
-        return `${this.criticalCount} crítico(s) en esta vista`;
+        return plural(this.criticalCount, 'crítico', 'críticos');
     }
     get warningChip() {
-        return `${this.warningCount} advertencia(s) en esta vista`;
+        return `${this.warningCount} precaución`;
     }
     get normalChip() {
-        return `${this.normalCount} normal(es) en esta vista`;
+        return plural(this.normalCount, 'estable', 'estables');
     }
     get noReadingChip() {
-        return `${this.noReadingCount} sin dato en esta vista`;
+        return `${this.noReadingCount} sin dato`;
     }
-    get summaryLead() {
-        const total = this.assets ? this.assets.length : 0;
+    get bannerClass() {
+        if (this.criticalCount > 0) {
+            return 'situacion situacion-critico';
+        }
+        // Without any asset of known severity nothing can be called stable: neutral look.
+        if (this.knownCount === 0) {
+            return 'situacion situacion-neutro';
+        }
+        // A cut result never gets the all-clear look: there may be critical assets we did not see.
+        return this.warningCount > 0 || this.truncated ? 'situacion situacion-advertencia' : 'situacion situacion-normal';
+    }
+    // When the result is cut (page, scan ceiling or readings cap; the payload does not say which) the banner
+    // never claims "none critical": it says "al menos" / that it could not verify everything.
+    get leadStrong() {
         const crit = this.criticalCount;
         if (crit > 0) {
-            return `${crit} de ${total} activos de esta vista en estado crítico necesitan atención ahora`;
+            const text = crit === 1 ? '1 crítico' : `${crit} críticos`;
+            return this.truncated ? `Al menos ${text}` : text;
         }
-        if (this.warningCount > 0) {
-            return `Sin activos críticos en esta vista; ${this.warningCount} en advertencia`;
+        if (this.knownCount === 0) {
+            return 'Severidad no determinada';
         }
-        return `${total} activos en esta vista, ninguno en estado crítico`;
+        return this.truncated ? 'Ningún crítico verificado' : 'Ningún crítico';
+    }
+    get leadRest() {
+        const crit = this.criticalCount;
+        if (crit > 0) {
+            const rest = `de ${plural(this.assets.length, 'activo', 'activos')} en esta vista ${crit === 1 ? 'necesita' : 'necesitan'} atención ahora`;
+            return this.truncated ? `${rest}; no se pudo verificar todo` : rest;
+        }
+        if (this.knownCount === 0) {
+            const none = 'ningún activo de esta vista tiene lecturas con nivel conocido; no se pudo determinar la severidad';
+            return this.truncated ? `${none}; puede haber críticos sin mostrar` : none;
+        }
+        let base = this.warningCount > 0 ? `en esta vista; ${this.warningCount} en precaución` : 'en esta vista';
+        if (this.noReadingCount > 0) {
+            base += `; ${this.noReadingCount} sin dato`;
+        }
+        return this.truncated ? `${base}; no se pudo verificar todo, puede haber críticos sin mostrar` : base;
     }
 
-    // ---- rows ----
+    // ---- summary per building (same rows as the list: the current filtered view, and it says so when cut) ----
+
+    get buildingSummary() {
+        const byBuilding = new Map();
+        (this.assets || []).forEach((a) => {
+            const key = a.accountId || a.accountName || '—';
+            if (!byBuilding.has(key)) {
+                byBuilding.set(key, { key, name: a.accountName || 'Sin edificio', total: 0, critical: 0, warning: 0, noData: 0, stale: 0 });
+            }
+            const b = byBuilding.get(key);
+            b.total += 1;
+            if (a.severityLevel === 2) {
+                b.critical += 1;
+            } else if (a.severityLevel === 1) {
+                b.warning += 1;
+            } else if (a.severityLevel == null) {
+                b.noData += 1;
+            }
+            const lastMs = toMillis(a.lastSignalAt);
+            if (lastMs !== null && this.nowMs - lastMs > this.staleMs) {
+                b.stale += 1;
+            }
+        });
+        return [...byBuilding.values()]
+            .sort((x, y) => y.critical - x.critical || y.warning - x.warning || x.name.localeCompare(y.name))
+            .map((b) => ({
+                ...b,
+                totalText: plural(b.total, 'activo', 'activos'),
+                rowClass: b.critical > 0 ? 'edif-fila edif-critico' : b.warning > 0 ? 'edif-fila edif-advertencia' : 'edif-fila'
+            }));
+    }
+    get showBuildingSummary() {
+        return this.showList && this.buildingSummary.length > 0;
+    }
+    get buildingSummaryNote() {
+        return this.truncated ? 'Resumen parcial: hay activos que no se muestran.' : 'Resumen de la vista actual.';
+    }
+
+    // ---- view models ----
+
+    get staleMs() {
+        return (Number(this.staleMinutes) > 0 ? Number(this.staleMinutes) : DEFAULT_STALE_MINUTES) * 60000;
+    }
+
+    buildReading(a, r) {
+        const ui = severityUiFor(r.severityLevel, true);
+        return {
+            key: `${a.assetId}-${r.measurementType}`,
+            measurementType: r.measurementType,
+            measurementLabel: MEASUREMENT_LABELS[r.measurementType] || r.measurementType,
+            valueText: formatValue(r.value, r.unit),
+            ageText: readingAge(r.occurredAt, this.nowMs),
+            timeText: formatUtcTime(r.occurredAt),
+            occurredMs: toMillis(r.occurredAt),
+            rank: rankOf(r),
+            sevClass: `sev sev-${ui.key}`,
+            sevGlyph: ui.glyph,
+            sevLabel: ui.label,
+            hasReading: true
+        };
+    }
+
+    buildRow(a) {
+        const readings = (a.readings || []).map((r) => this.buildReading(a, r));
+        const hasReadings = readings.length > 0;
+        const level = a.severityLevel;
+        const ui = severityUiFor(level, hasReadings);
+
+        // Headline reading on the card: the one that sets the severity (highest level, then the newest).
+        let headline = null;
+        let latest = null;
+        readings.forEach((r) => {
+            if (!headline || r.rank > headline.rank || (r.rank === headline.rank && (r.occurredMs || 0) > (headline.occurredMs || 0))) {
+                headline = r;
+            }
+            if (!latest || (r.occurredMs || 0) > (latest.occurredMs || 0)) {
+                latest = r;
+            }
+        });
+
+        // Table: readings most severe first, then the measurement types this asset has no reading for.
+        const sorted = [...readings].sort((x, y) => y.rank - x.rank || x.measurementLabel.localeCompare(y.measurementLabel));
+        const present = new Set(readings.map((r) => r.measurementType));
+        const missing = MEASUREMENT_TYPES.filter((t) => !present.has(t)).map((t) => ({
+            key: `${a.assetId}-${t}-none`,
+            measurementLabel: MEASUREMENT_LABELS[t],
+            hasReading: false
+        }));
+
+        const lastMs = toMillis(a.lastSignalAt);
+        let signalText;
+        let signalClass = 'senal';
+        if (!hasReadings || lastMs === null) {
+            signalText = 'Sin señal recibida todavía';
+        } else if (lastMs - this.nowMs > FUTURE_TOLERANCE_MS) {
+            signalText = `Fecha de origen en el futuro (${formatUtcTime(a.lastSignalAt)}): revisa el reloj de la fuente`;
+            signalClass = 'senal senal-vieja';
+        } else if (this.nowMs - lastMs > this.staleMs) {
+            signalText = `Última señal ${relativeTime(a.lastSignalAt, this.nowMs)} (desactualizada)`;
+            signalClass = 'senal senal-vieja';
+        } else {
+            signalText = `Última señal ${relativeTime(a.lastSignalAt, this.nowMs)}`;
+        }
+
+        const typeLabel = this.typeLabels[a.assetType] || a.assetType || '';
+        const metaParts = [typeLabel, a.externalId].filter(Boolean);
+        const count = a.openInterventionCount || 0;
+        const inv = a.openIntervention;
+        // The server only sends it for an asset with no open intervention; checked here too so the two never show together.
+        const closed = inv ? null : a.lastClosedIntervention;
+        const closedDay = closed ? formatDayMonth(closed.closedDate) : '';
+        const closedWhen = closedDay ? `, cerrada el ${closedDay}` : '';
+        const unreadable = !hasReadings;
+        return {
+            key: a.assetId,
+            assetId: a.assetId,
+            name: a.name,
+            buildingName: a.accountName || '',
+            hasBuilding: Boolean(a.accountName),
+            externalId: a.externalId || '',
+            hasExternalId: Boolean(a.externalId),
+            typeLabel,
+            hasTypeLabel: Boolean(typeLabel),
+            metaText: metaParts.join(' · '),
+            isPump: a.assetType === ICON_PUMP,
+            isVentilation: a.assetType === ICON_VENTILATION,
+            isOtherType: a.assetType !== ICON_PUMP && a.assetType !== ICON_VENTILATION,
+            cardClass: `tarjeta-activo ${ui.key}`,
+            heroClass: `hero-activo ${ui.key}`,
+            viewButtonClass: level === 2 ? 'boton urgente' : 'boton secundario',
+            sevClass: `sev sev-${ui.key}`,
+            sevGlyph: ui.glyph,
+            sevLabel: ui.label,
+            sevValueClass: `val val-${ui.key}`,
+            sevSub: this.severitySub(level, hasReadings),
+            viewLabel: `Ver activo ${a.name || ''}`.trim(),
+            signalText,
+            signalClass,
+            hasReadings,
+            hasHeadline: Boolean(headline),
+            headValue: headline ? headline.valueText : '',
+            headMeasure: headline ? `${headline.measurementLabel} · ${headline.ageText}` : '',
+            noReadingsText: unreadable ? 'Sin lecturas todavía' : '',
+            hasMoreReadings: readings.length > 1,
+            moreReadingsText: `+${readings.length - 1} medición(es) más en el detalle`,
+            lastValue: latest ? latest.valueText : '',
+            lastSub: latest ? `${latest.measurementLabel} · ${latest.ageText} · ${latest.timeText}` : 'Sin lecturas todavía',
+            hasLast: Boolean(latest),
+            tableRows: [...sorted, ...missing],
+            hasIntervention: Boolean(inv),
+            caseId: inv ? inv.caseId : null,
+            caseNumber: inv ? inv.caseNumber : '',
+            caseStatus: inv ? inv.status : '',
+            caseSubject: inv && inv.subject ? inv.subject : '',
+            hasCaseSubject: Boolean(inv && inv.subject),
+            caseAgeText: inv ? `Abierta ${relativeTime(inv.createdDate, this.nowMs)}` : '',
+            hasMoreInterventions: count > 1,
+            moreInterventionsText: `y ${count - 1} intervención(es) abierta(s) más`,
+            noInterventionText: this.noInterventionText(level, hasReadings),
+            hasLastClosed: Boolean(closed),
+            lastClosedCaseId: closed ? closed.caseId : null,
+            lastClosedCaseNumber: closed ? closed.caseNumber : '',
+            lastClosedWhen: closedWhen,
+            lastClosedSentence: closed ? `La última intervención fue el Caso ${closed.caseNumber}${closedWhen}.` : '',
+            createLabel: closed ? 'Abrir nueva intervención' : 'Crear intervención',
+            canCreate: Boolean(this.caps.puedeCrearIntervencion) && hasReadings && !inv,
+            canFollow: Boolean(this.caps.puedeSeguirIntervencion) && Boolean(inv),
+            openCount: count,
+            canCloseAll: Boolean(this.caps.puedeSeguirIntervencion) && count > 1,
+            closeAllLabel: count > BULK_CLOSE_MAX ? `Cerrar hasta ${BULK_CLOSE_MAX} de las ${count} abiertas` : `Cerrar las ${count} abiertas`,
+            closeAllWarning:
+                (count > BULK_CLOSE_MAX
+                    ? `Se cerrarán hasta ${BULK_CLOSE_MAX} de las ${count} intervenciones abiertas de este activo por vez.`
+                    : `Se cerrarán ${plural(count, 'intervención abierta', 'intervenciones abiertas')} de este activo.`) +
+                ' Solo las que tu usuario puede editar. Desde aquí no se pueden reabrir.'
+        };
+    }
+
+    // Sub-line under the detail severity (wording from the prototype, without promising an intervention).
+    severitySub(level, hasReadings) {
+        if (!hasReadings || level == null) {
+            return 'Sin nivel de severidad conocido';
+        }
+        if (level === 1) {
+            return 'Vigilar';
+        }
+        if (level === 0) {
+            return 'Sin acción requerida';
+        }
+        return 'La mayor de sus mediciones vigentes';
+    }
+
+    // Wording of the "Ninguna abierta" card. Never claims a case exists or will be created.
+    noInterventionText(level, hasReadings) {
+        if (!hasReadings || level == null) {
+            return 'Sin severidad conocida: no hay lecturas con nivel para evaluar este activo.';
+        }
+        if (level === 2) {
+            return 'El activo sigue en estado crítico porque su última lectura es crítica, y no hay una intervención abierta visible para ti. El estado cambia cuando llegue una lectura normal, no al cerrar intervenciones. Si nadie las cerró, revisa el estado del procesamiento o consulta con tu administrador.';
+        }
+        if (level === 1) {
+            return 'No es crítica: el sistema no la abre de forma automática.';
+        }
+        return 'El equipo está en rango.';
+    }
 
     get rows() {
-        const staleMs = (Number(this.staleMinutes) > 0 ? Number(this.staleMinutes) : DEFAULT_STALE_MINUTES) * 60000;
-        return (this.assets || []).map((a) => {
-            const readings = a.readings || [];
-            const hasReadings = readings.length > 0;
-            const level = a.severityLevel;
-            const ui = level == null ? SEVERITY_NONE_UI : SEVERITY_UI[level] || SEVERITY_NONE_UI;
+        return (this.assets || []).map((a) => this.buildRow(a));
+    }
 
-            const lastMs = toMillis(a.lastSignalAt);
-            let signalText;
-            let signalIcon = 'utility:clock';
-            let signalClass = '';
-            let signalAlt = 'Última señal';
-            if (!hasReadings || lastMs === null) {
-                signalText = 'Sin señal recibida todavía';
-                signalIcon = 'utility:dash';
-                signalClass = 'slds-text-color_weak';
-            } else if (this.nowMs - lastMs > staleMs) {
-                signalText = `Última señal ${relativeTime(a.lastSignalAt, this.nowMs)} (desactualizada)`;
-                signalIcon = 'utility:warning';
-                signalClass = 'slds-text-color_error';
-                signalAlt = 'Información desactualizada';
-            } else {
-                signalText = `Última señal ${relativeTime(a.lastSignalAt, this.nowMs)}`;
-            }
-
-            const count = a.openInterventionCount || 0;
-            const inv = a.openIntervention;
-            return {
-                key: a.assetId,
-                assetId: a.assetId,
-                name: a.name,
-                accountName: a.accountName || '',
-                typeLabel: this.typeLabels[a.assetType] || a.assetType || '',
-                cardClass: `slds-item nc-card ${ui.card}`,
-                severityClass: ui.badge,
-                severityIcon: ui.icon,
-                severityText: hasReadings ? a.severityLabel || 'Sin dato' : 'Sin lecturas',
-                signalText,
-                signalIcon,
-                signalClass,
-                signalAlt,
-                hasReadings,
-                readings: readings.map((r) => {
-                    const rUi = r.severityLevel == null ? SEVERITY_NONE_UI : SEVERITY_UI[r.severityLevel] || SEVERITY_NONE_UI;
-                    return {
-                        key: `${a.assetId}-${r.measurementType}`,
-                        measurementType: r.measurementType,
-                        valueText: `${r.value ?? '—'}${r.unit ? ' ' + r.unit : ''}`,
-                        ageText: relativeTime(r.occurredAt, this.nowMs),
-                        severityLabel: r.severityLabel,
-                        chipClass: `nc-chip ${rUi.chip}`
-                    };
-                }),
-                hasIntervention: Boolean(inv),
-                caseId: inv ? inv.caseId : null,
-                caseNumber: inv ? inv.caseNumber : '',
-                caseStatus: inv ? inv.status : '',
-                caseAgeText: inv ? `abierta ${relativeTime(inv.createdDate, this.nowMs)}` : '',
-                hasMoreInterventions: count > 1,
-                moreInterventionsText: `y ${count - 1} intervención(es) abierta(s) más`
-            };
-        });
+    get selectedRow() {
+        if (!this.selectedAssetId || !this.assets) {
+            return null;
+        }
+        const asset = this.assets.find((a) => a.assetId === this.selectedAssetId);
+        return asset ? this.buildRow(asset) : null;
     }
 
     // ---- navigation (record access is enforced by the platform and the controller) ----
@@ -421,5 +768,303 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     }
     handleOpenCase(event) {
         this.navigateToRecord(event, 'Case');
+    }
+    handleOpenThresholds(event) {
+        event.preventDefault();
+        this[NavigationMixin.Navigate]({
+            type: 'standard__objectPage',
+            attributes: { objectApiName: 'Umbral__c', actionName: 'list' },
+            state: { filterName: 'Nova_Casa_Umbrales' }
+        });
+    }
+
+    // ---- in-component detail ----
+
+    openDetail(assetId) {
+        if (!assetId || !RECORD_ID_PATTERN.test(assetId)) {
+            return;
+        }
+        this.selectedAssetId = assetId;
+        this.formMode = null;
+        this.actionError = '';
+        this._focusTarget = 'detail';
+    }
+
+    // Click anywhere on the card (pointer users).
+    handleViewAsset(event) {
+        this.openDetail(event.currentTarget.dataset.id);
+    }
+
+    // The "Ver activo" button is the keyboard path; it stops the click so the card handler does not run twice.
+    handleViewAssetButton(event) {
+        event.stopPropagation();
+        this.openDetail(event.currentTarget.dataset.id);
+    }
+
+    handleBackToList() {
+        this._focusTarget = this.selectedAssetId || undefined;
+        this.selectedAssetId = null;
+        this.formMode = null;
+    }
+
+    // ---- interventions (actions re-checked on the server) ----
+
+    get showActionError() {
+        return Boolean(this.actionError);
+    }
+    get isCreating() {
+        return this.formMode === 'crear';
+    }
+    get isFollowing() {
+        return this.formMode === 'seguir';
+    }
+    get isClosingAll() {
+        return this.formMode === 'cerrar-todas';
+    }
+    get saveLabel() {
+        return this.isClosingAll ? 'Cerrar todas' : 'Guardar';
+    }
+    get followUpOptions() {
+        return this.followUpRaw.map((o) => ({ label: o.label, value: o.value, selected: o.value === this.nuevoEstado }));
+    }
+    get hasFollowUpOptions() {
+        return this.followUpRaw.length > 0;
+    }
+    get followUpLoading() {
+        return this.isFollowing && !this.followUpLoaded;
+    }
+    get followUpUnavailable() {
+        return this.isFollowing && this.followUpLoaded && !this.hasFollowUpOptions;
+    }
+    get followUpNote() {
+        return this.followUpError
+            ? 'No se pudo cargar la lista de estados. Recarga la pantalla e inténtalo de nuevo.'
+            : 'No hay estados disponibles para actualizar el seguimiento.';
+    }
+    get saveDisabled() {
+        return (
+            this.isSaving ||
+            (this.isCreating && !this.motivo.trim()) ||
+            (this.isFollowing && (!this.hasFollowUpOptions || !this.nuevoEstado))
+        );
+    }
+
+    // Default status of the follow-up form: "En curso" if the picklist has it, else the first one that is not the closed
+    // one, else none (the form then cannot be saved).
+    defaultFollowUpState() {
+        const values = this.followUpRaw.map((o) => o.value);
+        if (values.includes(STATUS_IN_PROGRESS)) {
+            return STATUS_IN_PROGRESS;
+        }
+        return values.find((v) => v !== STATUS_CLOSED) || '';
+    }
+
+    openForm(event) {
+        this.formMode = event.currentTarget.dataset.mode;
+        this.motivo = '';
+        this.comentario = '';
+        this.nuevoEstado = this.defaultFollowUpState();
+        this.actionError = '';
+    }
+    closeForm() {
+        this.formMode = null;
+        this.actionError = '';
+    }
+    handleMotivo(event) {
+        this.motivo = event.target.value;
+    }
+    handleComentario(event) {
+        this.comentario = event.target.value;
+    }
+    handleEstado(event) {
+        this.nuevoEstado = event.target.value;
+    }
+
+    toast(title, message, variant) {
+        this.dispatchEvent(new ShowToastEvent({ title, message, variant }));
+    }
+
+    // Says how many were closed, and warns when some failed or the server stopped at its per-call limit.
+    toastCloseAll(result) {
+        const closed = plural(result.cerradas, 'intervención cerrada', 'intervenciones cerradas');
+        const notes = [];
+        if (result.fallidas > 0) {
+            notes.push(`${plural(result.fallidas, 'no se pudo cerrar', 'no se pudieron cerrar')}.`);
+        }
+        if (result.hayMas) {
+            // Failed Cases stay first in line, so pressing again would retry the same ones.
+            notes.push(
+                result.fallidas > 0
+                    ? 'Quedan más abiertas; revisa las que fallaron antes de volver a pulsar.'
+                    : 'Quedan más abiertas: vuelve a pulsar el botón.'
+            );
+        }
+        this.toast(closed, notes.join(' '), notes.length ? 'warning' : 'success');
+    }
+
+    async handleSaveForm() {
+        if (this.saveDisabled || !this.selectedRow) {
+            return;
+        }
+        this.isSaving = true;
+        this.actionError = '';
+        try {
+            if (this.isCreating) {
+                const result = await crearIntervencion({ assetId: this.selectedRow.assetId, motivo: this.motivo });
+                this.toast('Intervención creada', `Caso ${result.caseNumber}`, 'success');
+            } else if (this.isClosingAll) {
+                // `esperadas` is the number shown on the button: if it changed, the server closes nothing and asks again.
+                const result = await cerrarIntervencionesDelActivo({
+                    assetId: this.selectedRow.assetId,
+                    esperadas: this.selectedRow.openCount,
+                    comentario: this.comentario
+                });
+                this.toastCloseAll(result);
+            } else {
+                await actualizarSeguimiento({
+                    caseId: this.selectedRow.caseId,
+                    estado: this.nuevoEstado,
+                    comentario: this.comentario
+                });
+                this.toast('Seguimiento actualizado', '', 'success');
+            }
+            this.formMode = null;
+            await this.handleRefresh();
+        } catch (e) {
+            this.actionError = reduceError(e);
+            // The state may have changed under us (another person opened one first): show the real state.
+            await this.handleRefresh();
+        }
+        this.isSaving = false;
+    }
+
+    // ---- admin: pull signals from the simulator ----
+
+    get showIngest() {
+        return Boolean(this.caps.puedeTraerSenales);
+    }
+    get ingestToggleLabel() {
+        return this.ingestOpen ? 'Ocultar traer señales' : 'Traer señales';
+    }
+    get scenarioOptions() {
+        return SCENARIOS.map((v) => ({ label: v, value: v, selected: v === this.scenario }));
+    }
+    get ingestRunning() {
+        return this.ingestStarting || Boolean(this.ingestState && this.ingestState.enCurso);
+    }
+    get hasIngestState() {
+        return Boolean(this.ingestState);
+    }
+    get ingestSummary() {
+        const st = this.ingestState;
+        if (!st) {
+            return '';
+        }
+        const parts = Object.keys(st.porResultado || {})
+            .sort()
+            .map((k) => `${k}: ${st.porResultado[k]}`);
+        const head = st.enCurso ? 'En curso' : 'Terminada';
+        return `${head} · ${plural(st.total, 'señal registrada', 'señales registradas')}${parts.length ? ' · ' + parts.join(' · ') : ''}`;
+    }
+
+    // What the last run did, so a run with no new signals is explained (duplicates, saved session, end of stream).
+    get ingestDetail() {
+        const d = this.ingestState && this.ingestState.detalle;
+        if (!d) {
+            return '';
+        }
+        const parts = [`Leyó ${plural(d.paginas, 'página', 'páginas')} (${plural(d.recibidos, 'mensaje', 'mensajes')})`];
+        if (d.yaExistentes > 0) {
+            parts.push(`${plural(d.yaExistentes, 'ya existía', 'ya existían')} y se omitieron`);
+        }
+        if (d.sesionReiniciada) {
+            parts.push('sesión reiniciada: empezó desde el primer mensaje del simulador');
+        } else if (d.sesionContinuada) {
+            parts.push('continuó la sesión guardada');
+        } else if (d.cacheNoDisponible) {
+            parts.push('sin caché de plataforma: abrió una sesión nueva y releyó desde el inicio');
+        } else {
+            parts.push('abrió una sesión nueva');
+        }
+        if (d.flujoTerminado) {
+            parts.push('el simulador no tiene más mensajes en esta sesión; usa «Reiniciar sesión» para empezar de nuevo');
+        }
+        if (d.interrumpidaPorEstado !== null && d.interrumpidaPorEstado !== undefined) {
+            parts.push(`se interrumpió por un error del simulador (estado ${d.interrumpidaPorEstado}); la próxima corrida sigue desde ahí`);
+        }
+        if (d.logsFallidos > 0 || d.fallosPublicacion > 0 || d.noPublicadosPorLog > 0) {
+            const failed = [];
+            if (d.logsFallidos > 0) {
+                failed.push(`${plural(d.logsFallidos, 'registro de log falló', 'registros de log fallaron')}`);
+            }
+            if (d.fallosPublicacion > 0) {
+                failed.push(`${plural(d.fallosPublicacion, 'publicación falló', 'publicaciones fallaron')}`);
+            }
+            parts.push(`${failed.join(' y ')}; el cursor guardado no avanzó y la próxima corrida volverá a leer esos mensajes`);
+        }
+        return `${parts.join(' · ')}.`;
+    }
+    get hasIngestDetail() {
+        return Boolean(this.ingestDetail);
+    }
+
+    toggleIngest() {
+        this.ingestOpen = !this.ingestOpen;
+    }
+    handleScenario(event) {
+        this.scenario = event.target.value;
+    }
+    handleIngestPages(event) {
+        this.ingestPages = event.target.value;
+    }
+    handleIngestRestart(event) {
+        this.ingestRestart = event.target.checked;
+    }
+
+    async handleStartIngest() {
+        if (this.ingestRunning) {
+            return;
+        }
+        this.ingestStarting = true;
+        this.ingestError = '';
+        try {
+            const pages = Number.parseInt(this.ingestPages, 10);
+            const started = await traerSenales({
+                escenario: this.scenario,
+                paginas: Number.isNaN(pages) ? null : pages,
+                reiniciar: this.ingestRestart
+            });
+            // A restart is a one-off: the next press continues the session again.
+            this.ingestRestart = false;
+            this._ingestSince = started.iniciadaEn;
+            this.ingestState = { enCurso: true, total: 0, porResultado: {} };
+            this.startIngestPolling();
+        } catch (e) {
+            this.ingestError = reduceError(e);
+            this.toast('No se pudo iniciar la ingesta', this.ingestError, 'error');
+        }
+        this.ingestStarting = false;
+    }
+
+    startIngestPolling() {
+        clearInterval(this._ingestTimer);
+        // eslint-disable-next-line @lwc/lwc/no-async-operation
+        this._ingestTimer = setInterval(() => this.pollIngest(), INGEST_POLL_MS);
+    }
+
+    async pollIngest() {
+        try {
+            const state = await estadoIngesta({ desde: this._ingestSince });
+            this.ingestState = state;
+            if (!state.enCurso) {
+                clearInterval(this._ingestTimer);
+                this.toast('Ingesta terminada', this.ingestSummary, 'success');
+                await this.handleRefresh();
+            }
+        } catch (e) {
+            clearInterval(this._ingestTimer);
+            this.ingestError = reduceError(e);
+            this.toast('No se pudo consultar el estado de la ingesta', this.ingestError, 'error');
+        }
     }
 }

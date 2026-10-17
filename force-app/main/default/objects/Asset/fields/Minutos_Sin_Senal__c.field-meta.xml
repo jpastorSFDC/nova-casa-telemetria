@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Minutos_Sin_Senal__c</fullName>
+    <label>Minutos sin señal</label>
+    <description>Minutos transcurridos desde Ultima_Senal__c hasta ahora (HP-07). Vacío si el activo nunca ha tenido una lectura vigente. Solo lectura: no cambia severidad ni estado.</description>
+    <inlineHelpText>Cuánto hace que llegó la última lectura vigente del activo. Vacío si nunca llegó una.</inlineHelpText>
+    <type>Number</type>
+    <precision>18</precision>
+    <scale>0</scale>
+    <formula><![CDATA[IF(ISBLANK(Ultima_Senal__c), null, ROUND((NOW() - Ultima_Senal__c) * 1440, 0))]]></formula>
+    <formulaTreatBlanksAs>BlankAsZero</formulaTreatBlanksAs>
+</CustomField>

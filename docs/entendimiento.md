@@ -1,44 +1,30 @@
-# Understanding the problem (Deliverable 1)
+# Understanding the problem (deliverable 1): what happened since
 
-Personas, the reference story (Laura) and the formative frontier: see `Sprint 2 - Nova Casa.md`, sections "Problema y personas" and "Historia de referencia". Not repeated here so we don't duplicate the verbatim source.
+The deliverable itself is [`entregables/01-entendimiento-del-problema.pdf`](../entregables/01-entendimiento-del-problema.pdf): personas, the priority problem (the building operator), success indicators, questions, assumptions, decisions and risks. It's frozen as handed in, and this file doesn't repeat it. Personas, Laura's story and the formative frontier are in `Sprint 2 - Nova Casa.md`.
 
-Everything below is the pair's own read on the problem, not MDSS text.
-
-## Priority problem
-
-**The building operator has no single, trustworthy source for the current state of their equipment, so they react late or duplicate interventions.**
-
-Why this one and not one of the brief's other three risks:
-
-- It's the risk facing the person in the reference story (Laura). The facilitator picked her as the demo's required path, not the other three.
-- The other three risks are downstream of this one, not independent problems:
-  - The coordinator duplicates work *because* the operator (or the system) doesn't recognize an alert as already handled.
-  - The manager compares data too late *because* the signal never reached the operator in time in the first place.
-  - The administrator can't explain a failure *because* there's no evidence of what happened to the signal when it arrived.
-- Fixing the single trustworthy source also resolves most of BR-202 through BR-209 as a side effect.
-
-## Prototype success signals
-
-These aren't production outcomes — there's no production yet. They're what this Discovery prototype needs to demonstrate:
-
-1. **Real reception, not simulated**: the documented architecture shows how a signal genuinely published by the simulator reaches Salesforce and shows up in the UI prototype, with no manual capture (evidence for BR-201).
-2. **Severity and staleness visible without ambiguity**: for the contract example's four messages (MSG-000101 through MSG-000104), the low-fidelity prototype distinguishes each asset's current reading from one that arrived late.
-3. **Both behaviors from Laura's story are explained in the design**: how a resend avoids opening a second intervention, and how a late reading doesn't overwrite current state — without needing code to prove it, just the model and the architecture.
+This file only tracks what happened, during Development, to the open questions and assumptions from Discovery. Each answer points to where it was settled.
 
 ## Open questions
 
-The questions logged as pending in `docs/decisiones.md` (the `occurredAt` tie-break rule, threshold values, the intervention object, the sharing model) aren't repeated here. The intervention object (D001) and the `occurredAt` tie-break (D003) are closed there; threshold values and the sharing model are still open. On top of those:
-
-- The documented contract is a synchronous `GET /api/v1/telemetry`. The brief requires "Platform Events genuinely published by the simulator." Does the simulator publish the PE directly, or do we need a bridge (something that polls the endpoint and republishes it as a PE)? The backlog plans a bridge (T4.1–T4.3), but the facilitator hasn't confirmed it (T0.2 is blocked).
-- ~~Do Building/Asset objects already exist in this org from an earlier sprint?~~ Resolved in practice: the catalog load upserts `Account` (building, D005) and `Asset`, and nothing earlier had to be reused.
-- Are "Operator," "Coordinator," "Manager" and "Administrator" Profiles/Permission Sets already provisioned by MDSS? Not confirmed; the backlog assumes we define them ourselves (T8.3, T8.4).
+| Question | Where it stands | Where |
+|---|---|---|
+| Which object is the intervention? | Closed: `Case` | D001 |
+| How to break a tie on the same `occurredAt`? | Closed: higher severity, then `messageId` | D003 |
+| Exact threshold operators and values per asset type and measurement type | Open. The values live in `Umbral__c` and are seeded from the team's reference table; the facilitator hasn't confirmed them | D004, D006, D019 |
+| Sharing model for buildings and assets (BR-208) | Implemented; the facilitator hasn't approved the OWD change | D022, [acceso.md](acceso.md) |
+| Does the simulator publish the Platform Event, or do we need a bridge? | Our Apex calls the simulator and publishes `Senial_Sensor__e`; the facilitator hasn't confirmed this meets US-201 criterion 1 | D031 |
+| Do Building/Asset objects already exist in the org? | We use the standard `Account` (building) and `Asset`, loaded from the simulator catalog | D005 |
+| Did MDSS provision the persona profiles and permission sets? | No. We defined the roles, the `Nova_Casa_*` permission sets and the Minimum Access profile setup ourselves | D022, [acceso.md](acceso.md) |
+| What counts as an invalid message? | Our list of rules; the facilitator hasn't confirmed it | D032 |
 
 ## Assumptions
 
-- Building and Asset are new concepts for this org — no objects from earlier sprints model building maintenance (the previous sprint modeled unit sales, not assets).
-- The simulator can be pointed at our target org (token, endpoint) with no extra work on our side — MDSS provides that.
-- The 200-signal batch limit (BR-202) isn't arbitrary: it matches Salesforce's per-trigger-context limit, and the design should lean on that instead of fighting a different number.
+| Assumption | Did it hold? |
+|---|---|
+| Building and Asset are new concepts for this org | Yes. Standard `Account` and `Asset` with an `External_Id__c` each (D005) |
+| The simulator can be pointed at our org with no extra work on our side | Partly. It needed a session bootstrap and a cursor header that the MDSS contract doesn't show, and an exact authentication parameter name ([contrato-mensaje.md](contrato-mensaje.md)) |
+| The 200-signal batch (BR-202) matches the Platform Event trigger batch | Yes. The `Nova_Casa_Procesamiento` subscriber config runs the trigger with batch size 200 (D017), and a simulator page never exceeds 200 (D013) |
 
 ## Simulator connection notes
 
-Moved to [`docs/simulador.md`](simulador.md): session and cursor, Named Credential authentication, and the real samples. The component names (`Nova_Casa_Simulator`) are settled in D002 in `docs/decisiones.md`.
+Moved to [contrato-mensaje.md](contrato-mensaje.md), "Connection".

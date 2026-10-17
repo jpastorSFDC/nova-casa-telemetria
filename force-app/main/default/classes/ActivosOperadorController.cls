@@ -11,8 +11,17 @@ public with sharing class ActivosOperadorController {
     @TestVisible private static Integer maxBuildings = 2000;
     private static final Integer READING_TYPES = 5;
     private static final Integer MAX_CASE_ROWS = 2000;
-    @TestVisible private static final String ACCESS_MESSAGE = 'You do not have access to all the information needed for this list.';
-    @TestVisible private static final String LOAD_MESSAGE = 'The information could not be loaded. Try again later.';
+    // Row cap of the last-closed-intervention lookup (D038); a variable only so a test can lower it.
+    @TestVisible private static Integer maxClosedCaseRows = MAX_CASE_ROWS;
+    @TestVisible private static final String ACCESS_MESSAGE = 'No tienes acceso a toda la información necesaria para esta lista.';
+    @TestVisible private static final String SEVERITY_FILTER_MESSAGE = 'El filtro de severidad no es válido.';
+    @TestVisible private static final String BUILDING_FILTER_MESSAGE = 'El filtro de edificio no es válido.';
+    @TestVisible private static final String HISTORY_ASSET_MESSAGE = 'El activo no es válido o no tienes acceso a él.';
+    @TestVisible private static final Integer HISTORY_DEFAULT_LIMIT = 20;
+    @TestVisible private static final Integer HISTORY_MAX_LIMIT = 50;
+    @TestVisible private static final String BUILDING_SUMMARY_MESSAGE = 'El edificio no es válido o no tienes acceso a él.';
+    @TestVisible private static final String ASSET_STATE_MESSAGE = 'El activo no es válido o no tienes acceso a él.';
+    @TestVisible private static final String LOAD_MESSAGE = 'No se pudo cargar la información. Inténtalo de nuevo más tarde.';
 
     public class Option {
         @AuraEnabled public String value { get; private set; }
@@ -107,9 +116,25 @@ public with sharing class ActivosOperadorController {
         }
     }
 
+    // The most recently closed Case of an asset with none open (D038). Deliberately no "closed by": Case has no history
+    // tracking here and LastModifiedBy is not who closed it.
+    public class ClosedInterventionView {
+        @AuraEnabled public Id caseId { get; private set; }
+        @AuraEnabled public String caseNumber { get; private set; }
+        @AuraEnabled public Datetime closedDate { get; private set; }
+
+        public ClosedInterventionView(Case c) {
+            this.caseId = c.Id;
+            this.caseNumber = c.CaseNumber;
+            this.closedDate = c.ClosedDate;
+        }
+    }
+
     public class AssetView implements Comparable {
         @AuraEnabled public Id assetId { get; private set; }
         @AuraEnabled public String name { get; private set; }
+        // Catalog code (Asset.External_Id__c), e.g. AST-BOG-002; shown as the ID chip.
+        @AuraEnabled public String externalId { get; private set; }
         @AuraEnabled public String assetType { get; private set; }
         @AuraEnabled public Id accountId { get; private set; }
         @AuraEnabled public String accountName { get; private set; }
@@ -120,16 +145,20 @@ public with sharing class ActivosOperadorController {
         @AuraEnabled public List<ReadingView> readings { get; private set; }
         @AuraEnabled public InterventionView openIntervention { get; private set; }
         @AuraEnabled public Integer openInterventionCount { get; private set; }
+        // Set only when the asset has no open intervention and a closed one is visible to the user; null otherwise.
+        @AuraEnabled public ClosedInterventionView lastClosedIntervention { get; private set; }
 
-        public AssetView(Asset a, List<ReadingView> readings, List<Case> openCases) {
+        public AssetView(Asset a, List<ReadingView> readings, List<Case> openCases, Case lastClosed) {
             this.assetId = a.Id;
             this.name = a.Name;
+            this.externalId = a.External_Id__c;
             this.assetType = a.Tipo_Activo__c;
             this.accountId = a.AccountId;
             this.accountName = a.Account?.Name;
             this.readings = readings;
             this.openInterventionCount = openCases.size();
             this.openIntervention = openCases.isEmpty() ? null : new InterventionView(openCases[0]);
+            this.lastClosedIntervention = openCases.isEmpty() && lastClosed != null ? new ClosedInterventionView(lastClosed) : null;
             for (ReadingView rv : readings) {
                 if (rv.severityLevel != null && (this.severityLevel == null || rv.severityLevel > this.severityLevel)) {
                     this.severityLevel = rv.severityLevel;
@@ -156,7 +185,8 @@ public with sharing class ActivosOperadorController {
     }
 
     /**
-     * Assets the running user can see, most severe first, with latest readings and open intervention.
+     * Assets the running user can see, most severe first, with latest readings and open intervention
+     * (or, when none is open, the last closed one the user can see).
      * Severity is computed over all scanned assets before the page cut, so a critical asset is never dropped.
      * @param accountId building (Account Id); blank means all
      * @param severityLevel 0 normal, 1 warning, 2 critical; null means all
@@ -167,7 +197,7 @@ public with sharing class ActivosOperadorController {
         try {
             Id buildingId = parseId(accountId);
             if (severityLevel != null && (severityLevel < 0 || severityLevel > 2)) {
-                throw safeError('The severity filter is not valid.');
+                throw safeError(SEVERITY_FILTER_MESSAGE);
             }
 
             List<String> conditions = new List<String>();
@@ -180,7 +210,7 @@ public with sharing class ActivosOperadorController {
                 conditions.add('Tipo_Activo__c = :assetType');
                 binds.put('assetType', assetType);
             }
-            String soql = 'SELECT Id, Name, AccountId, Account.Name, Tipo_Activo__c FROM Asset'
+            String soql = 'SELECT Id, Name, AccountId, Account.Name, Tipo_Activo__c, External_Id__c FROM Asset'
                 + (conditions.isEmpty() ? '' : ' WHERE ' + String.join(conditions, ' AND '))
                 + ' ORDER BY Name, Id LIMIT ' + (maxScan + 1);
             List<Asset> assets = Database.queryWithBinds(soql, binds, AccessLevel.USER_MODE);
@@ -211,6 +241,13 @@ public with sharing class ActivosOperadorController {
                 pageAssets.add(ranked[i].asset);
             }
             Map<Id, List<Case>> openCases = openInterventions(new Map<Id, Asset>(pageAssets).keySet(), capped);
+            Set<Id> withoutOpenCase = new Set<Id>();
+            for (Asset a : pageAssets) {
+                if (!openCases.containsKey(a.Id)) {
+                    withoutOpenCase.add(a.Id);
+                }
+            }
+            Map<Id, Case> lastClosed = lastClosedInterventions(withoutOpenCase);
 
             List<AssetView> page = new List<AssetView>();
             for (Asset a : pageAssets) {
@@ -224,7 +261,7 @@ public with sharing class ActivosOperadorController {
                     }
                 }
                 List<Case> cases = openCases.containsKey(a.Id) ? openCases.get(a.Id) : new List<Case>();
-                page.add(new AssetView(a, readings, cases));
+                page.add(new AssetView(a, readings, cases, lastClosed.get(a.Id)));
             }
             return new AssetPage(page, total, pageSize, truncated || total > shown || capped[0]);
         } catch (AuraHandledException e) {
@@ -232,6 +269,295 @@ public with sharing class ActivosOperadorController {
         } catch (Exception e) {
             throw failure(e);
         }
+    }
+
+    /**
+     * One signal of the asset history. Deliberately minimal: no Motivo__c, Huella__c, Identidad__c, Message_Id__c,
+     * Source__c or Delivery_Id__c. Technical and error detail stays Admin-only (docs/acceso.md).
+     */
+    public class SignalView {
+        // Log_Senial__c.Message_Type__c: MEASUREMENT or CONNECTIVITY (not the physical measurement type).
+        @AuraEnabled public String messageType { get; private set; }
+        @AuraEnabled public Datetime occurredAt { get; private set; }
+        // Log_Senial__c.Resultado__c, e.g. Procesada, Atrasada, Duplicada.
+        @AuraEnabled public String resultado { get; private set; }
+        // Physical measurement (e.g. TEMPERATURE, CELSIUS, 21.5). Null on rows received before these fields existed.
+        @AuraEnabled public String measurementType { get; private set; }
+        @AuraEnabled public String unit { get; private set; }
+        @AuraEnabled public Decimal value { get; private set; }
+
+        public SignalView(Log_Senial__c l) {
+            this.messageType = l.Message_Type__c;
+            this.occurredAt = l.Occurred_At__c;
+            this.resultado = l.Resultado__c;
+            this.measurementType = l.Measurement_Type__c;
+            this.unit = l.Unit__c;
+            this.value = l.Value__c;
+        }
+    }
+
+    public class HistoryResult {
+        @AuraEnabled public List<SignalView> signals { get; private set; }
+        // Rows requested (after clamping).
+        @AuraEnabled public Integer limite { get; private set; }
+        // True when the asset has more signals than were returned.
+        @AuraEnabled public Boolean truncated { get; private set; }
+        public HistoryResult(List<SignalView> signals, Integer limite, Boolean truncated) {
+            this.signals = signals;
+            this.limite = limite;
+            this.truncated = truncated;
+        }
+    }
+
+    // Log_Senial__c is Private and operators have no access to it. The read is system-mode on purpose (the log is
+    // read without the caller's CRUD/FLS/sharing), and `without sharing` because SYSTEM_MODE alone still honors the
+    // class sharing keyword. It is only reachable after getHistorial proved the asset is visible in USER_MODE.
+    private without sharing class HistoryReader {
+        List<Log_Senial__c> read(Id assetId, Integer fetch) {
+            return [
+                SELECT Message_Type__c, Occurred_At__c, Resultado__c, Measurement_Type__c, Unit__c, Value__c
+                FROM Log_Senial__c
+                WHERE Asset__c = :assetId
+                WITH SYSTEM_MODE
+                ORDER BY Occurred_At__c DESC, Id DESC
+                LIMIT :fetch
+            ];
+        }
+    }
+
+    /**
+     * Recent signals (newest first) of an asset the running user can see.
+     * Authorization: the asset is first queried WITH USER_MODE; if the user cannot see it the call fails and the log is never read.
+     * The log rows themselves are then read in system mode and only six non-technical fields are returned (type, time, result, measurement type, unit, value).
+     * @param assetId Asset Id
+     * @param limite max rows; clamped to 1..50, null means 20
+     */
+    @AuraEnabled(cacheable=true)
+    public static HistoryResult getHistorial(Id assetId, Integer limite) {
+        try {
+            if (assetId == null || assetId.getSobjectType() != Asset.SObjectType) {
+                throw safeError(HISTORY_ASSET_MESSAGE);
+            }
+            List<Asset> visible = [SELECT Id FROM Asset WHERE Id = :assetId WITH USER_MODE LIMIT 1];
+            if (visible.isEmpty()) {
+                throw safeError(HISTORY_ASSET_MESSAGE);
+            }
+            Integer cap = limite == null ? HISTORY_DEFAULT_LIMIT : Math.min(Math.max(limite, 1), HISTORY_MAX_LIMIT);
+            List<Log_Senial__c> rows = new HistoryReader().read(assetId, cap + 1);
+            Boolean truncated = rows.size() > cap;
+            List<SignalView> signals = new List<SignalView>();
+            for (Integer i = 0; i < Math.min(rows.size(), cap); i++) {
+                signals.add(new SignalView(rows[i]));
+            }
+            return new HistoryResult(signals, cap, truncated);
+        } catch (AuraHandledException e) {
+            throw e;
+        } catch (Exception e) {
+            throw failure(e);
+        }
+    }
+
+    /** One latest reading (asset + measurement type) on the Asset record page. No sensor or other technical fields. */
+    public class EstadoLectura {
+        @AuraEnabled public String measurementType { get; private set; }
+        @AuraEnabled public Decimal value { get; private set; }
+        @AuraEnabled public String unit { get; private set; }
+        @AuraEnabled public Datetime occurredAt { get; private set; }
+        // 0 normal, 1 warning, 2 critical; null when the reading carries no level (shown as "Sin dato").
+        @AuraEnabled public Integer severityLevel { get; private set; }
+
+        public EstadoLectura(Lectura_Vigente__c r) {
+            this.measurementType = r.Tipo_Medicion__c;
+            this.value = r.Valor__c;
+            this.unit = r.Unidad__c;
+            this.occurredAt = r.Occurred_At__c;
+            this.severityLevel = levelOf(r);
+        }
+    }
+
+    public class EstadoIntervencion {
+        @AuraEnabled public Id caseId { get; private set; }
+        @AuraEnabled public String caseNumber { get; private set; }
+        @AuraEnabled public String subject { get; private set; }
+        @AuraEnabled public String status { get; private set; }
+
+        public EstadoIntervencion(Case c) {
+            this.caseId = c.Id;
+            this.caseNumber = c.CaseNumber;
+            this.subject = c.Subject;
+            this.status = c.Status;
+        }
+    }
+
+    /** What the Asset record page shows (HP-07): latest reading per type and the open intervention. */
+    public class EstadoActivo {
+        // One per measurement type, ordered by type.
+        @AuraEnabled public List<EstadoLectura> readings { get; private set; }
+        // Newest open intervention; null when none.
+        @AuraEnabled public EstadoIntervencion openIntervention { get; private set; }
+        @AuraEnabled public Integer openInterventionCount { get; private set; }
+        // True when a row cap cut the readings or the cases, so the figures above may be incomplete.
+        @AuraEnabled public Boolean truncated { get; private set; }
+
+        public EstadoActivo(List<EstadoLectura> readings, List<Case> openCases, Boolean truncated) {
+            this.truncated = truncated;
+            this.readings = readings;
+            this.openInterventionCount = openCases.size();
+            this.openIntervention = openCases.isEmpty() ? null : new EstadoIntervencion(openCases[0]);
+        }
+    }
+
+    /**
+     * Latest reading per measurement type and open interventions of one asset, as the running user sees them.
+     * The asset is first queried WITH USER_MODE (an operator only sees their own assets, BR-208); if not visible the call
+     * fails with the same static message as a non-existent asset. Readings and cases are read WITH USER_MODE and use the
+     * same latest-per-type rule as the list (latestReadings / isBetter). The signal history is not here: use getHistorial.
+     * @param assetId Asset Id
+     */
+    @AuraEnabled(cacheable=true)
+    public static EstadoActivo getEstadoActivo(Id assetId) {
+        try {
+            if (assetId == null || assetId.getSobjectType() != Asset.SObjectType) {
+                throw safeError(ASSET_STATE_MESSAGE);
+            }
+            List<Asset> visible = [SELECT Id FROM Asset WHERE Id = :assetId WITH USER_MODE LIMIT 1];
+            if (visible.isEmpty()) {
+                throw safeError(ASSET_STATE_MESSAGE);
+            }
+            Set<Id> ids = new Set<Id>{ assetId };
+            List<Boolean> capped = new List<Boolean>{ false };
+            Map<String, Lectura_Vigente__c> byType = latestReadings(ids, capped).get(assetId);
+            List<EstadoLectura> readings = new List<EstadoLectura>();
+            if (byType != null) {
+                List<String> types = new List<String>(byType.keySet());
+                types.sort();
+                for (String t : types) {
+                    readings.add(new EstadoLectura(byType.get(t)));
+                }
+            }
+            List<Case> cases = openInterventions(ids, capped).get(assetId);
+            return new EstadoActivo(readings, cases == null ? new List<Case>() : cases, capped[0]);
+        } catch (AuraHandledException e) {
+            throw e;
+        } catch (Exception e) {
+            throw failure(e);
+        }
+    }
+
+    /**
+     * Counts for the Account record page of a building (HP-07). Deliberately minimal: no Log_Senial__c data and no
+     * technical fields. Every number is what the running user can see.
+     */
+    @TestVisible private static Integer maxSummaryAssets = 2000;
+
+    public class EdificioResumen {
+        @AuraEnabled public Integer totalActivos { get; private set; }
+        @AuraEnabled public Integer activosCriticos { get; private set; }
+        @AuraEnabled public Integer activosEnAlerta { get; private set; }
+        @AuraEnabled public Integer activosNormales { get; private set; }
+        // No signal at all (Ultima_Senal__c empty): never counted as normal.
+        @AuraEnabled public Integer activosSinLectura { get; private set; }
+        // Has a signal but no severity level (Severidad_Nivel__c empty): never counted as normal either.
+        @AuraEnabled public Integer activosSinNivel { get; private set; }
+        // True when the building has more visible assets than maxSummaryAssets: every count covers only the first ones.
+        @AuraEnabled public Boolean truncated { get; private set; }
+        @AuraEnabled public Integer casosAbiertos { get; private set; }
+        // Newest Asset.Ultima_Senal__c of the visible assets; null when none has a signal.
+        @AuraEnabled public Datetime ultimaSenal { get; private set; }
+
+        public EdificioResumen() {
+            this.totalActivos = 0;
+            this.activosCriticos = 0;
+            this.activosEnAlerta = 0;
+            this.activosNormales = 0;
+            this.activosSinLectura = 0;
+            this.activosSinNivel = 0;
+            this.truncated = false;
+            this.casosAbiertos = 0;
+        }
+    }
+
+    /**
+     * Severity counts, open interventions and last signal of one building, as the running user sees them.
+     * Asset and Case are read WITH USER_MODE, so a building whose assets the user cannot see yields zeros for them;
+     * a building the user cannot see at all is rejected. Severity uses the Asset roll-ups (same rule as the list):
+     * 2 critical, 1 warning, 0 normal; no signal is "sin lectura" and a signal without level is "sin nivel".
+     * At most maxSummaryAssets assets are counted; beyond that `truncated` is set.
+     * Open cases are those linked through Case.AssetId to an asset of the building.
+     * @param accountId building (Account Id)
+     */
+    @AuraEnabled(cacheable=true)
+    public static EdificioResumen getResumenEdificio(Id accountId) {
+        try {
+            if (accountId == null || accountId.getSobjectType() != Account.SObjectType) {
+                throw safeError(BUILDING_SUMMARY_MESSAGE);
+            }
+            List<Account> visible = [SELECT Id FROM Account WHERE Id = :accountId WITH USER_MODE LIMIT 1];
+            if (visible.isEmpty()) {
+                throw safeError(BUILDING_SUMMARY_MESSAGE);
+            }
+            EdificioResumen resumen = new EdificioResumen();
+            Integer fetch = maxSummaryAssets + 1;
+            for (Asset a : [
+                SELECT Id, Severidad_Nivel__c, Ultima_Senal__c
+                FROM Asset
+                WHERE AccountId = :accountId
+                WITH USER_MODE
+                ORDER BY Id
+                LIMIT :fetch
+            ]) {
+                if (resumen.totalActivos >= maxSummaryAssets) {
+                    resumen.truncated = true;
+                    break;
+                }
+                resumen.totalActivos++;
+                if (a.Ultima_Senal__c == null) {
+                    resumen.activosSinLectura++;
+                } else if (a.Severidad_Nivel__c == null) {
+                    resumen.activosSinNivel++;
+                } else if (a.Severidad_Nivel__c >= 2) {
+                    resumen.activosCriticos++;
+                } else if (a.Severidad_Nivel__c >= 1) {
+                    resumen.activosEnAlerta++;
+                } else {
+                    resumen.activosNormales++;
+                }
+                if (a.Ultima_Senal__c != null && (resumen.ultimaSenal == null || a.Ultima_Senal__c > resumen.ultimaSenal)) {
+                    resumen.ultimaSenal = a.Ultima_Senal__c;
+                }
+            }
+            if (resumen.totalActivos > 0) {
+                resumen.casosAbiertos = [
+                    SELECT COUNT() FROM Case
+                    WHERE IsClosed = false AND AssetId IN (SELECT Id FROM Asset WHERE AccountId = :accountId)
+                    WITH USER_MODE
+                ];
+            }
+            return resumen;
+        } catch (AuraHandledException e) {
+            throw e;
+        } catch (Exception e) {
+            throw failure(e);
+        }
+    }
+
+    /** What the running user may do on the screen. Only drives what is shown: every action re-checks on the server (BR-208). */
+    public class Capacidades {
+        @AuraEnabled public Boolean puedeCrearIntervencion { get; private set; }
+        @AuraEnabled public Boolean puedeSeguirIntervencion { get; private set; }
+        @AuraEnabled public Boolean puedeTraerSenales { get; private set; }
+        @AuraEnabled public Boolean puedeVerLimites { get; private set; }
+        public Capacidades() {
+            this.puedeCrearIntervencion = FeatureManagement.checkPermission(IntervencionOperadorController.PERM_CREAR);
+            this.puedeSeguirIntervencion = FeatureManagement.checkPermission(IntervencionOperadorController.PERM_SEGUIR);
+            this.puedeTraerSenales = FeatureManagement.checkPermission(IngestaController.PERM_INGESTA);
+            this.puedeVerLimites = Umbral__c.SObjectType.getDescribe().isAccessible();
+        }
+    }
+
+    @AuraEnabled(cacheable=true)
+    public static Capacidades getCapacidades() {
+        return new Capacidades();
     }
 
     /** Buildings (Accounts) that have at least one asset visible to the user; truncated when over the bound. */
@@ -317,6 +643,32 @@ public with sharing class ActivosOperadorController {
         return byAsset;
     }
 
+    // Last closed Case (newest ClosedDate) of each given asset, for the "Última intervención" line (D038). One query for
+    // any number of assets; any closed Case counts (no time window). Newest first, so the first row seen for an asset is
+    // its last one. Past maxClosedCaseRows an asset whose closed Cases all fall after the cut gets none and simply shows no
+    // "Última intervención", as before this lookup existed. `capped` is not set: the list's truncated flag means assets or
+    // severities may be missing, and this line is only context. WITH USER_MODE: a Case the user cannot see is never returned.
+    private static Map<Id, Case> lastClosedInterventions(Set<Id> assetIds) {
+        Map<Id, Case> byAsset = new Map<Id, Case>();
+        if (assetIds.isEmpty()) {
+            return byAsset;
+        }
+        Integer closedFetch = maxClosedCaseRows;
+        for (Case c : [
+            SELECT Id, CaseNumber, ClosedDate, AssetId
+            FROM Case
+            WHERE AssetId IN :assetIds AND IsClosed = true
+            WITH USER_MODE
+            ORDER BY ClosedDate DESC, Id DESC
+            LIMIT :closedFetch
+        ]) {
+            if (!byAsset.containsKey(c.AssetId)) {
+                byAsset.put(c.AssetId, c);
+            }
+        }
+        return byAsset;
+    }
+
     private static Boolean isBetter(Lectura_Vigente__c candidate, Lectura_Vigente__c current) {
         if (candidate.Occurred_At__c != current.Occurred_At__c) {
             return candidate.Occurred_At__c > current.Occurred_At__c;
@@ -363,7 +715,7 @@ public with sharing class ActivosOperadorController {
         try {
             return Id.valueOf(value);
         } catch (Exception e) {
-            throw safeError('The building filter is not valid.');
+            throw safeError(BUILDING_FILTER_MESSAGE);
         }
     }
 
