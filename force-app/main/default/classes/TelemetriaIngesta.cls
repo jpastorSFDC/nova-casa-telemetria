@@ -125,6 +125,10 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
     // True once the page being read already reopened its session, so retries of the same page do not reopen it again.
     @TestVisible
     private Boolean sesionReabierta = false;
+    // True when this job resumed a saved cursor that carries the end-of-stream marker (D040): its first page is a
+    // re-poll of an exhausted stream, so already-processed identities on that page are not published again.
+    @TestVisible
+    private Boolean relectura = false;
 
     /** Counters only: no cursor, no token, no message content. */
     public class Resumen {
@@ -140,6 +144,7 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
         public Integer descartados = 0; // subset of rechazados: non-object elements of "data"
         public Integer reintentos = 0; // pages re-enqueued after a 429/5xx
         public Integer sesionesReabiertas = 0; // sessions reopened after a 409/410
+        public Integer omitidosPorRelectura = 0; // identities skipped on a re-poll of an ended stream because already processed (D040)
         // Where the run started reading (D025). No cursor value ever goes here: only flags and counters.
         public Boolean sesionContinuada = false; // the first page came from the saved cursor
         public Boolean sesionReiniciada = false; // the run was asked to start from a new session
@@ -252,6 +257,25 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
         return (pedido == null || pedido < 1) ? DEFAULT_MAX_PAGINAS : Math.min(pedido, HARD_MAX_PAGINAS);
     }
 
+    // Async states that count as "a run is still live". Shared by the manual button (IngestaController) and the
+    // scheduled job (TelemetriaIngestaProgramada) so both honour the same "one ingestion at a time" rule (D040).
+    @TestVisible
+    private static final Set<String> ESTADOS_ACTIVOS = new Set<String>{ 'Queued', 'Preparing', 'Processing', 'Holding' };
+
+    /**
+     * True when a TelemetriaIngesta job is queued or running. The manual start (IngestaController) and the scheduled
+     * start (TelemetriaIngestaProgramada) both check this so two runs never fight over the same cursor (D025, D040).
+     * AsyncApexJob is not sharing-controlled here; the class-name filter keeps other queueables out.
+     */
+    public static Boolean hayIngestaEnCurso() {
+        return [
+            SELECT COUNT()
+            FROM AsyncApexJob
+            WHERE ApexClass.Name = 'TelemetriaIngesta' AND Status IN :ESTADOS_ACTIVOS
+            WITH SYSTEM_MODE
+        ] > 0;
+    }
+
     public void execute(QueueableContext contexto) {
         String clave = SesionSimulador.clave(escenario, semilla, tamanoLote);
         restaurarSesion(clave);
@@ -309,8 +333,13 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
             throw falla; // nothing was read in this job: fail it so it shows in Apex Jobs
         }
 
-        // 2) DML: per page, log rows first, then the events.
-        for (PaginaPreparada preparada : preparadas) {
+        // 2) DML: per page, log rows first, then the events. On a re-poll of an exhausted stream, the first page
+        // drops identities already processed before writing them, so nothing is published again (D040).
+        for (Integer idx = 0; idx < preparadas.size(); idx++) {
+            PaginaPreparada preparada = preparadas[idx];
+            if (idx == 0 && relectura) {
+                acumulado.omitidosPorRelectura += filtrarYaProcesadas(preparada);
+            }
             acumulado.sumar(escribir(preparada));
             acumulado.paginas++;
         }
@@ -327,8 +356,17 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
             guardarResumen();
             return; // no retry or continuation either: they would read past the messages that must be read again
         }
-        if (!preparadas.isEmpty() && String.isNotBlank(cursor) && !SesionSimulador.guardar(clave, cursor)) {
-            acumulado.cacheNoDisponible = true;
+        if (!preparadas.isEmpty() && String.isNotBlank(cursor)) {
+            if (!SesionSimulador.guardar(clave, cursor)) {
+                acumulado.cacheNoDisponible = true;
+            } else if (flujoTerminado) {
+                // The stream ended on this cursor: mark it so the next run re-polls this last page instead of
+                // re-publishing everything (D040).
+                SesionSimulador.guardarFinDeFlujo(clave);
+            } else {
+                // The stream advanced: the next page is genuinely new, so drop any stale end-of-stream marker.
+                SesionSimulador.limpiarFinDeFlujo(clave);
+            }
         }
 
         // 4) Retry, stop or continue.
@@ -387,6 +425,8 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
             if (String.isNotBlank(guardado)) {
                 cursor = guardado;
                 acumulado.sesionContinuada = true;
+                // The saved cursor pointed at an exhausted stream: the first page we read is a re-poll (D040).
+                relectura = SesionSimulador.flujoTerminadoGuardado(clave);
             }
         }
     }
@@ -616,6 +656,49 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
     }
 
     /**
+     * Re-poll of an exhausted stream (D040): drops from a prepared page the candidate messages whose identity
+     * already has a log row in a terminal-for-publishing state (anything other than 'Publicada' or 'Fallida', i.e.
+     * already processed by the subscriber, D011 point 2), so they are not published again. Identities still
+     * 'Publicada' (not yet processed) or 'Fallida' (publication failed), and identities with no row (genuinely new),
+     * stay. Ingestion-level rejects keep their hashed-identity rows: those dedupe on insert and publish nothing.
+     * @return how many candidates were dropped
+     */
+    private Integer filtrarYaProcesadas(PaginaPreparada p) {
+        if (p.filasCandidatas.isEmpty()) {
+            return 0;
+        }
+        Set<String> ids = new Set<String>();
+        for (Log_Senial__c fila : p.filasCandidatas) {
+            ids.add(fila.Identidad__c);
+        }
+        Set<String> yaProcesadas = new Set<String>();
+        for (Log_Senial__c existente : [
+            SELECT Identidad__c
+            FROM Log_Senial__c
+            WHERE Identidad__c IN :ids AND Resultado__c != :PUBLICADA AND Resultado__c != :FALLIDA
+            WITH SYSTEM_MODE
+        ]) {
+            yaProcesadas.add(existente.Identidad__c);
+        }
+        if (yaProcesadas.isEmpty()) {
+            return 0;
+        }
+        List<Senial_Sensor__e> candidatos = new List<Senial_Sensor__e>();
+        List<Log_Senial__c> filas = new List<Log_Senial__c>();
+        for (Integer i = 0; i < p.filasCandidatas.size(); i++) {
+            if (yaProcesadas.contains(p.filasCandidatas[i].Identidad__c)) {
+                continue;
+            }
+            candidatos.add(p.candidatos[i]);
+            filas.add(p.filasCandidatas[i]);
+        }
+        Integer omitidos = p.candidatos.size() - candidatos.size();
+        p.candidatos = candidatos;
+        p.filasCandidatas = filas;
+        return omitidos;
+    }
+
+    /**
      * Why a message cannot be published, or null when it can. The identity (source|messageId) has to fit
      * Identidad__c (60) and source/messageId have to fit their own fields (80): truncating would merge
      * different messages, so these are rejected instead.
@@ -737,7 +820,8 @@ public without sharing class TelemetriaIngesta implements Queueable, Database.Al
             + ', noPublicadosPorLog=' + r.noPublicadosPorLog + ', publicados=' + r.publicados
             + ', fallosPublicacion=' + r.fallosPublicacion + ', rechazados=' + r.rechazados
             + ', descartados=' + r.descartados + ', reintentos=' + r.reintentos
-            + ', sesionesReabiertas=' + r.sesionesReabiertas + ', sesionContinuada=' + r.sesionContinuada
+            + ', sesionesReabiertas=' + r.sesionesReabiertas + ', omitidosPorRelectura=' + r.omitidosPorRelectura
+            + ', sesionContinuada=' + r.sesionContinuada
             + ', sesionReiniciada=' + r.sesionReiniciada + ', cacheNoDisponible=' + r.cacheNoDisponible
             + ', flujoTerminado=' + r.flujoTerminado + ', interrumpidaPorEstado=' + r.interrumpidaPorEstado
             + ', cursorSinAvanzar=' + r.cursorSinAvanzar;

@@ -13,6 +13,7 @@ import getEstadosSeguimiento from '@salesforce/apex/IntervencionOperadorControll
 import cerrarIntervencionesDelActivo from '@salesforce/apex/IntervencionOperadorController.cerrarIntervencionesDelActivo';
 import traerSenales from '@salesforce/apex/IngestaController.traerSenales';
 import estadoIngesta from '@salesforce/apex/IngestaController.estadoIngesta';
+import getProgramacion from '@salesforce/apex/IngestaController.getProgramacion';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { MEASUREMENT_LABELS, severityUi, reduceError, relativeAge } from 'c/novaCasaEtiquetas';
 
@@ -55,6 +56,8 @@ const ICON_VENTILATION = 'VENTILATION';
 const NUMBER_FORMAT = new Intl.NumberFormat('es', { maximumFractionDigits: 3 });
 // Day and month in the browser's time zone (the date a person closed a Case on), e.g. 07/10.
 const DAY_MONTH_FORMAT = new Intl.DateTimeFormat('es', { day: '2-digit', month: '2-digit' });
+// Hour and minute in the browser's time zone, for the next scheduled ingestion run, e.g. 14:05.
+const TIME_FORMAT = new Intl.DateTimeFormat('es', { hour: '2-digit', minute: '2-digit' });
 
 // Response shape of getAssets, isolated here: AssetPage { assets, truncated, assetLimit }.
 // If the final contract differs, change only this function.
@@ -191,6 +194,8 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     ingestStarting = false;
     ingestError = '';
     ingestState = null;
+    // Whether automatic ingestion (the scheduled job, D040) is on and when it next runs; null until loaded or if it fails.
+    programacion = null;
     _ingestSince;
     _ingestTimer;
 
@@ -1008,8 +1013,45 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         return Boolean(this.ingestDetail);
     }
 
+    // Whether automatic ingestion (the scheduled job, D040) is on and when it next runs, so the admin sees that the
+    // manual button is not the only path. Empty until getProgramacion answers (or if it fails).
+    get ingestScheduleLine() {
+        const p = this.programacion;
+        if (!p) {
+            return '';
+        }
+        const cada = `cada ${p.intervaloMinutos} min`;
+        if (!p.activa) {
+            return `Ingesta automática: apagada · las corridas manuales de este panel la traen a mano (${cada}).`;
+        }
+        const detalle = p.escenario ? `${p.escenario}, ${cada}` : cada;
+        let proxima = '—';
+        if (p.proximaEjecucion) {
+            const d = new Date(p.proximaEjecucion);
+            if (!Number.isNaN(d.getTime())) {
+                proxima = TIME_FORMAT.format(d);
+            }
+        }
+        return `Ingesta automática: activa · próxima corrida ${proxima} (${detalle}).`;
+    }
+    get hasIngestScheduleLine() {
+        return Boolean(this.ingestScheduleLine);
+    }
+
+    async loadProgramacion() {
+        try {
+            this.programacion = await getProgramacion();
+        } catch (e) {
+            // Admin-only panel; if the schedule cannot be read just hide the line rather than block the panel.
+            this.programacion = null;
+        }
+    }
+
     toggleIngest() {
         this.ingestOpen = !this.ingestOpen;
+        if (this.ingestOpen) {
+            this.loadProgramacion();
+        }
     }
     handleScenario(event) {
         this.scenario = event.target.value;
@@ -1059,6 +1101,7 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             if (!state.enCurso) {
                 clearInterval(this._ingestTimer);
                 this.toast('Ingesta terminada', this.ingestSummary, 'success');
+                this.loadProgramacion(); // the next scheduled run time moved on while this one ran
                 await this.handleRefresh();
             }
         } catch (e) {

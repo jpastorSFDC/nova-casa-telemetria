@@ -106,6 +106,33 @@ Admins can also start it from the operator screen: **Traer señales** (needs the
 
 Follow it in Setup > Apex Jobs. The run ends on `hasMore = false`, an empty page or the page cap. Processing is the subscriber's job; a row stays `Publicada` until it has handled the event. The simulator token lives only in Setup; the session cursor is never logged or stored (see D013). What the simulator sends and how it maps to `Senial_Sensor__e` is in [docs/contrato-mensaje.md](docs/contrato-mensaje.md).
 
+### Automatic ingestion every 5 minutes
+
+`TelemetriaIngestaProgramada` runs the ingestion on its own every 5 minutes (US-201, BR-201, D040), so reception is continuous and not a manual capture during the demo. Salesforce cron takes a single minute value per job, so "every 5 minutes" is 12 scheduled jobs (minute 0, 5, …, 55); each shows in **Setup > Scheduled Jobs** and each run in **Setup > Apex Jobs**. The scheduled start shares the "one ingestion at a time" guard with the button, so a scheduled run and a manual run never collide on the same cursor. A run that re-reads the last page of an exhausted stream republishes only new or not-yet-processed messages — it does not resend what was already processed (D040), so `Reenvios__c` does not grow on a re-poll.
+
+Turn it on from Execute Anonymous (run as a user with `Nova_Casa_Simulator_Integration` and Create on `Senial_Sensor__e`, e.g. John). The job runs as whoever schedules it:
+
+```apex
+TelemetriaIngestaProgramada.programar('MIXED', 5); // scenario, pages per run; leaves exactly 12 jobs
+```
+
+Turn it off (before cleaning the org, running other scenarios by hand, or deploying the ingestion classes):
+
+```apex
+TelemetriaIngestaProgramada.desprogramar(); // aborts the 12 jobs; leaves other scheduled jobs alone
+```
+
+The ready-made scripts are `scripts/apex/programar-ingesta.apex` and `scripts/apex/desprogramar-ingesta.apex`:
+
+```bash
+sf apex run --file scripts/apex/programar-ingesta.apex -o nova-cdo
+sf apex run --file scripts/apex/desprogramar-ingesta.apex -o nova-cdo
+```
+
+The operator screen's **Traer señales** panel shows a line with whether automatic ingestion is on and the next run time. The manual button stays for admins (running a scenario by hand, **Reiniciar sesión**).
+
+> **Deploy note:** while the 12 jobs are scheduled, Salesforce blocks deploying `TelemetriaIngestaProgramada`, `TelemetriaIngesta`, `IngestaController` or `SesionSimulador` ("class is scheduled for execution"). Run `desprogramar-ingesta.apex`, deploy, then `programar-ingesta.apex` again.
+
 ## Cleaning the org before a demo or a recorded run
 
 The simulator reuses `messageId` across sessions. If `Log_Senial__c` rows from earlier runs are still in the org, a new run comes out almost entirely as `Conflicto` or resend (on 2026-10-06 the org had 400 log rows, all `Conflicto`). Before a demo or a run you want to record as evidence, delete the `Log_Senial__c` rows, the `Lectura_Vigente__c` rows and the `Case` rows with `Origin = 'Telemetria'`.
