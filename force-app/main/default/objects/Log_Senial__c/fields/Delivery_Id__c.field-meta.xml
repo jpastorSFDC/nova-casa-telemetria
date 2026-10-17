@@ -2,7 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Delivery_Id__c</fullName>
     <label>ID de Entrega</label>
-    <description>deliveryId de la última entrega recibida. Un reenvío repite messageId con otro deliveryId (BR-205).</description>
+    <description>deliveryId of the last delivery received. A resend repeats the messageId with a different deliveryId (BR-205).</description>
     <type>Text</type>
     <length>40</length>
     <required>false</required>

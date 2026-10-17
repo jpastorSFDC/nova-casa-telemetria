@@ -2,7 +2,7 @@
 <CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
     <compactLayoutAssignment>Nova_Casa_Lectura</compactLayoutAssignment>
     <deploymentStatus>Deployed</deploymentStatus>
-    <description>Última lectura válida por combinación de activo y tipo de medición (BR-203). Detalle de Asset para permitir resúmenes de severidad y antigüedad sin código.</description>
+    <description>Latest valid reading per asset and measurement type combination (BR-203). Detail of Asset so severity and age summaries need no code.</description>
     <label>Lectura Vigente</label>
     <pluralLabel>Lecturas Vigentes</pluralLabel>
     <nameField>

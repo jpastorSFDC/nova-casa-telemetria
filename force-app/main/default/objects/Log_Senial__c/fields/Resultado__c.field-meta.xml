@@ -2,7 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Resultado__c</fullName>
     <label>Resultado</label>
-    <description>Estado de procesamiento de la señal para trazabilidad y reintentos (BR-206, BR-209).</description>
+    <description>Processing state of the signal, for traceability and retries (BR-206, BR-209).</description>
     <type>Picklist</type>
     <required>true</required>
     <valueSet>

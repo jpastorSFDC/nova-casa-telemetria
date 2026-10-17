@@ -2,7 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Unidad_Esperada__c</fullName>
     <label>Unidad esperada</label>
-    <description>Unidad canónica en la que está expresado Valor__c. Una señal en otra unidad es una medición incompatible.</description>
+    <description>Canonical unit in which Valor__c is expressed. A signal in another unit is an incompatible measurement.</description>
     <type>Picklist</type>
     <required>true</required>
     <valueSet>
