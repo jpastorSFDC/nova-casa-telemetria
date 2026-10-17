@@ -7,6 +7,7 @@ import TIPO_ACTIVO from '@salesforce/schema/Asset.Tipo_Activo__c';
 import getAssets from '@salesforce/apex/ActivosOperadorController.getAssets';
 import getBuildings from '@salesforce/apex/ActivosOperadorController.getBuildings';
 import getCapacidades from '@salesforce/apex/ActivosOperadorController.getCapacidades';
+import getHistorial from '@salesforce/apex/ActivosOperadorController.getHistorial';
 import crearIntervencion from '@salesforce/apex/IntervencionOperadorController.crearIntervencion';
 import actualizarSeguimiento from '@salesforce/apex/IntervencionOperadorController.actualizarSeguimiento';
 import getEstadosSeguimiento from '@salesforce/apex/IntervencionOperadorController.getEstadosSeguimiento';
@@ -15,13 +16,17 @@ import traerSenales from '@salesforce/apex/IngestaController.traerSenales';
 import estadoIngesta from '@salesforce/apex/IngestaController.estadoIngesta';
 import getProgramacion from '@salesforce/apex/IngestaController.getProgramacion';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
-import { MEASUREMENT_LABELS, severityUi, reduceError, relativeAge } from 'c/novaCasaEtiquetas';
+import { MEASUREMENT_LABELS, UNIT_LABELS, severityUi, reduceError, relativeAge } from 'c/novaCasaEtiquetas';
 
 const TICK_MS = 30000;
 const INGEST_POLL_MS = 5000;
 // A signal dated further ahead than this is flagged: the simulator clock or the source is wrong (display only).
 const FUTURE_TOLERANCE_MS = 5 * 60000;
 const DEFAULT_INGEST_PAGES = 5;
+// Same ceiling IngestaController.traerSenales clamps to.
+const MAX_INGEST_PAGES = 25;
+// Same limit as novaCasaHistorialSenales: getHistorial is cacheable, so the detail curve reuses the history's call.
+const HISTORY_LIMIT = 20;
 // Scenarios of the simulator contract; IngestaController validates the same list on the server.
 const SCENARIOS = ['MIXED', 'QA_200', 'BOUNDARIES', 'CRITICAL_BURST', 'LATE_MESSAGES', 'DUPLICATES', 'CONFLICT', 'INVALID_DATA', 'CAMERA_OUTAGE'];
 // API values of Case.Status used only to pick the form's default. The list of options itself comes from the server
@@ -52,6 +57,33 @@ const MEASUREMENT_TYPES = Object.keys(MEASUREMENT_LABELS);
 // Asset.Tipo_Activo__c values that have their own icon; any other type gets the neutral icon.
 const ICON_PUMP = 'WATER_PUMP';
 const ICON_VENTILATION = 'VENTILATION';
+
+// Fleet donut: one slice per level, in this order. Stale is not a level (an asset can be stable and stale), so it has no slice.
+const DONUT_LEVELS = [
+    { key: 'critico', label: 'Crítico', glyph: '●' },
+    { key: 'advertencia', label: 'Precaución', glyph: '▲' },
+    { key: 'normal', label: 'Estable', glyph: '○' },
+    { key: 'nivel', label: 'Sin dato', glyph: '?' }
+];
+
+// Ingestion tiles always shown (zero in gray), besides the total; any other result present gets its own tile after them.
+const INGEST_TILES = [
+    { key: 'Procesada', sub: 'cambiaron el estado', tone: 'ok' },
+    { key: 'Atrasada', sub: 'solo evidencia', tone: '' },
+    { key: 'Rechazada', sub: 'inválidas, con motivo', tone: 'adv' },
+    { key: 'Conflicto', sub: 'misma clave, otro contenido', tone: 'adv' },
+    { key: 'Publicada', sub: 'aún sin procesar', tone: '' }
+];
+const INGEST_EXTRA_TILES = {
+    Superada: { sub: 'solo evidencia', tone: '' },
+    Fallida: { sub: 'error al procesar', tone: 'fallo' }
+};
+
+// Detail curve, in SVG user units (viewBox 0 0 CURVE_W CURVE_H, scaled uniformly so the last-point dot stays round).
+const CURVE_W = 400;
+const CURVE_H = 100;
+const CURVE_PAD_X = 6;
+const CURVE_PAD_Y = 10;
 
 const NUMBER_FORMAT = new Intl.NumberFormat('es', { maximumFractionDigits: 3 });
 // Day and month in the browser's time zone (the date a person closed a Case on), e.g. 07/10.
@@ -124,6 +156,19 @@ function formatUtcTime(value) {
     return ms === null ? '' : `${new Date(ms).toISOString().slice(11, 19)} UTC`;
 }
 
+// HH:MM in the browser's time zone, like "Vista actualizada".
+function formatClock(value) {
+    const ms = toMillis(value);
+    return ms === null ? '' : new Date(ms).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+}
+
+// Curve axis label: HH:MM in UTC, with the day (dd/mm) when the curve spans more than one UTC day.
+function formatCurveTime(ms, withDay) {
+    const iso = new Date(ms).toISOString();
+    const time = iso.slice(11, 16);
+    return withDay ? `${iso.slice(8, 10)}/${iso.slice(5, 7)} ${time}` : time;
+}
+
 function formatValue(value, unit) {
     const number = value === null || value === undefined ? '—' : NUMBER_FORMAT.format(value);
     return unit ? `${number} ${unit}` : number;
@@ -148,9 +193,14 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     buildingId = '';
     severity = '';
     assetType = '';
+    // Name of a building chosen with "Filtrar" that the building list does not have (list cut), so the select can show it.
+    filterBuildingLabel = '';
 
     // Detail view is client-side state: the selected asset comes from the already-loaded getAssets payload.
     selectedAssetId = null;
+    // Signals of the detail curve: { assetId, signals } from getHistorial, tagged with the asset selected when the
+    // response arrived (the response itself does not say which asset it belongs to).
+    curveData = null;
 
     assets;
     truncated = false;
@@ -201,7 +251,7 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
 
     _assetsResult;
     _timer;
-    _focusTarget; // 'detail' or an asset Id whose "Ver activo" button should regain focus
+    _focusTarget; // 'detail', 'filtros' (building select) or an asset Id whose "Ver activo" button should regain focus
 
     connectedCallback() {
         // Re-render relative times without hitting the server.
@@ -224,6 +274,8 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         let element = null;
         if (target === 'detail') {
             element = this.template.querySelector('[data-focus="detail"]');
+        } else if (target === 'filtros') {
+            element = this.template.querySelector('select[name="buildingId"]');
         } else if (RECORD_ID_PATTERN.test(target)) {
             element = this.template.querySelector(`button[data-id="${target}"]`);
         }
@@ -314,6 +366,18 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         }
     }
 
+    // Same parameters as the history card of the detail, so both read one cached response. A failure only hides the
+    // curve: the history card shows the error.
+    @wire(getHistorial, { assetId: '$curveAssetId', limite: HISTORY_LIMIT })
+    wiredCurve({ data }) {
+        this.curveData = data ? { assetId: this.selectedAssetId, signals: data.signals || [] } : null;
+    }
+
+    // undefined keeps the wire idle while no asset is open.
+    get curveAssetId() {
+        return this.selectedAssetId || undefined;
+    }
+
     @wire(getObjectInfo, { objectApiName: ASSET_OBJECT })
     assetInfo;
 
@@ -354,7 +418,11 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         return options.map((o) => ({ label: o.label, value: o.value, selected: o.value === current }));
     }
     get buildingOptions() {
-        return this.markSelected([{ label: 'Todos', value: '' }, ...this.buildings], this.buildingId);
+        const options = [{ label: 'Todos', value: '' }, ...this.buildings];
+        if (this.buildingId && this.filterBuildingLabel && !this.buildings.some((b) => b.value === this.buildingId)) {
+            options.push({ label: this.filterBuildingLabel, value: this.buildingId });
+        }
+        return this.markSelected(options, this.buildingId);
     }
     get buildingsDisabled() {
         return !this.buildingsLoaded || this.buildings.length === 0;
@@ -371,9 +439,26 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     get filtersActive() {
         return Boolean(this.buildingId || this.severity !== '' || this.assetType);
     }
+    selectClass(active) {
+        return active ? 'campo campo-activo' : 'campo';
+    }
+    get buildingSelectClass() {
+        return this.selectClass(Boolean(this.buildingId));
+    }
+    get severitySelectClass() {
+        return this.selectClass(this.severity !== '');
+    }
+    get typeSelectClass() {
+        return this.selectClass(Boolean(this.assetType));
+    }
 
     handleFilterChange(event) {
         const { name, value } = event.target;
+        this.applyFilter(name, value);
+    }
+
+    // Single path for every filter change (the selects and "Filtrar" in the building table): the wire re-queries.
+    applyFilter(name, value) {
         if (name !== 'buildingId' && name !== 'severity' && name !== 'assetType') {
             return;
         }
@@ -382,6 +467,17 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         }
         this[name] = value;
         this.isRefreshing = true;
+    }
+
+    // "Filtrar" in the building table: the same building filter as choosing it in the Edificio select.
+    handleFilterBuilding(event) {
+        const { id, name } = event.currentTarget.dataset;
+        if (!id || !RECORD_ID_PATTERN.test(id) || id === this.buildingId) {
+            return;
+        }
+        this.filterBuildingLabel = name || '';
+        this._focusTarget = 'filtros';
+        this.applyFilter('buildingId', id);
     }
 
     handleClearFilters() {
@@ -441,13 +537,21 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         // No page cut (scan ceiling or row cap): do not claim any total.
         return 'Puede haber activos o lecturas que no se muestran; afina los filtros.';
     }
+    // "Mostrando X de Y activos" in the filter bar; a cut result shows truncatedText there instead.
+    get viewShownCount() {
+        return this.assets ? this.assets.length : 0;
+    }
+    get viewTotalCount() {
+        return this.totalCount != null ? this.totalCount : this.viewShownCount;
+    }
+    get viewCountNoun() {
+        return this.viewTotalCount === 1 ? 'activo' : 'activos';
+    }
     get showSummary() {
         return this.showList;
     }
     get updatedClock() {
-        return this.updatedAtMs
-            ? new Date(this.updatedAtMs).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })
-            : '';
+        return this.updatedAtMs ? formatClock(this.updatedAtMs) : '';
     }
     get updatedText() {
         return this.updatedAtMs ? relativeTime(this.updatedAtMs, this.nowMs) : '';
@@ -484,17 +588,56 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     get knownCount() {
         return this.countWhere((a) => a.severityLevel != null);
     }
-    get criticalChip() {
-        return plural(this.criticalCount, 'crítico', 'críticos');
+    // Same stale rule as the building table, so the header tile, the donut and the table always agree.
+    isStale(asset) {
+        const lastMs = toMillis(asset.lastSignalAt);
+        return lastMs !== null && this.nowMs - lastMs > this.staleMs;
     }
-    get warningChip() {
-        return `${this.warningCount} precaución`;
+    isFutureDated(asset) {
+        const lastMs = toMillis(asset.lastSignalAt);
+        return lastMs !== null && lastMs - this.nowMs > FUTURE_TOLERANCE_MS;
     }
-    get normalChip() {
-        return plural(this.normalCount, 'estable', 'estables');
+    get staleCount() {
+        return this.countWhere((a) => this.isStale(a));
     }
-    get noReadingChip() {
-        return `${this.noReadingCount} sin dato`;
+    get futureCount() {
+        return this.countWhere((a) => this.isFutureDated(a));
+    }
+
+    // ---- header tiles (real data of the loaded rows only) ----
+
+    // Newest signal among the loaded assets. Future-dated ones are left out: they have their own tile.
+    get lastSignalMs() {
+        let newest = null;
+        (this.assets || []).forEach((a) => {
+            const ms = toMillis(a.lastSignalAt);
+            if (ms !== null && !this.isFutureDated(a) && (newest === null || ms > newest)) {
+                newest = ms;
+            }
+        });
+        return newest;
+    }
+    get hasLastSignal() {
+        return this.lastSignalMs !== null;
+    }
+    get lastSignalText() {
+        return this.hasLastSignal ? readingAge(this.lastSignalMs, this.nowMs) : '';
+    }
+    get hasStale() {
+        return this.staleCount > 0;
+    }
+    get staleCountText() {
+        return plural(this.staleCount, 'activo', 'activos');
+    }
+    get hasFuture() {
+        return this.futureCount > 0;
+    }
+    get futureCountText() {
+        return plural(this.futureCount, 'activo', 'activos');
+    }
+
+    get leadGlyph() {
+        return this.criticalCount > 0 ? '●' : '';
     }
     get bannerClass() {
         if (this.criticalCount > 0) {
@@ -544,7 +687,16 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         (this.assets || []).forEach((a) => {
             const key = a.accountId || a.accountName || '—';
             if (!byBuilding.has(key)) {
-                byBuilding.set(key, { key, name: a.accountName || 'Sin edificio', total: 0, critical: 0, warning: 0, noData: 0, stale: 0 });
+                byBuilding.set(key, {
+                    key,
+                    accountId: a.accountId || null,
+                    name: a.accountName || 'Sin edificio',
+                    total: 0,
+                    critical: 0,
+                    warning: 0,
+                    noData: 0,
+                    stale: 0
+                });
             }
             const b = byBuilding.get(key);
             b.total += 1;
@@ -555,8 +707,7 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             } else if (a.severityLevel == null) {
                 b.noData += 1;
             }
-            const lastMs = toMillis(a.lastSignalAt);
-            if (lastMs !== null && this.nowMs - lastMs > this.staleMs) {
+            if (this.isStale(a)) {
                 b.stale += 1;
             }
         });
@@ -564,8 +715,14 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             .sort((x, y) => y.critical - x.critical || y.warning - x.warning || x.name.localeCompare(y.name))
             .map((b) => ({
                 ...b,
-                totalText: plural(b.total, 'activo', 'activos'),
-                rowClass: b.critical > 0 ? 'edif-fila edif-critico' : b.warning > 0 ? 'edif-fila edif-advertencia' : 'edif-fila'
+                hasCritical: b.critical > 0,
+                hasWarning: b.warning > 0,
+                hasNoData: b.noData > 0,
+                hasStale: b.stale > 0,
+                hasAccount: Boolean(b.accountId),
+                filterLabel: `Filtrar por ${b.name}`,
+                viewLabel: `Ver edificio ${b.name}`,
+                rowClass: b.critical > 0 ? 'edif-fila edif-critico' : 'edif-fila'
             }));
     }
     get showBuildingSummary() {
@@ -573,6 +730,66 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     }
     get buildingSummaryNote() {
         return this.truncated ? 'Resumen parcial: hay activos que no se muestran.' : 'Resumen de la vista actual.';
+    }
+
+    // ---- fleet donut (same rows and counts as the banner and the building table) ----
+
+    get donutCounts() {
+        return {
+            critico: this.criticalCount,
+            advertencia: this.warningCount,
+            normal: this.normalCount,
+            nivel: this.noReadingCount
+        };
+    }
+    // Circle of r = 15.915 has a circumference of ~100, so each slice's dash length is its percentage.
+    get donutSegments() {
+        const total = this.assets ? this.assets.length : 0;
+        if (!total) {
+            return [];
+        }
+        const counts = this.donutCounts;
+        let offset = 0;
+        return DONUT_LEVELS.filter((l) => counts[l.key] > 0).map((l) => {
+            const pct = (counts[l.key] * 100) / total;
+            const segment = {
+                key: l.key,
+                cls: `dona-seg seg-${l.key}`,
+                dasharray: `${pct.toFixed(2)} ${(100 - pct).toFixed(2)}`,
+                dashoffset: (-offset).toFixed(2)
+            };
+            offset += pct;
+            return segment;
+        });
+    }
+    get donutLegend() {
+        const counts = this.donutCounts;
+        return DONUT_LEVELS.map((l) => ({
+            key: l.key,
+            label: l.label,
+            glyph: l.glyph,
+            count: counts[l.key],
+            cls: counts[l.key] > 0 ? 'leyenda-item' : 'leyenda-item cero',
+            swatchClass: `muestra seg-${l.key}`
+        }));
+    }
+    get donutCenterNumber() {
+        return this.criticalCount > 0 ? this.criticalCount : this.viewShownCount;
+    }
+    get donutCenterLabel() {
+        if (this.criticalCount > 0) {
+            return this.criticalCount === 1 ? 'crítico' : 'críticos';
+        }
+        return this.viewShownCount === 1 ? 'activo' : 'activos';
+    }
+    get donutCenterClass() {
+        return this.criticalCount > 0 ? 'dona-centro critico' : 'dona-centro';
+    }
+    get donutSubtitle() {
+        return this.truncated ? 'al menos, en esta vista' : 'en esta vista';
+    }
+    get staleLineClass() {
+        return this.staleCount > 0 ? 'dona-extra hay' : 'dona-extra';
     }
 
     // ---- view models ----
@@ -628,21 +845,24 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
 
         const lastMs = toMillis(a.lastSignalAt);
         let signalText;
-        let signalClass = 'senal';
+        // Inline warning on the card: 'sin' (no signal), 'futuro', 'vieja' (stale) or none.
+        let signalKind = '';
         if (!hasReadings || lastMs === null) {
             signalText = 'Sin señal recibida todavía';
+            signalKind = 'sin';
         } else if (lastMs - this.nowMs > FUTURE_TOLERANCE_MS) {
             signalText = `Fecha de origen en el futuro (${formatUtcTime(a.lastSignalAt)}): revisa el reloj de la fuente`;
-            signalClass = 'senal senal-vieja';
+            signalKind = 'futuro';
         } else if (this.nowMs - lastMs > this.staleMs) {
             signalText = `Última señal ${relativeTime(a.lastSignalAt, this.nowMs)} (desactualizada)`;
-            signalClass = 'senal senal-vieja';
+            signalKind = 'vieja';
         } else {
             signalText = `Última señal ${relativeTime(a.lastSignalAt, this.nowMs)}`;
         }
 
         const typeLabel = this.typeLabels[a.assetType] || a.assetType || '';
-        const metaParts = [typeLabel, a.externalId].filter(Boolean);
+        const eyebrow = [typeLabel, a.accountName].filter(Boolean).join(' · ');
+        const headAge = headline ? headline.ageText : '';
         const count = a.openInterventionCount || 0;
         const inv = a.openIntervention;
         // The server only sends it for an asset with no open intervention; checked here too so the two never show together.
@@ -654,31 +874,35 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             key: a.assetId,
             assetId: a.assetId,
             name: a.name,
-            buildingName: a.accountName || '',
-            hasBuilding: Boolean(a.accountName),
+            eyebrow,
+            hasEyebrow: Boolean(eyebrow),
             externalId: a.externalId || '',
             hasExternalId: Boolean(a.externalId),
-            typeLabel,
-            hasTypeLabel: Boolean(typeLabel),
-            metaText: metaParts.join(' · '),
+            hasStatusRow: Boolean(a.externalId || headAge),
             isPump: a.assetType === ICON_PUMP,
             isVentilation: a.assetType === ICON_VENTILATION,
             isOtherType: a.assetType !== ICON_PUMP && a.assetType !== ICON_VENTILATION,
+            level,
             cardClass: `tarjeta-activo ${ui.key}`,
-            heroClass: `hero-activo ${ui.key}`,
-            viewButtonClass: level === 2 ? 'boton urgente' : 'boton secundario',
+            heroClass: `tarjeta hero-activo ${ui.key}`,
             sevClass: `sev sev-${ui.key}`,
             sevGlyph: ui.glyph,
             sevLabel: ui.label,
             sevValueClass: `val val-${ui.key}`,
             sevSub: this.severitySub(level, hasReadings),
             viewLabel: `Ver activo ${a.name || ''}`.trim(),
+            openLabel: `Abrir registro de ${a.name || 'el activo'}`,
             signalText,
-            signalClass,
+            hasSignalWarning: Boolean(signalKind),
+            signalClass: signalKind ? `aviso aviso-${signalKind}` : 'aviso',
+            signalGlyph: signalKind === 'sin' ? 'ⓘ' : '⏱',
+            signalTextClass: signalKind ? `franja-texto franja-${signalKind}` : 'franja-texto',
             hasReadings,
             hasHeadline: Boolean(headline),
             headValue: headline ? headline.valueText : '',
-            headMeasure: headline ? `${headline.measurementLabel} · ${headline.ageText}` : '',
+            headLabel: headline ? headline.measurementLabel : '',
+            headMeasurementType: headline ? headline.measurementType : null,
+            headAge,
             noReadingsText: unreadable ? 'Sin lecturas todavía' : '',
             hasMoreReadings: readings.length > 1,
             moreReadingsText: `+${readings.length - 1} medición(es) más en el detalle`,
@@ -755,6 +979,64 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         return asset ? this.buildRow(asset) : null;
     }
 
+    // Recent values of the headline measurement: only Procesada signals with a value (the rest never changed the state).
+    // null below 2 points; the intervention card then takes the whole row.
+    get curve() {
+        const row = this.selectedRow;
+        const data = this.curveData;
+        if (!row || !row.headMeasurementType || !data || data.assetId !== row.assetId) {
+            return null;
+        }
+        const points = data.signals
+            .filter(
+                (s) =>
+                    s.resultado === 'Procesada' &&
+                    s.measurementType === row.headMeasurementType &&
+                    s.value !== null &&
+                    s.value !== undefined &&
+                    !Number.isNaN(Number(s.value)) &&
+                    toMillis(s.occurredAt) !== null
+            )
+            .map((s) => ({ ms: toMillis(s.occurredAt), value: Number(s.value), unit: s.unit }))
+            .sort((x, y) => x.ms - y.ms);
+        if (points.length < 2) {
+            return null;
+        }
+        const first = points[0];
+        const last = points[points.length - 1];
+        const span = last.ms - first.ms;
+        const values = points.map((p) => p.value);
+        const min = Math.min(...values);
+        const range = Math.max(...values) - min;
+        const coords = points.map((p, i) => {
+            const share = span > 0 ? (p.ms - first.ms) / span : i / (points.length - 1);
+            const x = CURVE_PAD_X + share * (CURVE_W - 2 * CURVE_PAD_X);
+            const y = range > 0 ? CURVE_H - CURVE_PAD_Y - ((p.value - min) / range) * (CURVE_H - 2 * CURVE_PAD_Y) : CURVE_H / 2;
+            return { x: x.toFixed(1), y: y.toFixed(1) };
+        });
+        const line = coords.map((c) => `${c.x},${c.y}`).join(' ');
+        const end = coords[coords.length - 1];
+        const withDay = new Date(first.ms).toISOString().slice(0, 10) !== new Date(last.ms).toISOString().slice(0, 10);
+        const unit = UNIT_LABELS[last.unit] || last.unit;
+        const label = row.headLabel;
+        return {
+            title: `${label} · señales procesadas recientes`,
+            countText: plural(points.length, 'señal', 'señales'),
+            linePoints: line,
+            fillPoints: `${line} ${end.x},${CURVE_H} ${coords[0].x},${CURVE_H}`,
+            dotX: end.x,
+            dotY: end.y,
+            dotClass: row.level === 2 ? 'curva-punto critico' : 'curva-punto',
+            labelFirst: `${formatCurveTime(first.ms, withDay)} UTC`,
+            labelMid: formatCurveTime(first.ms + span / 2, withDay),
+            labelLast: `${formatCurveTime(last.ms, withDay)} (última)`,
+            summary: `Valores recientes de ${label.toLowerCase()}: de ${formatValue(first.value, UNIT_LABELS[first.unit] || first.unit)} a ${formatValue(last.value, unit)}.`
+        };
+    }
+    get showCurve() {
+        return Boolean(this.curve);
+    }
+
     // ---- navigation (record access is enforced by the platform and the controller) ----
 
     navigateToRecord(event, objectApiName) {
@@ -770,6 +1052,14 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     }
     handleOpenAsset(event) {
         this.navigateToRecord(event, 'Asset');
+    }
+    // "Abrir registro" inside a card: the card's own click would also open the detail.
+    handleOpenAssetFromCard(event) {
+        event.stopPropagation();
+        this.navigateToRecord(event, 'Asset');
+    }
+    handleOpenBuilding(event) {
+        this.navigateToRecord(event, 'Account');
     }
     handleOpenCase(event) {
         this.navigateToRecord(event, 'Case');
@@ -960,6 +1250,72 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     get hasIngestState() {
         return Boolean(this.ingestState);
     }
+    // Slider position for the typed page count; the number input keeps the raw value.
+    get ingestPagesRange() {
+        const pages = Number.parseInt(this.ingestPages, 10);
+        if (Number.isNaN(pages)) {
+            return String(DEFAULT_INGEST_PAGES);
+        }
+        return String(Math.min(Math.max(pages, 1), MAX_INGEST_PAGES));
+    }
+    get ingestStatusText() {
+        const st = this.ingestState;
+        if (!st) {
+            return '';
+        }
+        if (!st.enCurso) {
+            return 'Terminada';
+        }
+        return this.ingestRun && this.ingestRun.clock ? `En curso · iniciada ${this.ingestRun.clock}` : 'En curso';
+    }
+    get ingestStatusClass() {
+        return this.ingestState && this.ingestState.enCurso ? 'estado-corrida en-curso' : 'estado-corrida terminada';
+    }
+    get ingestPolling() {
+        return Boolean(this.ingestState && this.ingestState.enCurso);
+    }
+    get ingestTiles() {
+        const st = this.ingestState;
+        if (!st) {
+            return [];
+        }
+        const counts = st.porResultado || {};
+        const fixed = new Set(INGEST_TILES.map((t) => t.key));
+        const tiles = [
+            { key: 'total', label: 'Registradas', count: st.total || 0, sub: 'señales de esta corrida', tone: 'total' },
+            ...INGEST_TILES.map((t) => ({ ...t, label: t.key, count: counts[t.key] || 0 })),
+            ...Object.keys(counts)
+                .filter((k) => !fixed.has(k))
+                .sort()
+                .map((k) => ({ key: k, label: k, count: counts[k] || 0, ...(INGEST_EXTRA_TILES[k] || { sub: '', tone: '' }) }))
+        ];
+        return tiles.map((t) => {
+            let cls = 'tile';
+            if (t.tone === 'total') {
+                cls += ' tile-total';
+            } else if (t.count > 0 && t.tone) {
+                cls += ` tile-${t.tone}`;
+            }
+            if (t.count === 0) {
+                cls += ' tile-cero';
+            }
+            return { key: t.key, label: t.label, count: t.count, sub: t.sub, hasSub: Boolean(t.sub), cls };
+        });
+    }
+    get hasIngestRun() {
+        return Boolean(this.ingestRun);
+    }
+    get ingestStartLine() {
+        const run = this.ingestRun;
+        if (!run) {
+            return '';
+        }
+        const parts = ['Corrida iniciada', run.scenario];
+        if (run.pages) {
+            parts.push(plural(run.pages, 'página', 'páginas'));
+        }
+        return parts.join(' · ');
+    }
     get ingestSummary() {
         const st = this.ingestState;
         if (!st) {
@@ -1079,6 +1435,11 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             // A restart is a one-off: the next press continues the session again.
             this.ingestRestart = false;
             this._ingestSince = started.iniciadaEn;
+            this.ingestRun = {
+                clock: formatClock(started.iniciadaEn),
+                scenario: this.scenario,
+                pages: Number.isNaN(pages) || pages < 1 ? null : Math.min(pages, MAX_INGEST_PAGES)
+            };
             this.ingestState = { enCurso: true, total: 0, porResultado: {} };
             this.startIngestPolling();
         } catch (e) {

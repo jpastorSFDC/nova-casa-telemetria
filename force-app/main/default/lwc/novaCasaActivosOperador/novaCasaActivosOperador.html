@@ -1,15 +1,60 @@
 <template>
     <div class="lwc">
         <!-- Header -->
-        <div class="comp-cab">
-            <h1 class="comp-titulo">Mis activos</h1>
-            <div class="comp-cab-der">
-                <span class="comp-conteo">{countText}</span>
-                <template if:true={showIngest}>
-                    <button type="button" class="boton secundario" aria-expanded={ingestOpen} onclick={toggleIngest}>{ingestToggleLabel}</button>
-                </template>
-                <button type="button" class="boton secundario" disabled={isBusy} onclick={handleRefresh}>Actualizar</button>
+        <div class="tarjeta cabecera">
+            <div class="cab-fila">
+                <div class="cab-izq">
+                    <div class="cab-ico" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V9l8-5 8 5v11"/><path d="M9 20v-6h6v6"/></svg>
+                    </div>
+                    <div>
+                        <h1 class="comp-titulo">Mis activos</h1>
+                        <span class="comp-conteo">{countText}</span>
+                    </div>
+                </div>
+                <div class="cab-acciones">
+                    <template if:true={showIngest}>
+                        <button type="button" class="boton" aria-expanded={ingestOpen} onclick={toggleIngest}>{ingestToggleLabel}</button>
+                    </template>
+                    <button type="button" class="boton" disabled={isBusy} onclick={handleRefresh}>
+                        <svg class="boton-ico" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
+                        Actualizar
+                    </button>
+                </div>
             </div>
+            <template if:true={showSummary}>
+                <div class="cab-cuerpo">
+                    <div class={bannerClass} role="status">
+                        <p class="lead"><em><template if:true={leadGlyph}><span class="glifo" aria-hidden="true">{leadGlyph}</span></template>{leadStrong}</em> {leadRest}</p>
+                    </div>
+                    <ul class="kpis" aria-label="Estado de la vista">
+                        <template if:true={hasLastSignal}>
+                            <li class="kpi">
+                                <span class="kpi-glifo" aria-hidden="true">&#10227;</span>
+                                <span class="kpi-texto"><span class="micro">Última señal</span><span class="kpi-valor">{lastSignalText}</span></span>
+                            </li>
+                        </template>
+                        <template if:true={updatedText}>
+                            <li class="kpi">
+                                <span class="kpi-glifo" aria-hidden="true">&#9719;</span>
+                                <span class="kpi-texto"><span class="micro">Vista actualizada</span><span class="kpi-valor">{updatedClock} ({updatedText})</span></span>
+                            </li>
+                        </template>
+                        <template if:true={hasStale}>
+                            <li class="kpi kpi-ambar">
+                                <span class="kpi-glifo" aria-hidden="true">&#9201;</span>
+                                <span class="kpi-texto"><span class="micro">Desactualizados</span><span class="kpi-valor">{staleCountText}</span></span>
+                            </li>
+                        </template>
+                        <template if:true={hasFuture}>
+                            <li class="kpi kpi-rojo">
+                                <span class="kpi-glifo" aria-hidden="true">&#9888;</span>
+                                <span class="kpi-texto"><span class="micro">Fecha de origen en el futuro</span><span class="kpi-valor">{futureCountText}</span></span>
+                            </li>
+                        </template>
+                    </ul>
+                </div>
+            </template>
         </div>
 
         <!-- Admin only: pull signals from the simulator -->
@@ -38,9 +83,71 @@
                         <template if:true={hasIngestDetail}>
                             <p class="nota" role="status" aria-live="polite">{ingestDetail}</p>
                         </template>
+                    </div>
+                    <template if:true={hasIngestScheduleLine}>
+                        <p class="programacion" role="status" aria-live="polite"><span class="punto" aria-hidden="true"></span>{ingestScheduleLine}</p>
                     </template>
+                    <div class="ingesta-cuerpo">
+                        <div class="ingesta-controles">
+                            <div class="control">
+                                <label class="rot-campo" for="i-escenario">Escenario</label>
+                                <select class="campo campo-ancho num" id="i-escenario" disabled={ingestRunning} onchange={handleScenario}>
+                                    <template for:each={scenarioOptions} for:item="opt">
+                                        <option key={opt.value} value={opt.value} selected={opt.selected}>{opt.label}</option>
+                                    </template>
+                                </select>
+                            </div>
+                            <div class="control">
+                                <label class="rot-campo" for="i-paginas">Páginas (1 a 25)</label>
+                                <div class="deslizador">
+                                    <input class="rango" type="range" min="1" max="25" step="1" value={ingestPagesRange} aria-label="Páginas (1 a 25)" aria-describedby="i-paginas-ayuda" disabled={ingestRunning} oninput={handleIngestPages} />
+                                    <input class="campo campo-num num" id="i-paginas" type="number" min="1" max="25" value={ingestPages} aria-describedby="i-paginas-ayuda" disabled={ingestRunning} oninput={handleIngestPages} onchange={handleIngestPages} />
+                                </div>
+                                <p class="ayuda" id="i-paginas-ayuda">Tarda al menos 1 minuto por página.</p>
+                            </div>
+                            <div class="control-check">
+                                <input id="i-reiniciar" type="checkbox" checked={ingestRestart} aria-describedby="i-reiniciar-ayuda" disabled={ingestRunning} onchange={handleIngestRestart} />
+                                <div>
+                                    <label class="check-label" for="i-reiniciar">Reiniciar sesión</label>
+                                    <p class="ayuda" id="i-reiniciar-ayuda">Empieza desde el primer mensaje del simulador. Si no, continúa donde quedó.</p>
+                                </div>
+                            </div>
+                            <button type="button" class="boton primario boton-ancho" disabled={ingestRunning} onclick={handleStartIngest}><span aria-hidden="true">&#9654;</span> Traer señales</button>
+                            <p class="nota">La ingesta corre sola cada 5 minutos; este botón es para correr un escenario a mano o reiniciar la sesión. Crea lecturas, registros de log y casos reales. Una sola corrida a la vez (manual o automática); avisa al equipo antes de lanzarla. Cada corrida continúa donde quedó la anterior; marca «Reiniciar sesión» para empezar otra vez desde el primer mensaje del simulador.</p>
+                        </div>
+                        <template if:true={hasIngestState}>
+                            <div class="ingesta-monitor">
+                                <ul class="tiles" aria-label="Señales de la corrida por resultado">
+                                    <template for:each={ingestTiles} for:item="t">
+                                        <li key={t.key} class={t.cls}>
+                                            <span class="micro">{t.label}</span>
+                                            <span class="tile-n num">{t.count}</span>
+                                            <template if:true={t.hasSub}>
+                                                <span class="tile-s">{t.sub}</span>
+                                            </template>
+                                        </li>
+                                    </template>
+                                </ul>
+                                <div class="registro num">
+                                    <div class="registro-cab">
+                                        <span>Registro de la corrida</span>
+                                        <template if:true={ingestPolling}>
+                                            <span>se actualiza solo</span>
+                                        </template>
+                                    </div>
+                                    <template if:true={hasIngestRun}>
+                                        <p class="registro-linea"><span class="registro-hora">[{ingestRun.clock}]</span> {ingestStartLine}</p>
+                                    </template>
+                                    <p class="registro-linea registro-resumen" role="status" aria-live="polite">{ingestSummary}</p>
+                                    <template if:true={hasIngestDetail}>
+                                        <p class="registro-linea" role="status" aria-live="polite">{ingestDetail}</p>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
                     <template if:true={ingestError}>
-                        <p class="nota nota-error" role="alert">{ingestError}</p>
+                        <p class="nota nota-error ingesta-error" role="alert">{ingestError}</p>
                     </template>
                 </section>
             </template>
@@ -61,93 +168,176 @@
 
         <!-- Error -->
         <template if:true={showError}>
-            <div class="estado-centro" role="alert">
+            <div class="tarjeta estado-centro" role="alert">
                 <div class="estado-icono error" aria-hidden="true">&#9888;</div>
                 <p class="estado-titulo">No pudimos cargar tus activos</p>
                 <p class="estado-texto">
                     Esta lista no muestra el estado actual. No asumas que todo está normal. Vuelve a intentar; si sigue, avisa a tu administrador.
                 </p>
                 <p class="estado-detalle">{errorMessage}</p>
-                <button type="button" class="boton urgente" onclick={handleRefresh}>Reintentar</button>
+                <button type="button" class="boton primario" onclick={handleRefresh}>Reintentar</button>
             </div>
         </template>
 
-        <!-- Banner -->
-        <template if:true={showSummary}>
-            <div class={bannerClass} role="status">
-                <p class="lead"><em>{leadStrong}</em> {leadRest}</p>
-                <div class="situacion-meta">
-                    <span>En esta vista:</span>
-                    <span class="chip chip-critico">{criticalChip}</span>
-                    <span class="chip chip-advertencia">{warningChip}</span>
-                    <span class="chip chip-normal">{normalChip}</span>
-                    <template if:true={noReadingCount}>
-                        <span class="chip chip-nivel">{noReadingChip}</span>
-                    </template>
-                    <template if:true={updatedText}>
-                        <span>Actualizado a las {updatedClock} <span class="frescor">({updatedText})</span></span>
-                    </template>
-                </div>
-            </div>
-        </template>
-
-        <!-- Summary per building: everyone sees it -->
+        <!-- Fleet donut + summary per building: everyone sees it -->
         <template if:true={showBuildingSummary}>
-            <section class="resumen-edificios" aria-label="Resumen por edificio">
-                <p class="nota">{buildingSummaryNote}</p>
-                <table>
-                    <thead>
-                        <tr>
-                            <th scope="col">Edificio</th>
-                            <th scope="col">Activos</th>
-                            <th scope="col">Críticos</th>
-                            <th scope="col">Precaución</th>
-                            <th scope="col">Sin dato</th>
-                            <th scope="col">Desactualizados</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <template for:each={buildingSummary} for:item="b">
-                            <tr key={b.key} class={b.rowClass}>
-                                <td class="celda-fuerte">{b.name}</td>
-                                <td class="num">{b.total}</td>
-                                <td class="num">{b.critical}</td>
-                                <td class="num">{b.warning}</td>
-                                <td class="num">{b.noData}</td>
-                                <td class="num">{b.stale}</td>
-                            </tr>
-                        </template>
-                    </tbody>
-                </table>
-            </section>
+            <div class="resumen-fila">
+                <section class="tarjeta resumen-edificios" aria-label="Resumen por edificio">
+                    <div class="tarjeta-cab">
+                        <h2 class="tarjeta-titulo">
+                            <svg class="titulo-ico" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="1.5"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2"/></svg>
+                            Por edificio
+                        </h2>
+                        <span class="tarjeta-cab-nota">{buildingSummaryNote}</span>
+                    </div>
+                    <div class="tabla-desliza">
+                        <table class="tabla">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Edificio</th>
+                                    <th scope="col" class="centro">Activos</th>
+                                    <th scope="col" class="centro">Críticos</th>
+                                    <th scope="col" class="centro">Precaución</th>
+                                    <th scope="col" class="centro">Sin dato</th>
+                                    <th scope="col" class="centro">Desactualizados</th>
+                                    <th scope="col" class="der">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template for:each={buildingSummary} for:item="b">
+                                    <tr key={b.key} class={b.rowClass}>
+                                        <td class="celda-fuerte celda-edificio">{b.name}</td>
+                                        <td class="centro num fuerte">{b.total}</td>
+                                        <td class="centro">
+                                            <template if:true={b.hasCritical}>
+                                                <span class="cuenta cuenta-critico num"><span aria-hidden="true">&#9679;</span> {b.critical}</span>
+                                            </template>
+                                            <template if:false={b.hasCritical}>
+                                                <span class="cero num">0</span>
+                                            </template>
+                                        </td>
+                                        <td class="centro">
+                                            <template if:true={b.hasWarning}>
+                                                <span class="cuenta cuenta-advertencia num"><span aria-hidden="true">&#9650;</span> {b.warning}</span>
+                                            </template>
+                                            <template if:false={b.hasWarning}>
+                                                <span class="cero num">0</span>
+                                            </template>
+                                        </td>
+                                        <td class="centro">
+                                            <template if:true={b.hasNoData}>
+                                                <span class="cuenta cuenta-nivel num"><span aria-hidden="true">?</span> {b.noData}</span>
+                                            </template>
+                                            <template if:false={b.hasNoData}>
+                                                <span class="cero num">0</span>
+                                            </template>
+                                        </td>
+                                        <td class="centro">
+                                            <template if:true={b.hasStale}>
+                                                <span class="cuenta cuenta-vieja num"><span aria-hidden="true">&#9201;</span> {b.stale}</span>
+                                            </template>
+                                            <template if:false={b.hasStale}>
+                                                <span class="cero num">0</span>
+                                            </template>
+                                        </td>
+                                        <td class="der acciones-fila">
+                                            <template if:true={b.hasAccount}>
+                                                <button type="button" class="enlace" data-id={b.accountId} data-name={b.name} aria-label={b.filterLabel} onclick={handleFilterBuilding}>Filtrar</button>
+                                                <span class="sep" aria-hidden="true">|</span>
+                                                <button type="button" class="enlace" data-id={b.accountId} aria-label={b.viewLabel} onclick={handleOpenBuilding}>Ver edificio <span aria-hidden="true">&#8599;</span></button>
+                                            </template>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="tarjeta dona-card" aria-label="Salud de la flota">
+                    <div class="tarjeta-cab">
+                        <h2 class="tarjeta-titulo">Salud de la flota</h2>
+                        <span class="tarjeta-cab-nota">{donutSubtitle}</span>
+                    </div>
+                    <div class="dona-cuerpo">
+                        <div class="dona-fila">
+                            <div class="dona" aria-hidden="true">
+                                <svg class="dona-svg" viewBox="0 0 42 42">
+                                    <circle class="dona-pista" cx="21" cy="21" r="15.915"></circle>
+                                    <template for:each={donutSegments} for:item="s">
+                                        <circle key={s.key} class={s.cls} cx="21" cy="21" r="15.915" stroke-dasharray={s.dasharray} stroke-dashoffset={s.dashoffset}></circle>
+                                    </template>
+                                </svg>
+                                <div class={donutCenterClass}>
+                                    <span class="dona-n num">{donutCenterNumber}</span>
+                                    <span class="dona-t">{donutCenterLabel}</span>
+                                </div>
+                            </div>
+                            <ul class="leyenda" aria-label="Activos por severidad">
+                                <template for:each={donutLegend} for:item="l">
+                                    <li key={l.key} class={l.cls}>
+                                        <span class={l.swatchClass} aria-hidden="true"></span>
+                                        <b class="leyenda-n num">{l.count}</b>
+                                        <span aria-hidden="true">{l.glyph}</span>
+                                        <span>{l.label}</span>
+                                    </li>
+                                </template>
+                            </ul>
+                        </div>
+                        <p class={staleLineClass}>
+                            <span><span aria-hidden="true">&#9201;</span> Desactualizados</span>
+                            <b class="num">{staleCount}</b>
+                        </p>
+                    </div>
+                </section>
+            </div>
         </template>
 
         <!-- Filters -->
         <template if:true={showFilters}>
-            <div class="filtros">
-                <span class="filtro-label">Filtrar</span>
-                <label class="filtro-label" for="f-edificio">Edificio</label>
-                <select class="campo" id="f-edificio" name="buildingId" disabled={buildingsDisabled} onchange={handleFilterChange}>
-                    <template for:each={buildingOptions} for:item="opt">
-                        <option key={opt.value} value={opt.value} selected={opt.selected}>{opt.label}</option>
+            <div class="tarjeta barra-filtros">
+                <div class="filtros-izq">
+                    <span class="etiqueta etiqueta-filtros">
+                        <svg class="etiqueta-ico" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 5h16l-6 7.5V19l-4 1.5v-8z"/></svg>
+                        Filtros
+                    </span>
+                    <div class="control">
+                        <label class="rot-campo" for="f-edificio">Edificio</label>
+                        <select class={buildingSelectClass} id="f-edificio" name="buildingId" disabled={buildingsDisabled} onchange={handleFilterChange}>
+                            <template for:each={buildingOptions} for:item="opt">
+                                <option key={opt.value} value={opt.value} selected={opt.selected}>{opt.label}</option>
+                            </template>
+                        </select>
+                    </div>
+                    <div class="control">
+                        <label class="rot-campo" for="f-severidad">Severidad</label>
+                        <select class={severitySelectClass} id="f-severidad" name="severity" onchange={handleFilterChange}>
+                            <template for:each={severityOptions} for:item="opt">
+                                <option key={opt.value} value={opt.value} selected={opt.selected}>{opt.label}</option>
+                            </template>
+                        </select>
+                    </div>
+                    <template if:true={hasTypeOptions}>
+                        <div class="control">
+                            <label class="rot-campo" for="f-tipo">Tipo de activo</label>
+                            <select class={typeSelectClass} id="f-tipo" name="assetType" onchange={handleFilterChange}>
+                                <template for:each={typeOptions} for:item="opt">
+                                    <option key={opt.value} value={opt.value} selected={opt.selected}>{opt.label}</option>
+                                </template>
+                            </select>
+                        </div>
                     </template>
-                </select>
-                <label class="filtro-label" for="f-severidad">Severidad</label>
-                <select class="campo" id="f-severidad" name="severity" onchange={handleFilterChange}>
-                    <template for:each={severityOptions} for:item="opt">
-                        <option key={opt.value} value={opt.value} selected={opt.selected}>{opt.label}</option>
+                    <template if:true={filtersActive}>
+                        <button type="button" class="enlace enlace-limpiar" onclick={handleClearFilters}><span aria-hidden="true">&#10005;</span> Limpiar filtros</button>
                     </template>
-                </select>
-                <template if:true={hasTypeOptions}>
-                    <label class="filtro-label" for="f-tipo">Tipo de activo</label>
-                    <select class="campo" id="f-tipo" name="assetType" onchange={handleFilterChange}>
-                        <template for:each={typeOptions} for:item="opt">
-                            <option key={opt.value} value={opt.value} selected={opt.selected}>{opt.label}</option>
-                        </template>
-                    </select>
-                </template>
-                <template if:true={filtersActive}>
-                    <button type="button" class="boton secundario" onclick={handleClearFilters}>Limpiar filtros</button>
+                </div>
+                <template if:true={showList}>
+                    <template if:true={showTruncated}>
+                        <p class="aviso-truncado" role="status"><span aria-hidden="true">&#9650;</span> {truncatedText}</p>
+                    </template>
+                    <template if:false={showTruncated}>
+                        <p class="conteo-vista">Mostrando <b class="num">{viewShownCount}</b> de <b class="num">{viewTotalCount}</b> {viewCountNoun}</p>
+                    </template>
                 </template>
             </div>
             <template if:true={buildingsTruncated}>
@@ -160,71 +350,80 @@
 
         <!-- Empty: nothing visible to this user -->
         <template if:true={showEmptyNoData}>
-            <div class="estado-centro" role="status">
+            <div class="tarjeta estado-centro" role="status">
                 <div class="estado-icono vacio" aria-hidden="true">&#9633;</div>
                 <p class="estado-titulo">No hay activos para mostrar</p>
                 <p class="estado-texto">
                     Todavía no hay activos a los que tengas acceso, o aún no se ha cargado el catálogo.
                     Si esperabas ver activos, consulta con tu administrador.
                 </p>
-                <button type="button" class="boton secundario" onclick={handleRefresh}>Actualizar</button>
+                <button type="button" class="boton" onclick={handleRefresh}>Actualizar</button>
             </div>
         </template>
 
         <!-- Empty: filters exclude everything -->
         <template if:true={showEmptyNoMatch}>
-            <div class="estado-centro" role="status">
+            <div class="tarjeta estado-centro" role="status">
                 <div class="estado-icono vacio" aria-hidden="true">&#9633;</div>
                 <p class="estado-titulo">Ningún activo coincide con esos filtros</p>
-                <button type="button" class="boton secundario" onclick={handleClearFilters}>Limpiar filtros</button>
+                <button type="button" class="boton" onclick={handleClearFilters}>Limpiar filtros</button>
             </div>
         </template>
 
-        <template if:true={showTruncated}>
-            <p class="aviso-truncado" role="status"><span aria-hidden="true">&#9650;</span> {truncatedText}</p>
-        </template>
-
-        <!-- Screen 1: list -->
+        <!-- Screen 1: grid of asset cards -->
         <template if:true={showList}>
-            <div class="lista-activos">
+            <div class="cuadricula">
                 <template for:each={rows} for:item="row">
                     <article key={row.key} class={row.cardClass} data-id={row.assetId} onclick={handleViewAsset}>
-                        <div class="tipo-ico" aria-hidden="true">
-                            <template if:true={row.isPump}>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="7" y="11" width="10" height="8" rx="1.5"/><path d="M12 11V6M9 6h6"/><circle cx="12" cy="15.5" r="1.6" fill="currentColor" stroke="none"/></svg>
-                            </template>
-                            <template if:true={row.isVentilation}>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="2.2"/><path d="M12 4.5v3.2M12 16.3v3.2M4.5 12h3.2M16.3 12h3.2M6.4 6.4l2.3 2.3M15.3 15.3l2.3 2.3M17.6 6.4l-2.3 2.3M8.7 15.3l-2.3 2.3"/></svg>
-                            </template>
-                            <template if:true={row.isOtherType}>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 9h6v6H9z"/></svg>
-                            </template>
-                        </div>
-                        <div class="identidad">
-                            <div class="fila-estado">
+                        <div class="tarjeta-cuerpo">
+                            <div class="tarjeta-top">
+                                <div class="ident">
+                                    <div class="tipo-ico" aria-hidden="true">
+                                        <template if:true={row.isPump}>
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="7" y="11" width="10" height="8" rx="1.5"/><path d="M12 11V6M9 6h6"/><circle cx="12" cy="15.5" r="1.6" fill="currentColor" stroke="none"/></svg>
+                                        </template>
+                                        <template if:true={row.isVentilation}>
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="2.2"/><path d="M12 4.5v3.2M12 16.3v3.2M4.5 12h3.2M16.3 12h3.2M6.4 6.4l2.3 2.3M15.3 15.3l2.3 2.3M17.6 6.4l-2.3 2.3M8.7 15.3l-2.3 2.3"/></svg>
+                                        </template>
+                                        <template if:true={row.isOtherType}>
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 9h6v6H9z"/></svg>
+                                        </template>
+                                    </div>
+                                    <div class="ident-texto">
+                                        <template if:true={row.hasEyebrow}>
+                                            <span class="eyebrow">{row.eyebrow}</span>
+                                        </template>
+                                        <p class="nombre-activo">{row.name}</p>
+                                    </div>
+                                </div>
                                 <span class={row.sevClass}><span class="glifo" aria-hidden="true">{row.sevGlyph}</span> {row.sevLabel}</span>
-                                <template if:true={row.hasBuilding}>
-                                    <span class="edificio">{row.buildingName}</span>
-                                </template>
                             </div>
-                            <p class="nombre-activo">{row.name}</p>
-                            <p class="meta-activo">{row.metaText}</p>
-                            <p class={row.signalClass}>{row.signalText}</p>
-                        </div>
-                        <div class="cluster">
                             <div class="lectura-bloque">
                                 <template if:true={row.hasHeadline}>
-                                    <span class="lectura-valor">{row.headValue}</span>
-                                    <span class="lectura-tipo">{row.headMeasure}</span>
+                                    <span class="micro">{row.headLabel}</span>
+                                    <span class="lectura-valor num">{row.headValue}</span>
                                     <template if:true={row.hasMoreReadings}>
-                                        <span class="lectura-tipo">{row.moreReadingsText}</span>
+                                        <span class="lectura-mas">{row.moreReadingsText}</span>
                                     </template>
                                 </template>
                                 <template if:false={row.hasHeadline}>
-                                    <span class="lectura-tipo">Sin lecturas todavía</span>
+                                    <span class="micro">Lectura</span>
+                                    <span class="lectura-vacia">Sin lecturas todavía</span>
                                 </template>
                             </div>
-                            <button type="button" class={row.viewButtonClass} data-id={row.assetId} aria-label={row.viewLabel} onclick={handleViewAssetButton}>Ver activo</button>
+                            <template if:true={row.hasStatusRow}>
+                                <div class="tarjeta-estado">
+                                    <span class="num">{row.externalId}</span>
+                                    <span class="num">{row.headAge}</span>
+                                </div>
+                            </template>
+                            <template if:true={row.hasSignalWarning}>
+                                <p class={row.signalClass}><span class="aviso-glifo" aria-hidden="true">{row.signalGlyph}</span> {row.signalText}</p>
+                            </template>
+                        </div>
+                        <div class="tarjeta-pie">
+                            <button type="button" class="enlace" data-id={row.assetId} aria-label={row.viewLabel} onclick={handleViewAssetButton}>Ver activo</button>
+                            <button type="button" class="enlace" data-id={row.assetId} aria-label={row.openLabel} onclick={handleOpenAssetFromCard}>Abrir registro <span aria-hidden="true">&#8599;</span></button>
                         </div>
                     </article>
                 </template>
@@ -233,121 +432,154 @@
 
         <!-- Screen 2: asset detail -->
         <template if:true={showDetail}>
-            <div class="detalle-grid">
+            <div class="detalle">
                 <nav class="miga" aria-label="Ruta de navegación">
-                    <button type="button" class="enlace" onclick={handleBackToList}>Mis activos</button>
-                    <span aria-hidden="true"> &rsaquo; </span>
-                    <span aria-current="page">{selectedRow.name}</span>
-                    <button type="button" class="enlace enlace-der" data-id={selectedRow.assetId} onclick={handleOpenAsset}>Abrir registro del activo</button>
-                    <template if:true={caps.puedeVerLimites}>
-                        <button type="button" class="enlace enlace-der" onclick={handleOpenThresholds}>Ver límites</button>
-                    </template>
+                    <button type="button" class="enlace" onclick={handleBackToList}><span aria-hidden="true">&larr;</span> Mis activos</button>
+                    <span class="miga-sep" aria-hidden="true">/</span>
+                    <span class="miga-actual" aria-current="page">{selectedRow.name}</span>
+                    <span class="miga-der">
+                        <button type="button" class="enlace" data-id={selectedRow.assetId} aria-label="Abrir registro del activo" onclick={handleOpenAsset}>Abrir registro <span aria-hidden="true">&#8599;</span></button>
+                        <template if:true={caps.puedeVerLimites}>
+                            <button type="button" class="enlace" onclick={handleOpenThresholds}>Ver límites <span aria-hidden="true">&#8599;</span></button>
+                        </template>
+                    </span>
                 </nav>
 
                 <section class={selectedRow.heroClass} aria-label="Resumen del activo">
-                    <div class="tipo-ico" aria-hidden="true">
-                        <template if:true={selectedRow.isPump}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="7" y="11" width="10" height="8" rx="1.5"/><path d="M12 11V6M9 6h6"/><circle cx="12" cy="15.5" r="1.6" fill="currentColor" stroke="none"/></svg>
-                        </template>
-                        <template if:true={selectedRow.isVentilation}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="2.2"/><path d="M12 4.5v3.2M12 16.3v3.2M4.5 12h3.2M16.3 12h3.2M6.4 6.4l2.3 2.3M15.3 15.3l2.3 2.3M17.6 6.4l-2.3 2.3M8.7 15.3l-2.3 2.3"/></svg>
-                        </template>
-                        <template if:true={selectedRow.isOtherType}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 9h6v6H9z"/></svg>
-                        </template>
-                    </div>
-                    <div>
-                        <template if:true={selectedRow.hasTypeLabel}>
-                            <span class="hero-tipo">{selectedRow.typeLabel}</span>
-                        </template>
-                        <h2 class="hero-nombre" tabindex="-1" data-focus="detail">{selectedRow.name}</h2>
-                        <ul class="fichas">
-                            <template if:true={selectedRow.hasBuilding}>
-                                <li class="ficha"><b>Edificio</b> {selectedRow.buildingName}</li>
-                            </template>
-                            <template if:true={selectedRow.hasExternalId}>
-                                <li class="ficha"><b>ID</b> {selectedRow.externalId}</li>
-                            </template>
-                        </ul>
-                    </div>
-                    <span class={selectedRow.sevClass}><span class="glifo" aria-hidden="true">{selectedRow.sevGlyph}</span> {selectedRow.sevLabel}</span>
-                </section>
-
-                <div class="prio">
-                    <div class="prio-card">
-                        <span class="rot">Severidad del activo</span>
-                        <span class={selectedRow.sevValueClass}>{selectedRow.sevLabel}</span>
-                        <span class="sub">{selectedRow.sevSub}</span>
-                    </div>
-                    <div class="prio-card">
-                        <span class="rot">Última lectura</span>
-                        <template if:true={selectedRow.hasLast}>
-                            <span class="val">{selectedRow.lastValue}</span>
-                        </template>
-                        <template if:false={selectedRow.hasLast}>
-                            <span class="val val-nivel">—</span>
-                        </template>
-                        <span class="sub">{selectedRow.lastSub}</span>
-                        <span class="sub">{selectedRow.signalText}</span>
-                    </div>
-                </div>
-
-                <template if:true={selectedRow.hasIntervention}>
-                    <section class="card-intervencion" aria-label="Intervención en curso">
-                        <div>
-                            <span class="rot">Intervención · {selectedRow.caseStatus}</span>
-                            <p class="val">
-                                <button type="button" class="enlace-rojo" data-id={selectedRow.caseId} onclick={handleOpenCase}>Caso {selectedRow.caseNumber}</button>
-                            </p>
-                            <template if:true={selectedRow.hasCaseSubject}>
-                                <p>{selectedRow.caseSubject}</p>
-                            </template>
-                            <p>{selectedRow.caseAgeText}</p>
-                            <template if:true={selectedRow.hasMoreInterventions}>
-                                <p>{selectedRow.moreInterventionsText}</p>
-                            </template>
-                            <div class="acciones-form acciones-int">
-                                <template if:true={selectedRow.canFollow}>
-                                    <button type="button" class="boton secundario" data-mode="seguir" onclick={openForm}>Actualizar seguimiento</button>
+                    <div class="hero">
+                        <div class="hero-izq">
+                            <div class="tipo-ico tipo-ico-grande" aria-hidden="true">
+                                <template if:true={selectedRow.isPump}>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="7" y="11" width="10" height="8" rx="1.5"/><path d="M12 11V6M9 6h6"/><circle cx="12" cy="15.5" r="1.6" fill="currentColor" stroke="none"/></svg>
                                 </template>
-                                <template if:true={selectedRow.canCloseAll}>
-                                    <button type="button" class="boton secundario" data-mode="cerrar-todas" onclick={openForm}>{selectedRow.closeAllLabel}</button>
+                                <template if:true={selectedRow.isVentilation}>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="2.2"/><path d="M12 4.5v3.2M12 16.3v3.2M4.5 12h3.2M16.3 12h3.2M6.4 6.4l2.3 2.3M15.3 15.3l2.3 2.3M17.6 6.4l-2.3 2.3M8.7 15.3l-2.3 2.3"/></svg>
+                                </template>
+                                <template if:true={selectedRow.isOtherType}>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 9h6v6H9z"/></svg>
+                                </template>
+                            </div>
+                            <div class="hero-texto">
+                                <template if:true={selectedRow.hasEyebrow}>
+                                    <span class="eyebrow">{selectedRow.eyebrow}</span>
+                                </template>
+                                <h2 class="hero-nombre" tabindex="-1" data-focus="detail">{selectedRow.name}</h2>
+                                <template if:true={selectedRow.hasExternalId}>
+                                    <span class="hero-id num">{selectedRow.externalId}</span>
                                 </template>
                             </div>
                         </div>
-                    </section>
-                </template>
-                <template if:false={selectedRow.hasIntervention}>
-                    <section class="card-sin-int" aria-label="Intervención">
-                        <div>
-                            <span class="rot">Intervención</span>
-                            <p class="val">Ninguna abierta</p>
-                            <template if:true={selectedRow.hasLastClosed}>
-                                <p class="ultima-int">Última intervención: <button type="button" class="enlace" data-id={selectedRow.lastClosedCaseId} onclick={handleOpenCase}>Caso {selectedRow.lastClosedCaseNumber}</button>{selectedRow.lastClosedWhen}</p>
-                            </template>
-                            <p>{selectedRow.noInterventionText}</p>
-                            <template if:true={selectedRow.canCreate}>
-                                <button type="button" class="boton urgente" data-mode="crear" onclick={openForm}>{selectedRow.createLabel}</button>
-                            </template>
+                        <span class={selectedRow.sevClass}><span class="glifo" aria-hidden="true">{selectedRow.sevGlyph}</span> {selectedRow.sevLabel}</span>
+                    </div>
+                    <div class="franja">
+                        <div class="franja-celda">
+                            <span class="micro">Severidad del activo</span>
+                            <span class={selectedRow.sevValueClass}><span class="glifo" aria-hidden="true">{selectedRow.sevGlyph}</span> {selectedRow.sevLabel}</span>
+                            <span class="sub">{selectedRow.sevSub}</span>
                         </div>
-                    </section>
-                </template>
+                        <div class="franja-celda">
+                            <span class="micro">Última lectura</span>
+                            <template if:true={selectedRow.hasLast}>
+                                <span class="val num">{selectedRow.lastValue}</span>
+                            </template>
+                            <template if:false={selectedRow.hasLast}>
+                                <span class="val val-nivel">—</span>
+                            </template>
+                            <span class="sub">{selectedRow.lastSub}</span>
+                        </div>
+                        <div class="franja-celda">
+                            <span class="micro">Última señal</span>
+                            <span class={selectedRow.signalTextClass}>{selectedRow.signalText}</span>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="detalle-fila">
+                    <template if:true={showCurve}>
+                        <section class="tarjeta curva" aria-label="Valores recientes">
+                            <div class="tarjeta-cab">
+                                <h3 class="tarjeta-titulo">{curve.title}</h3>
+                                <span class="tarjeta-cab-nota num">{curve.countText}</span>
+                            </div>
+                            <div class="curva-cuerpo">
+                                <p class="solo-lectura">{curve.summary}</p>
+                                <svg class="curva-svg" viewBox="0 0 400 100" aria-hidden="true">
+                                    <polygon class="curva-relleno" points={curve.fillPoints}></polygon>
+                                    <polyline class="curva-linea" points={curve.linePoints}></polyline>
+                                    <circle class={curve.dotClass} cx={curve.dotX} cy={curve.dotY} r="4"></circle>
+                                </svg>
+                                <div class="curva-ejes num" aria-hidden="true">
+                                    <span>{curve.labelFirst}</span>
+                                    <span>{curve.labelMid}</span>
+                                    <span class="curva-ultima">{curve.labelLast}</span>
+                                </div>
+                            </div>
+                        </section>
+                    </template>
+
+                    <template if:true={selectedRow.hasIntervention}>
+                        <section class="tarjeta intervencion" aria-label="Intervención en curso">
+                            <div class="int-cab int-cab-abierta">
+                                <span><span aria-hidden="true">&#9679;</span> Intervención abierta</span>
+                                <span><span class="solo-lectura">Estado: </span>{selectedRow.caseStatus}</span>
+                            </div>
+                            <div class="int-cuerpo">
+                                <p class="int-caso">
+                                    <button type="button" class="enlace enlace-caso" data-id={selectedRow.caseId} onclick={handleOpenCase}>Caso {selectedRow.caseNumber} <span aria-hidden="true">&#8599;</span></button>
+                                </p>
+                                <template if:true={selectedRow.hasCaseSubject}>
+                                    <p>{selectedRow.caseSubject}</p>
+                                </template>
+                                <p class="int-sub">{selectedRow.caseAgeText}</p>
+                                <template if:true={selectedRow.hasMoreInterventions}>
+                                    <p class="int-sub">{selectedRow.moreInterventionsText}</p>
+                                </template>
+                                <div class="acciones-form acciones-int">
+                                    <template if:true={selectedRow.canFollow}>
+                                        <button type="button" class="boton" data-mode="seguir" onclick={openForm}>Actualizar seguimiento</button>
+                                    </template>
+                                    <template if:true={selectedRow.canCloseAll}>
+                                        <button type="button" class="boton" data-mode="cerrar-todas" onclick={openForm}>{selectedRow.closeAllLabel}</button>
+                                    </template>
+                                </div>
+                            </div>
+                        </section>
+                    </template>
+                    <template if:false={selectedRow.hasIntervention}>
+                        <section class="tarjeta intervencion" aria-label="Intervención">
+                            <div class="int-cab int-cab-ninguna">
+                                <span>Intervención · Ninguna abierta</span>
+                            </div>
+                            <div class="int-cuerpo">
+                                <template if:true={selectedRow.hasLastClosed}>
+                                    <p class="ultima-int">Última intervención: <button type="button" class="enlace" data-id={selectedRow.lastClosedCaseId} onclick={handleOpenCase}>Caso {selectedRow.lastClosedCaseNumber}</button>{selectedRow.lastClosedWhen}</p>
+                                </template>
+                                <p class="int-sub">{selectedRow.noInterventionText}</p>
+                                <template if:true={selectedRow.canCreate}>
+                                    <div class="acciones-form acciones-int">
+                                        <button type="button" class="boton primario" data-mode="crear" onclick={openForm}>{selectedRow.createLabel}</button>
+                                    </div>
+                                </template>
+                            </div>
+                        </section>
+                    </template>
+                </div>
 
                 <template if:true={formMode}>
-                    <section class="card-extra form-accion" aria-label="Acción sobre la intervención">
+                    <section class="tarjeta form-accion" aria-label="Acción sobre la intervención">
                         <template if:true={isCreating}>
-                            <h3>{selectedRow.createLabel}</h3>
+                            <h3 class="tarjeta-titulo">{selectedRow.createLabel}</h3>
                             <template if:true={selectedRow.hasLastClosed}>
                                 <p class="nota">{selectedRow.lastClosedSentence}</p>
                             </template>
-                            <label class="filtro-label" for="a-motivo">Motivo (obligatorio)</label>
+                            <label class="rot-campo" for="a-motivo">Motivo (obligatorio)</label>
                             <textarea class="campo campo-texto" id="a-motivo" maxlength="1000" rows="3" value={motivo} oninput={handleMotivo}></textarea>
                         </template>
                         <template if:true={isFollowing}>
-                            <h3>Actualizar seguimiento</h3>
+                            <h3 class="tarjeta-titulo">Actualizar seguimiento</h3>
                             <template if:true={hasFollowUpOptions}>
-                                <label class="filtro-label" for="a-estado">Estado</label>
-                                <select class="campo" id="a-estado" onchange={handleEstado}>
+                                <label class="rot-campo" for="a-estado">Estado</label>
+                                <select class="campo campo-form" id="a-estado" onchange={handleEstado}>
                                     <template for:each={followUpOptions} for:item="opt">
                                         <option key={opt.value} value={opt.value} selected={opt.selected}>{opt.label}</option>
                                     </template>
@@ -359,59 +591,62 @@
                             <template if:true={followUpUnavailable}>
                                 <p class="nota nota-error" role="alert">{followUpNote}</p>
                             </template>
-                            <label class="filtro-label" for="a-comentario">Comentario (opcional)</label>
+                            <label class="rot-campo" for="a-comentario">Comentario (opcional)</label>
                             <textarea class="campo campo-texto" id="a-comentario" maxlength="4000" rows="3" value={comentario} oninput={handleComentario}></textarea>
                         </template>
                         <template if:true={isClosingAll}>
-                            <h3>Cerrar todas las intervenciones abiertas</h3>
+                            <h3 class="tarjeta-titulo">Cerrar todas las intervenciones abiertas</h3>
                             <p class="nota">{selectedRow.closeAllWarning}</p>
-                            <label class="filtro-label" for="a-comentario-todas">Comentario (opcional)</label>
+                            <label class="rot-campo" for="a-comentario-todas">Comentario (opcional)</label>
                             <textarea class="campo campo-texto" id="a-comentario-todas" maxlength="4000" rows="3" value={comentario} oninput={handleComentario}></textarea>
                         </template>
                         <template if:true={showActionError}>
                             <p class="nota nota-error" role="alert">{actionError}</p>
                         </template>
                         <div class="acciones-form">
-                            <button type="button" class="boton urgente" disabled={saveDisabled} onclick={handleSaveForm}>{saveLabel}</button>
-                            <button type="button" class="boton secundario" disabled={isSaving} onclick={closeForm}>Cancelar</button>
+                            <button type="button" class="boton primario" disabled={saveDisabled} onclick={handleSaveForm}>{saveLabel}</button>
+                            <button type="button" class="boton" disabled={isSaving} onclick={closeForm}>Cancelar</button>
                         </div>
                     </section>
                 </template>
 
                 <p class="extra-label">Más información</p>
-                <section class="card-extra">
-                    <h3>Lectura vigente por tipo</h3>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th scope="col">Medición</th>
-                                <th scope="col">Valor</th>
-                                <th scope="col">Severidad</th>
-                                <th scope="col">Antigüedad</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template for:each={selectedRow.tableRows} for:item="t">
-                                <tr key={t.key}>
-                                    <td class="celda-fuerte">{t.measurementLabel}</td>
-                                    <template if:true={t.hasReading}>
-                                        <td class="num">{t.valueText}</td>
-                                        <td><span class={t.sevClass}><span class="glifo" aria-hidden="true">{t.sevGlyph}</span> {t.sevLabel}</span></td>
-                                        <td class="num">{t.ageText}</td>
-                                    </template>
-                                    <template if:false={t.hasReading}>
-                                        <td class="celda-sub">Sin lecturas</td>
-                                        <td class="celda-sub">—</td>
-                                        <td class="celda-sub">—</td>
-                                    </template>
+                <section class="tarjeta">
+                    <div class="tarjeta-cab">
+                        <h3 class="tarjeta-titulo">Lectura vigente por tipo</h3>
+                    </div>
+                    <div class="tabla-desliza">
+                        <table class="tabla">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Medición</th>
+                                    <th scope="col">Valor</th>
+                                    <th scope="col">Severidad</th>
+                                    <th scope="col">Antigüedad</th>
                                 </tr>
-                            </template>
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                <template for:each={selectedRow.tableRows} for:item="t">
+                                    <tr key={t.key}>
+                                        <td class="celda-fuerte">{t.measurementLabel}</td>
+                                        <template if:true={t.hasReading}>
+                                            <td class="num fuerte">{t.valueText}</td>
+                                            <td><span class={t.sevClass}><span class="glifo" aria-hidden="true">{t.sevGlyph}</span> {t.sevLabel}</span></td>
+                                            <td class="num">{t.ageText}</td>
+                                        </template>
+                                        <template if:false={t.hasReading}>
+                                            <td class="celda-sub">Sin lecturas</td>
+                                            <td class="celda-sub">—</td>
+                                            <td class="celda-sub">—</td>
+                                        </template>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
                 </section>
 
-                <section class="card-extra" aria-label="Historial de señales">
-                    <h3>Historial de señales</h3>
+                <section class="historial" aria-label="Historial de señales">
                     <c-nova-casa-historial-senales asset-id={selectedAssetId}></c-nova-casa-historial-senales>
                 </section>
             </div>

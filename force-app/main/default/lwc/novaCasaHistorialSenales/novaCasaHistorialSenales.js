@@ -4,13 +4,30 @@ import { SIGNAL_TYPE_LABELS, MEASUREMENT_LABELS, UNIT_LABELS, reduceError } from
 
 const HISTORY_LIMIT = 20;
 const EVIDENCE_RESULTS = ['Atrasada', 'Superada', 'Conflicto'];
+const REJECTED = 'Rechazada';
 const ALL = 'Todas';
+// Shown after the bold result name ("Conflicto: …").
 const RESULT_HELP = {
     Conflicto:
-        'Conflicto: llegó un mensaje con la misma identidad que otro ya recibido, pero con contenido distinto. Se guarda como evidencia; no cambia el estado del activo ni abre una intervención.',
-    Duplicada:
-        'Duplicada: llegó el mismo mensaje otra vez. No cambia el estado del activo ni abre una intervención.'
+        'llegó un mensaje con la misma identidad que otro ya recibido, pero con contenido distinto. Se guarda como evidencia; no cambia el estado del activo ni abre una intervención.',
+    Duplicada: 'llegó el mismo mensaje otra vez. No cambia el estado del activo ni abre una intervención.'
 };
+// Log_Senial__c.Resultado__c: a symbol always goes with the color. Unknown values use RESULT_UI_OTHER with the raw text.
+const RESULT_UI = {
+    Procesada: { glyph: '✓', tone: 'ok' },
+    Conflicto: { glyph: '≠', tone: 'adv' },
+    Rechazada: { glyph: '✕', tone: 'adv' },
+    Atrasada: { glyph: '↺', tone: 'ev' },
+    Superada: { glyph: '↺', tone: 'ev' },
+    Fallida: { glyph: '!', tone: 'fallo' },
+    Publicada: { glyph: '…', tone: 'pub' },
+    Duplicada: { glyph: '=', tone: 'ev' }
+};
+const RESULT_UI_OTHER = { glyph: '•', tone: 'ev' };
+
+function resultUi(resultado) {
+    return RESULT_UI[resultado] || RESULT_UI_OTHER;
+}
 
 function formatUtcDateTime(value) {
     const ms = value ? new Date(value).getTime() : NaN;
@@ -68,17 +85,33 @@ export default class NovaCasaHistorialSenales extends LightningElement {
     }
     get historyRows() {
         const signals = this.historyData?.signals || [];
-        return signals.map((s, i) => ({
-            key: `${i}-${s.occurredAt}`,
-            typeLabel: SIGNAL_TYPE_LABELS[s.messageType] || s.messageType || '—',
-            measurementLabel: s.measurementType ? MEASUREMENT_LABELS[s.measurementType] || s.measurementType : '—',
-            valueText: formatValue(s.value, s.unit),
-            occurredText: formatUtcDateTime(s.occurredAt),
-            resultado: s.resultado || '—',
+        return signals.map((s, i) => {
+            const resultado = s.resultado || '—';
+            const ui = resultUi(s.resultado);
             // Evidence only: these never change the asset's current state. Tagged with text, not color alone.
-            isEvidence: EVIDENCE_RESULTS.includes(s.resultado),
-            rowClass: EVIDENCE_RESULTS.includes(s.resultado) ? 'fila-evidencia' : ''
-        }));
+            const isEvidence = EVIDENCE_RESULTS.includes(s.resultado);
+            const isRejected = s.resultado === REJECTED;
+            let tagText = '';
+            if (isEvidence) {
+                tagText = 'solo evidencia';
+            } else if (isRejected) {
+                tagText = 'no aceptada';
+            }
+            return {
+                key: `${i}-${s.occurredAt}`,
+                typeLabel: SIGNAL_TYPE_LABELS[s.messageType] || s.messageType || '—',
+                measurementLabel: s.measurementType ? MEASUREMENT_LABELS[s.measurementType] || s.measurementType : '—',
+                valueText: formatValue(s.value, s.unit),
+                valueClass: s.resultado === 'Procesada' ? 'num fuerte' : 'num',
+                occurredText: formatUtcDateTime(s.occurredAt),
+                resultado,
+                resultGlyph: ui.glyph,
+                resultClass: `res res-${ui.tone}`,
+                tagText,
+                hasTag: Boolean(tagText),
+                rowClass: isEvidence || isRejected ? 'fila-evidencia' : ''
+            };
+        });
     }
     // Counts per result over the loaded rows, so a run of identical results cannot hide the rest.
     get resultChips() {
@@ -91,9 +124,11 @@ export default class NovaCasaHistorialSenales extends LightningElement {
             return {
                 ...c,
                 key: c.value,
-                label: `${c.value} ${c.count}`,
+                label: c.value,
+                hasDot: c.value !== ALL,
+                dotClass: `punto punto-${resultUi(c.value).tone}`,
                 pressed: String(pressed),
-                chipClass: pressed ? 'chip chip-activo' : 'chip'
+                chipClass: pressed ? 'filtro filtro-activo' : 'filtro'
             };
         });
     }
@@ -112,7 +147,7 @@ export default class NovaCasaHistorialSenales extends LightningElement {
         const present = new Set(this.historyRows.map((r) => r.resultado));
         return Object.keys(RESULT_HELP)
             .filter((k) => present.has(k))
-            .map((k) => ({ key: k, text: RESULT_HELP[k] }));
+            .map((k) => ({ key: k, term: k, text: RESULT_HELP[k] }));
     }
     get hasHelp() {
         return this.helpTexts.length > 0;

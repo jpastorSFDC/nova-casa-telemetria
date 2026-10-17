@@ -1,54 +1,63 @@
+/* Same D041 tokens as novaCasaActivosOperador, scoped to this component. */
 :host {
-    --nc-tinta: #12141a;
-    --nc-tinta-media: #5c6470;
-    --nc-linea: #d8dee8;
+    display: block;
+    --nc-tinta: #0f172a;
+    --nc-tinta-media: #475569;
+    --nc-tinta-suave: #94a3b8;
+    --nc-linea: #cbd5e1;
+    --nc-linea-suave: #e2e8f0;
+    --nc-superficie: #f8fafc;
+    --nc-mono: ui-monospace, Menlo, Consolas, "Courier New", monospace;
+    --nc-primario: #0176d3;
     --nc-critico: #e11d48;
-    --nc-info: #2563eb;
+    --nc-critico-texto: #be123c;
     color: var(--nc-tinta);
+    font-size: 13px;
+    line-height: 1.4;
 }
 :focus-visible {
-    outline: 3px solid var(--nc-info);
+    outline: 3px solid var(--nc-primario);
     outline-offset: 2px;
 }
-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.85rem;
+
+.tarjeta {
+    background: #fff;
+    border: 1px solid var(--nc-linea);
+    border-radius: 8px;
+    overflow: hidden;
 }
-th {
-    text-align: left;
-    font-size: 0.7rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--nc-tinta-media);
-    padding: 0.35rem 0.5rem;
-    border-bottom: 1px solid var(--nc-linea);
+.cab {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 12px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--nc-linea-suave);
 }
-td {
-    padding: 0.4rem 0.5rem;
-    border-bottom: 1px solid var(--nc-linea);
-}
-.celda-fuerte {
+.titulo {
+    margin: 0;
+    font-size: 14px;
     font-weight: 700;
 }
+.cuerpo {
+    padding: 10px 14px;
+}
 .num {
+    font-family: var(--nc-mono);
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
 }
-.celda-sub {
-    color: var(--nc-tinta-media);
-    font-size: 0.8rem;
-}
-.fila-evidencia {
-    color: var(--nc-tinta-media);
+.fuerte {
+    font-weight: 700;
 }
 .nota {
-    margin: 0.5rem 0 0;
-    font-size: 0.8rem;
+    margin: 0;
+    font-size: 12px;
     color: var(--nc-tinta-media);
 }
 .nota-error {
-    color: var(--nc-critico);
+    color: var(--nc-critico-texto);
     font-weight: 700;
 }
 .solo-lectores {
@@ -60,25 +69,175 @@ td {
     white-space: nowrap;
 }
 
+/* Result filter: one button per result present, with its count */
 .resumen {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.4rem;
-    margin: 0 0 0.25rem;
+    gap: 6px;
 }
-.chip {
-    font: inherit;
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--nc-tinta);
+.filtro {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 26px;
+    padding: 0 10px;
+    border-radius: 4px;
+    border: 1px solid var(--nc-linea);
     background: #fff;
-    border: 1px solid var(--nc-tinta-media);
-    border-radius: 999px;
-    padding: 0.2rem 0.7rem;
+    color: #334155;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
     cursor: pointer;
 }
-.chip-activo {
-    background: var(--nc-tinta);
-    border-color: var(--nc-tinta);
+.filtro .cuenta {
+    font-size: 11px;
+    color: var(--nc-tinta-media);
+}
+.filtro-activo {
+    background: var(--nc-primario);
+    border-color: var(--nc-primario);
     color: #fff;
+}
+.filtro-activo .cuenta {
+    color: #e8f2fc;
+}
+.punto {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #64748b;
+}
+.punto-ok {
+    background: #16a34a;
+}
+.punto-adv {
+    background: #d97706;
+}
+.punto-fallo {
+    background: var(--nc-critico);
+}
+.punto-pub {
+    background: var(--nc-primario);
+}
+
+/* Table */
+.tabla-desliza {
+    overflow-x: auto;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+th {
+    height: 32px;
+    padding: 0 14px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--nc-tinta-media);
+    background: var(--nc-superficie);
+    border-bottom: 1px solid var(--nc-linea);
+    white-space: nowrap;
+}
+td {
+    height: 36px;
+    padding: 4px 14px;
+    border-bottom: 1px solid var(--nc-linea-suave);
+    vertical-align: middle;
+}
+tbody tr:last-child td {
+    border-bottom: 0;
+}
+.fila-evidencia td {
+    color: #64748b;
+}
+.celda-resultado {
+    white-space: nowrap;
+}
+
+/* Result pill: symbol + text, never color alone */
+.res {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 20px;
+    padding: 0 9px;
+    border-radius: 999px;
+    border: 1px solid #cbd5e1;
+    background: #f1f5f9;
+    color: var(--nc-tinta-media);
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.res-ok {
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+    color: #15803d;
+}
+.res-adv {
+    background: #fef3c7;
+    border-color: #fde68a;
+    color: #b45309;
+}
+.res-fallo {
+    background: #fff;
+    border-color: var(--nc-critico);
+    color: var(--nc-critico-texto);
+}
+.res-pub {
+    background: #e8f2fc;
+    border-color: #b9d8f5;
+    color: #014486;
+}
+.etiqueta {
+    margin-left: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #64748b;
+}
+.leyenda .etiqueta {
+    margin-left: 0;
+}
+
+/* Help for Conflicto / Duplicada, only when present */
+.ayuda {
+    margin: 0;
+    padding: 8px 14px;
+    font-size: 12px;
+    color: #92400e;
+    background: #fffbeb;
+    border-top: 1px solid #fde68a;
+}
+
+.pie {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px 16px;
+    padding: 10px 14px;
+    background: var(--nc-superficie);
+    border-top: 1px solid var(--nc-linea-suave);
+    font-size: 12px;
+    color: var(--nc-tinta-media);
+}
+.leyenda {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    margin: 0;
+    line-height: 24px;
+}
+.sep {
+    color: var(--nc-tinta-suave);
+}
+.pie-der {
+    text-align: right;
 }
