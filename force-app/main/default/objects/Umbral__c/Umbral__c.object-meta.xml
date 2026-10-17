@@ -2,7 +2,7 @@
 <CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
     <compactLayoutAssignment>Nova_Casa_Umbral</compactLayoutAssignment>
     <deploymentStatus>Deployed</deploymentStatus>
-    <description>Límites de clasificación por tipo de activo y tipo de medición, administrables sin redesplegar código (BR-204). Una fila por límite: si el valor cumple Operador y Valor, la señal toma la Severidad de la fila.</description>
+    <description>Classification limits per asset type and measurement type, manageable without redeploying code (BR-204). One row per limit: if the value meets Operador and Valor, the signal takes the row's Severidad.</description>
     <enableActivities>false</enableActivities>
     <enableHistory>true</enableHistory>
     <enableReports>true</enableReports>

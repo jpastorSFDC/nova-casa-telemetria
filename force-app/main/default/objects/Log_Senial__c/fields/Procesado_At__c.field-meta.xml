@@ -2,6 +2,6 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Procesado_At__c</fullName>
     <label>Procesado en</label>
-    <description>Momento en que el suscriptor procesó la señal.</description>
+    <description>Moment the subscriber processed the signal.</description>
     <type>DateTime</type>
 </CustomField>
