@@ -2,7 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Message_Id__c</fullName>
     <label>messageId</label>
-    <description>messageId. Con Source__c forma la identidad de la señal.</description>
+    <description>messageId. With Source__c it forms the signal's identity.</description>
     <type>Text</type>
     <length>80</length>
     <required>false</required>

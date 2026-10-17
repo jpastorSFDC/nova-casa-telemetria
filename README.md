@@ -41,6 +41,12 @@ Each fact has one home. Other files link to it instead of repeating it.
 
 If a new doc would repeat MDSS content in different words, it doesn't get added — quote the verbatim instead.
 
+**Language.** Everything we write is in English: docs, decisions, commits, PRs. The exceptions are the MDSS source (`Sprint 2 - Nova Casa.md`, `docs/br-201-210.md`), which stays verbatim in Spanish, and the approved `entregables/`, which we don't edit (see D014 for the points later decisions have superseded).
+
+**Backlog and board.** Task-level status lives outside the repo: the Slack list "Nova Casa Sprint 2 · Backlog MVP" in `#novacasa_sprint_2`, and the story cards on the MDSS board (see the "Board and backlog" section of [CONTRIBUTING.md](CONTRIBUTING.md#board-and-backlog)).
+
+**Searching.** Agent worktrees under `.claude/worktrees/` hold full copies of every doc. Exclude them when searching, e.g. `rg PATTERN --glob '!.claude/worktrees'`.
+
 ## How we work
 
 - **Contributing**: branches, commits, PRs and deploys follow [CONTRIBUTING.md](CONTRIBUTING.md), the same rules for us and for agents. Short version: one branch per story (`feat/us-201-receive-signals`), Conventional Commits in English, a PR approved by the other person, merged with squash.

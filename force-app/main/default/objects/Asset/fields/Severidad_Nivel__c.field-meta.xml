@@ -2,7 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Severidad_Nivel__c</fullName>
     <label>Severidad (nivel)</label>
-    <description>Máxima severidad de las lecturas vigentes del activo (acuerdo Discovery). Roll-Up MAX sobre Lectura_Vigente__c.</description>
+    <description>Highest severity among the asset's current readings (Discovery agreement). Roll-Up MAX over Lectura_Vigente__c.</description>
     <type>Summary</type>
     <summarizedField>Lectura_Vigente__c.Severidad_Nivel__c</summarizedField>
     <summaryForeignKey>Lectura_Vigente__c.Asset__c</summaryForeignKey>
