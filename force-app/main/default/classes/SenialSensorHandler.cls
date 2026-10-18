@@ -2,7 +2,8 @@
  * Clasifica cada Senial_Sensor__e contra los Umbral__c activos, elige una ganadora por activo + tipo
  * de medición con el desempate de D003 y persiste el resultado: Log_Senial__c (una fila por identidad
  * source + messageId), Lectura_Vigente__c (una fila por activo + medición) y, para las críticas
- * ganadoras, una intervención vía IntervencionService (D010, D011).
+ * ganadoras, el enlace a la intervención abierta de su activo, que IntervencionService abre si no hay ninguna
+ * y actualiza si la crítica es más reciente (D039, D011).
  *
  * Un fallo en un evento nunca debe tumbar el lote: una excepción no capturada en el trigger de un Platform
  * Event descarta los hasta 200 eventos entregados. Por eso el trabajo por evento y cada DML van protegidos.
@@ -402,7 +403,8 @@ public without sharing class SenialSensorHandler {
             ganadoras.add(mejor);
         }
 
-        // Una sola llamada por lote. Sin Case no hay lectura crítica (T5.16).
+        // Una sola llamada por lote: cada crítica ganadora se enlaza a la intervención abierta de su activo o la abre (D039).
+        // Sin Case no hay lectura crítica (T5.16).
         List<IntervencionService.Solicitud> solicitudes = new List<IntervencionService.Solicitud>();
         IntervencionService.Resultado casos = new IntervencionService.Resultado();
         for (Clasificacion ganadora : ganadoras) {
@@ -421,6 +423,9 @@ public without sharing class SenialSensorHandler {
             solicitud.codigoActivo = activo.External_Id__c;
             solicitud.tipoMedicion = ganadora.medicion;
             solicitud.causa = ganadora.motivo;
+            solicitud.occurredAt = ganadora.occurredAt;
+            solicitud.valor = ganadora.valor;
+            solicitud.unidad = ganadora.unidad;
             solicitudes.add(solicitud);
         }
         abrirCasos(solicitudes, casos);
@@ -434,7 +439,7 @@ public without sharing class SenialSensorHandler {
                 if (casoId == null || casos.errorPorIdentidad.containsKey(ganadora.identidad)) {
                     // Detalle del error solo a depuración: puede venir del DML (ver IntervencionService).
                     System.debug(LoggingLevel.WARN, 'Sin intervención para ' + ganadora.identidad);
-                    registrar(ganadora, fila, FALLIDA, 'No se pudo abrir la intervención; la lectura no se aplicó');
+                    registrar(ganadora, fila, FALLIDA, 'No se pudo abrir ni actualizar la intervención; la lectura no se aplicó');
                     continue;
                 }
                 fila.Caso__c = casoId;
@@ -471,7 +476,8 @@ public without sharing class SenialSensorHandler {
             destino.casoPorIdentidad.putAll(abiertos.casoPorIdentidad);
             destino.errorPorIdentidad.putAll(abiertos.errorPorIdentidad);
         } catch (Exception e) {
-            // Puede haber Cases ya creados: el reintento los reutiliza por identidad (D011). Aquí todas quedan sin Case.
+            // Puede haber Cases ya creados o actualizados: en el reintento, la identidad que abrió un Case lo recupera por
+            // Identidad_Senal__c (D011) y las demás se enlazan a la intervención abierta del activo (D039). Aquí todas quedan sin Case.
             erroresInesperados++;
             System.debug(LoggingLevel.ERROR, 'IntervencionService.abrir lanzó ' + e.getTypeName());
             for (IntervencionService.Solicitud solicitud : solicitudes) {

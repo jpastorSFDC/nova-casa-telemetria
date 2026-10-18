@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Ultima_Critica_Medicion__c</fullName>
+    <label>Última crítica: medición</label>
+    <description>Medición (measurementType) de la señal crítica más reciente vinculada a esta intervención de telemetría (D039). La escribe IntervencionService al abrir el Case y cada vez que llega una señal crítica más reciente del mismo activo mientras el Case sigue abierto. Queda vacía en las intervenciones manuales (Origin = Operador).</description>
+    <inlineHelpText>Medición de la señal crítica más reciente de este activo mientras la intervención sigue abierta. Se llena sola.</inlineHelpText>
+    <type>Text</type>
+    <length>60</length>
+</CustomField>

@@ -3,12 +3,19 @@ private class PermisosProcesamientoTest {
     private static final String CONJUNTO = 'Nova_Casa_Procesamiento';
     private static final String FUENTE = 'nova-casa-simulator';
     private static final String OCURRIDO = '2026-09-30T16:45:21.262Z';
+    // Sin milisegundos: se compara con Case.Ultima_Critica_At__c.
+    private static final String MAS_RECIENTE = '2026-09-30T16:50:00.000Z';
     private static final String SALA = 'AST-BOG-TEMP-001';
     private static final String SALA_2 = 'AST-BOG-TEMP-002';
     private static final String ROL_INTEGRACION = 'Integracion_Telemetria';
     private static final String ROL_OPERADOR = 'Operador_Edificios';
     private static final String ROL_COORDINADOR = 'Coordinador_Mantenimiento';
     private static final String ROL_GERENTE = 'Gerente_Regional_Operaciones';
+    // D039: campos de la última crítica que la pantalla muestra. Ultima_Critica_Identidad__c es técnica (BR-208).
+    private static final List<String> CAMPOS_VISIBLES_ULTIMA_CRITICA = new List<String>{
+        'Case.Ultima_Critica_At__c', 'Case.Ultima_Critica_Medicion__c', 'Case.Ultima_Critica_Unidad__c', 'Case.Ultima_Critica_Valor__c'
+    };
+    private static final String CAMPO_IDENTIDAD_ULTIMA_CRITICA = 'Case.Ultima_Critica_Identidad__c';
 
     @TestSetup
     static void crearCatalogoYUmbrales() {
@@ -76,22 +83,76 @@ private class PermisosProcesamientoTest {
                 medicion('msg_prm_normal', SALA, '25'),
                 medicion('msg_prm_critica', SALA_2, '36')
             });
+            // Crítica más reciente del mismo activo (D039): enlaza el Case abierto y actualiza su última crítica.
+            new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_prm_nueva', SALA_2, '38', MAS_RECIENTE) });
         }
         Test.stopTest();
 
         Log_Senial__c normal = filaLog(FUENTE + '|msg_prm_normal');
         Log_Senial__c critica = filaLog(FUENTE + '|msg_prm_critica');
+        Log_Senial__c nueva = filaLog(FUENTE + '|msg_prm_nueva');
         Assert.areEqual('Procesada', normal.Resultado__c, 'La señal normal debe quedar Procesada sin permisos de operador: ' + normal.Motivo__c);
         Assert.areEqual('Procesada', critica.Resultado__c, 'La señal crítica debe quedar Procesada sin permisos de operador: ' + critica.Motivo__c);
+        Assert.areEqual('Procesada', nueva.Resultado__c, 'La crítica más reciente debe quedar Procesada sin permisos de operador: ' + nueva.Motivo__c);
         Assert.isNull(normal.Caso__c, 'Una señal normal no abre intervención');
         Assert.isNotNull(critica.Caso__c, 'La señal crítica debe enlazar su Case');
 
-        List<Case> casos = [SELECT Id, Origin, Priority FROM Case];
-        Assert.areEqual(1, casos.size(), 'Exactamente un Case para el mensaje crítico');
+        List<Case> casos = [
+            SELECT Id, Origin, Priority, Identidad_Senal__c, Ultima_Critica_Identidad__c, Ultima_Critica_Medicion__c,
+                Ultima_Critica_Valor__c, Ultima_Critica_Unidad__c, Ultima_Critica_At__c
+            FROM Case
+        ];
+        Assert.areEqual(1, casos.size(), 'Exactamente un Case: la segunda crítica del activo no abre otro (D039)');
         Assert.areEqual('Telemetria', casos[0].Origin, 'Origen del Case');
         Assert.areEqual('Critica', casos[0].Priority, 'Prioridad del Case');
         Assert.areEqual(casos[0].Id, critica.Caso__c, 'El log crítico enlaza el Case abierto');
+        Assert.areEqual(casos[0].Id, nueva.Caso__c, 'La crítica más reciente enlaza el mismo Case');
+        Assert.areEqual(FUENTE + '|msg_prm_critica', casos[0].Identidad_Senal__c, 'El Case conserva la identidad que lo abrió');
+        Assert.areEqual(FUENTE + '|msg_prm_nueva', casos[0].Ultima_Critica_Identidad__c, 'La ingesta escribe la última crítica sin permisos de operador');
+        Assert.areEqual('TEMPERATURE', casos[0].Ultima_Critica_Medicion__c, 'Medición de la última crítica');
+        Assert.areEqual(38, casos[0].Ultima_Critica_Valor__c, 'Valor de la última crítica');
+        Assert.areEqual('CELSIUS', casos[0].Ultima_Critica_Unidad__c, 'Unidad de la última crítica');
+        Assert.areEqual(Datetime.newInstanceGmt(2026, 9, 30, 16, 50, 0), casos[0].Ultima_Critica_At__c, 'occurredAt de la última crítica');
         Assert.areEqual(2, [SELECT COUNT() FROM Lectura_Vigente__c], 'Se escribe una lectura vigente por activo');
+    }
+
+    @IsTest
+    static void elConjuntoDeProcesamientoLeeYEditaLosCamposDeUltimaCritica() {
+        Map<String, FieldPermissions> porCampo = permisosDeCampoDeCase(CONJUNTO);
+        List<String> campos = new List<String>(CAMPOS_VISIBLES_ULTIMA_CRITICA);
+        campos.add(CAMPO_IDENTIDAD_ULTIMA_CRITICA);
+        for (String campo : campos) {
+            Assert.isTrue(porCampo.containsKey(campo), 'Falta la FLS de ' + campo + ' en ' + CONJUNTO);
+            Assert.isTrue(porCampo.get(campo).PermissionsRead, 'Falta Read sobre ' + campo + ' en ' + CONJUNTO);
+            Assert.isTrue(porCampo.get(campo).PermissionsEdit, 'Falta Edit sobre ' + campo + ' en ' + CONJUNTO + ': la ingesta lo escribe (D017)');
+        }
+    }
+
+    @IsTest
+    static void losConjuntosDeLaPantallaSoloLeenLaUltimaCriticaYNoVenSuIdentidad() {
+        for (String conjunto : new List<String>{ 'Nova_Casa_Operator', 'Nova_Casa_Coordinator', 'Nova_Casa_Gerente' }) {
+            Map<String, FieldPermissions> porCampo = permisosDeCampoDeCase(conjunto);
+            for (String campo : CAMPOS_VISIBLES_ULTIMA_CRITICA) {
+                Assert.isTrue(porCampo.containsKey(campo), 'Falta la FLS de ' + campo + ' en ' + conjunto);
+                Assert.isTrue(porCampo.get(campo).PermissionsRead, 'Falta Read sobre ' + campo + ' en ' + conjunto);
+                Assert.isFalse(porCampo.get(campo).PermissionsEdit, conjunto + ' no debe editar ' + campo + ': solo lo escribe la ingesta');
+            }
+            Assert.isFalse(porCampo.containsKey(CAMPO_IDENTIDAD_ULTIMA_CRITICA),
+                conjunto + ' no debe tener FLS sobre ' + CAMPO_IDENTIDAD_ULTIMA_CRITICA + ': es técnica (BR-208)');
+        }
+    }
+
+    @IsTest
+    static void elAdminLeeLosCamposDeUltimaCriticaSinPoderEditarlos() {
+        // El admin tiene Modify All sobre Case: solo la FLS le impide cambiar la última crítica y alterar la comparación D003.
+        Map<String, FieldPermissions> porCampo = permisosDeCampoDeCase('Nova_Casa_Admin');
+        List<String> campos = new List<String>(CAMPOS_VISIBLES_ULTIMA_CRITICA);
+        campos.add(CAMPO_IDENTIDAD_ULTIMA_CRITICA);
+        for (String campo : campos) {
+            Assert.isTrue(porCampo.containsKey(campo), 'Falta la FLS de ' + campo + ' en Nova_Casa_Admin');
+            Assert.isTrue(porCampo.get(campo).PermissionsRead, 'Falta Read sobre ' + campo + ' en Nova_Casa_Admin');
+            Assert.isFalse(porCampo.get(campo).PermissionsEdit, 'Nova_Casa_Admin no debe editar ' + campo + ': solo lo escribe la ingesta');
+        }
     }
 
     @IsTest
@@ -163,9 +224,26 @@ private class PermisosProcesamientoTest {
     }
 
     private static Senial_Sensor__e medicion(String messageId, String assetId, String valor) {
+        return medicion(messageId, assetId, valor, OCURRIDO);
+    }
+
+    private static Senial_Sensor__e medicion(String messageId, String assetId, String valor, String occurredAt) {
         return new Senial_Sensor__e(Source__c = FUENTE, Message_Id__c = messageId, Message_Type__c = 'MEASUREMENT', Asset_Type__c = 'TECHNICAL_ROOM',
             Asset_Id__c = assetId, Sensor_Id__c = 'SNS-1', Measurement_Type__c = 'TEMPERATURE', Value__c = valor, Unit__c = 'CELSIUS',
-            Occurred_At__c = OCURRIDO, Delivery_Id__c = 'dlv_1');
+            Occurred_At__c = occurredAt, Delivery_Id__c = 'dlv_1');
+    }
+
+    private static Map<String, FieldPermissions> permisosDeCampoDeCase(String conjunto) {
+        List<PermissionSet> conjuntos = [SELECT Id FROM PermissionSet WHERE Name = :conjunto];
+        Assert.areEqual(1, conjuntos.size(), 'Debe existir el permission set ' + conjunto);
+        Map<String, FieldPermissions> porCampo = new Map<String, FieldPermissions>();
+        for (FieldPermissions permiso : [
+            SELECT Field, PermissionsRead, PermissionsEdit FROM FieldPermissions
+            WHERE ParentId = :conjuntos[0].Id AND SobjectType = 'Case'
+        ]) {
+            porCampo.put(permiso.Field, permiso);
+        }
+        return porCampo;
     }
 
     private static Umbral__c umbralDeTemperatura(String operador, Decimal valor, String severidad) {
