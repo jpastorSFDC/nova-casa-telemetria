@@ -11,6 +11,11 @@ function formatValue(value, unit) {
     return unit ? `${number} ${unit}` : number;
 }
 
+// Whether an origin time falls on the browser's current calendar day (then only the UTC time is shown).
+function isSameLocalDay(ms, nowMs) {
+    return new Date(ms).toDateString() === new Date(nowMs).toDateString();
+}
+
 // Read-only state of an asset (Asset record page). Everything comes from the server with the user's own access.
 export default class NovaCasaActivoEstado extends NavigationMixin(LightningElement) {
     @api recordId;
@@ -80,12 +85,16 @@ export default class NovaCasaActivoEstado extends NavigationMixin(LightningEleme
         const nowMs = Date.now();
         return list.map((r) => {
             const ui = severityUi(r.severityLevel);
-            const age = relativeAge(r.occurredAt ? new Date(r.occurredAt).getTime() : NaN, nowMs);
+            const ms = r.occurredAt ? new Date(r.occurredAt).getTime() : NaN;
+            const age = relativeAge(ms, nowMs);
+            const today = !Number.isNaN(ms) && isSameLocalDay(ms, nowMs);
             return {
                 key: r.measurementType,
                 label: MEASUREMENT_LABELS[r.measurementType] || r.measurementType,
                 valueText: formatValue(r.value, r.unit),
                 occurredAt: r.occurredAt,
+                isToday: today,
+                timeText: today ? `${new Date(ms).toISOString().slice(11, 16)} UTC` : '',
                 ageKnown: age.isKnown,
                 ageText: age.text,
                 isStale: age.isStale,

@@ -1,58 +1,80 @@
 <template>
-    <div aria-busy={historyLoading}>
+    <div class="tarjeta" aria-busy={historyLoading}>
+        <div class="cab">
+            <h3 class="titulo">Historial de señales</h3>
+            <template if:true={showHistoryTable}>
+                <div class="resumen" role="group" aria-label="Resumen por resultado">
+                    <template for:each={resultChips} for:item="c">
+                        <button key={c.key} type="button" class={c.chipClass} aria-pressed={c.pressed} data-value={c.value} onclick={handleChip}>
+                            <template if:true={c.hasDot}>
+                                <span class={c.dotClass} aria-hidden="true"></span>
+                            </template>
+                            {c.label}<span class="cuenta num"> {c.count}</span>
+                        </button>
+                    </template>
+                </div>
+            </template>
+        </div>
         <template if:true={historyLoading}>
-            <p class="nota" role="status">Cargando historial…</p>
+            <p class="nota cuerpo" role="status">Cargando historial…</p>
         </template>
         <template if:true={showHistoryError}>
-            <p class="nota nota-error" role="alert">{historyErrorMessage}</p>
+            <p class="nota nota-error cuerpo" role="alert">{historyErrorMessage}</p>
         </template>
         <template if:true={showHistoryEmpty}>
-            <p class="nota">Este activo todavía no tiene señales registradas.</p>
+            <p class="nota cuerpo">Este activo todavía no tiene señales registradas.</p>
         </template>
         <template if:true={showHistoryTable}>
-            <div class="resumen" role="group" aria-label="Resumen por resultado">
-                <template for:each={resultChips} for:item="c">
-                    <button key={c.key} type="button" class={c.chipClass} aria-pressed={c.pressed} data-value={c.value} onclick={handleChip}>{c.label}</button>
-                </template>
+            <div class="tabla-desliza">
+                <table>
+                    <caption class="solo-lectores">Señales recientes del activo, de la más nueva a la más antigua</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Resultado</th>
+                            <th scope="col">Fecha de origen</th>
+                            <th scope="col">Tipo</th>
+                            <th scope="col">Medición</th>
+                            <th scope="col">Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template for:each={visibleRows} for:item="h">
+                            <tr key={h.key} class={h.rowClass}>
+                                <td class="celda-resultado">
+                                    <span class={h.resultClass}><span aria-hidden="true">{h.resultGlyph}</span> {h.resultado}</span>
+                                    <template if:true={h.hasTag}>
+                                        <span class="etiqueta">{h.tagText}</span>
+                                    </template>
+                                </td>
+                                <td class="num">{h.occurredText}</td>
+                                <td>{h.typeLabel}</td>
+                                <td>{h.measurementLabel}</td>
+                                <td class={h.valueClass}>{h.valueText}</td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
             </div>
-            <p class="nota">{summaryScopeText}</p>
             <template if:true={hasHelp}>
                 <template for:each={helpTexts} for:item="t">
-                    <p key={t.key} class="nota">{t.text}</p>
+                    <p key={t.key} class="ayuda"><b>{t.term}:</b> {t.text}</p>
                 </template>
             </template>
-            <table>
-                <caption class="solo-lectores">Señales recientes del activo, de la más nueva a la más antigua</caption>
-                <thead>
-                    <tr>
-                        <th scope="col">Tipo de señal</th>
-                        <th scope="col">Medición</th>
-                        <th scope="col">Valor</th>
-                        <th scope="col">Fecha de origen</th>
-                        <th scope="col">Resultado</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <template for:each={visibleRows} for:item="h">
-                        <tr key={h.key} class={h.rowClass}>
-                            <td class="celda-fuerte">{h.typeLabel}</td>
-                            <td>{h.measurementLabel}</td>
-                            <td class="num">{h.valueText}</td>
-                            <td class="num">{h.occurredText}</td>
-                            <td>
-                                {h.resultado}
-                                <template if:true={h.isEvidence}>
-                                    <span class="celda-sub"> (solo evidencia)</span>
-                                </template>
-                            </td>
-                        </tr>
+            <div class="pie">
+                <p class="leyenda">
+                    <span><span class="res res-ok"><span aria-hidden="true">✓</span> Procesada</span> cambió el estado</span>
+                    <span class="sep" aria-hidden="true">·</span>
+                    <span><span class="etiqueta">solo evidencia</span>: no cambia el estado</span>
+                    <span class="sep" aria-hidden="true">·</span>
+                    <span><span class="res res-adv"><span aria-hidden="true">✕</span> Rechazada</span> no se aceptó como lectura</span>
+                </p>
+                <div class="pie-der">
+                    <p class="nota">{summaryScopeText}</p>
+                    <template if:true={showHistoryTruncated}>
+                        <p class="nota">{historyTruncatedText}</p>
                     </template>
-                </tbody>
-            </table>
-            <p class="nota">Es un registro de las señales recibidas, no las lecturas actuales. Las marcadas como Atrasada, Superada o Conflicto se guardan como evidencia y no cambian el estado actual del activo. Una señal Rechazada muestra el valor recibido, pero no fue aceptada como lectura y no cambia el estado del activo. La medición y el valor aparecen solo en las señales recibidas desde que se agregaron; las anteriores muestran «—».</p>
-        </template>
-        <template if:true={showHistoryTruncated}>
-            <p class="nota">{historyTruncatedText}</p>
+                </div>
+            </div>
         </template>
     </div>
 </template>
