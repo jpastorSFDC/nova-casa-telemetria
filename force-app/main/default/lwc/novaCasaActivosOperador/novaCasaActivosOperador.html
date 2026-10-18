@@ -60,28 +60,17 @@
         <!-- Admin only: pull signals from the simulator -->
         <template if:true={showIngest}>
             <template if:true={ingestOpen}>
-                <section class="panel-ingesta" aria-label="Traer señales del simulador">
-                    <template if:true={hasIngestScheduleLine}>
-                        <p class="nota" role="status" aria-live="polite">{ingestScheduleLine}</p>
-                    </template>
-                    <div class="filtros">
-                        <label class="filtro-label" for="i-escenario">Escenario</label>
-                        <select class="campo" id="i-escenario" disabled={ingestRunning} onchange={handleScenario}>
-                            <template for:each={scenarioOptions} for:item="opt">
-                                <option key={opt.value} value={opt.value} selected={opt.selected}>{opt.label}</option>
-                            </template>
-                        </select>
-                        <label class="filtro-label" for="i-paginas">Páginas (1 a 25)</label>
-                        <input class="campo" id="i-paginas" type="number" min="1" max="25" value={ingestPages} disabled={ingestRunning} onchange={handleIngestPages} />
-                        <input id="i-reiniciar" type="checkbox" checked={ingestRestart} disabled={ingestRunning} onchange={handleIngestRestart} />
-                        <label class="filtro-label" for="i-reiniciar">Reiniciar sesión</label>
-                        <button type="button" class="boton urgente" disabled={ingestRunning} onclick={handleStartIngest}>Traer señales</button>
-                    </div>
-                    <p class="nota">La ingesta corre sola cada 5 minutos; este botón es para correr un escenario a mano o reiniciar la sesión. Crea lecturas, registros de log y casos reales. Una sola corrida a la vez (manual o automática); avisa al equipo antes de lanzarla. Cada corrida continúa donde quedó la anterior; marca «Reiniciar sesión» para empezar otra vez desde el primer mensaje del simulador.</p>
-                    <template if:true={hasIngestState}>
-                        <p class="nota" role="status" aria-live="polite">{ingestSummary}</p>
-                        <template if:true={hasIngestDetail}>
-                            <p class="nota" role="status" aria-live="polite">{ingestDetail}</p>
+                <section class="tarjeta panel-ingesta" aria-label="Traer señales del simulador">
+                    <div class="tarjeta-cab">
+                        <div class="cab-izq">
+                            <div class="cab-ico cab-ico-chico" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M13 3 5 14h6l-1 7 8-11h-6l1-7z"/></svg>
+                            </div>
+                            <h2 class="tarjeta-titulo">Traer señales del simulador</h2>
+                            <span class="etiqueta">Solo administradores</span>
+                        </div>
+                        <template if:true={hasIngestState}>
+                            <span class={ingestStatusClass}><span class="punto" aria-hidden="true"></span>{ingestStatusText}</span>
                         </template>
                     </div>
                     <template if:true={hasIngestScheduleLine}>

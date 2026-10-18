@@ -244,6 +244,8 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     ingestStarting = false;
     ingestError = '';
     ingestState = null;
+    // What the last run was started with, for the run log: { clock, scenario, pages }.
+    ingestRun = null;
     // Whether automatic ingestion (the scheduled job, D040) is on and when it next runs; null until loaded or if it fails.
     programacion = null;
     _ingestSince;
