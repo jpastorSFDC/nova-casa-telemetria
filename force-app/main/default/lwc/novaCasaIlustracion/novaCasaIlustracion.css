@@ -1,0 +1,89 @@
+/* Tile colors follow the D041 severity tokens; the drawing uses currentColor so one class tints the whole SVG. */
+:host {
+    display: inline-flex;
+    flex: none;
+    vertical-align: middle;
+}
+
+.ilu {
+    --ilu-fondo: #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    border-radius: 8px;
+    background: var(--ilu-fondo);
+    color: #475569;
+}
+.ilu svg {
+    display: block;
+}
+.ilu-sm {
+    width: 36px;
+    height: 36px;
+}
+.ilu-sm svg {
+    width: 27px;
+    height: 27px;
+}
+.ilu-md {
+    width: 64px;
+    height: 64px;
+}
+.ilu-md svg {
+    width: 48px;
+    height: 48px;
+}
+.ilu-lg {
+    width: 80px;
+    height: 80px;
+}
+.ilu-lg svg {
+    width: 60px;
+    height: 60px;
+}
+
+.ilu-critico {
+    --ilu-fondo: #e11d48;
+    color: #fff;
+}
+.ilu-advertencia {
+    --ilu-fondo: #fef9c3;
+    color: #854d0e;
+}
+.ilu-normal {
+    --ilu-fondo: #ecfdf5;
+    color: #15803d;
+}
+.ilu-nivel {
+    --ilu-fondo: #f1f5f9;
+    color: #475569;
+}
+.ilu-edificio {
+    --ilu-fondo: #e8f2fc;
+    color: #0176d3;
+}
+
+.s {
+    fill: currentColor;
+}
+.t {
+    fill: currentColor;
+    fill-opacity: 0.3;
+}
+.b {
+    fill: var(--ilu-fondo);
+}
+.l {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+.lb {
+    fill: none;
+    stroke: var(--ilu-fondo);
+    stroke-width: 2;
+    stroke-linecap: round;
+}

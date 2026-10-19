@@ -54,9 +54,15 @@ const SEVERITY_NO_READING_UI = { key: 'nivel', label: 'Sin lecturas', glyph: '?'
 // Active measurement types: the detail table lists the ones an asset has no reading for as "Sin lecturas".
 const MEASUREMENT_TYPES = Object.keys(MEASUREMENT_LABELS);
 
-// Asset.Tipo_Activo__c values that have their own icon; any other type gets the neutral icon.
-const ICON_PUMP = 'WATER_PUMP';
-const ICON_VENTILATION = 'VENTILATION';
+// Background refresh of the list (D042). Keep the default in sync with autoRefreshSeconds in
+// novaCasaActivosOperador.js-meta.xml; a configured value below the minimum counts as the minimum.
+const DEFAULT_AUTO_REFRESH_SECONDS = 60;
+const MIN_AUTO_REFRESH_SECONDS = 15;
+const AUTO_REFRESH_CHECK_MS = 5000;
+// A severity-change badge lasts until the next result or this long, whichever comes first.
+const CHANGE_MARK_TTL_MS = 10 * 60000;
+// The live region names at most this many assets per result, then "y N más".
+const MAX_ANNOUNCED_CHANGES = 5;
 
 // Fleet donut: one slice per level, in this order. Stale is not a level (an asset can be stable and stale), so it has no slice.
 const DONUT_LEVELS = [
@@ -178,6 +184,7 @@ function severityUiFor(level, hasReadings) {
     return hasReadings ? severityUi(level) : SEVERITY_NO_READING_UI;
 }
 
+// Also used for assets (same severityLevel key): null < 0 < 1 < 2.
 function rankOf(reading) {
     return reading.severityLevel === null || reading.severityLevel === undefined ? -1 : reading.severityLevel;
 }
@@ -186,9 +193,54 @@ function plural(count, one, many) {
     return `${count} ${count === 1 ? one : many}`;
 }
 
+// Severity change of one asset since its last known level, or null. No level -> Estable is not an alert, and losing the
+// level is not a drop (the state became unknown, not better). With a cut result a drop may only mean that readings
+// were left out, so it is not marked. The texts never mention interventions.
+function changeMark(fromRank, asset, truncated) {
+    const toRank = rankOf(asset);
+    if (toRank === fromRank || toRank === -1 || (fromRank === -1 && toRank === 0)) {
+        return null;
+    }
+    if (toRank > fromRank) {
+        const ui = severityUi(asset.severityLevel);
+        return {
+            up: true,
+            toRank,
+            tone: ui.key,
+            glyph: ui.glyph,
+            text: toRank === 2 ? 'Subió a crítico' : 'Subió a precaución',
+            spoken: `${asset.name || 'Un activo'} pasó a ${ui.label}.`
+        };
+    }
+    if (truncated) {
+        return null;
+    }
+    const ui = severityUi(asset.severityLevel);
+    return { up: false, toRank, tone: 'baja', glyph: '↓', text: `Bajó a ${ui.label.toLowerCase()}` };
+}
+
+// Traffic light of a building row: its worst asset (critical > warning > stable > none).
+function worstLevelOf(building) {
+    if (building.critical > 0) {
+        return 2;
+    }
+    if (building.warning > 0) {
+        return 1;
+    }
+    return building.stable > 0 ? 0 : null;
+}
+
+function changeAnnouncement(sentences) {
+    const shown = sentences.slice(0, MAX_ANNOUNCED_CHANGES).join(' ');
+    const rest = sentences.length - MAX_ANNOUNCED_CHANGES;
+    return rest > 0 ? `${shown} y ${rest} más.` : shown;
+}
+
 export default class NovaCasaActivosOperador extends NavigationMixin(LightningElement) {
     /** Minutes without a signal before the asset is flagged as stale. */
     @api staleMinutes = DEFAULT_STALE_MINUTES;
+    /** Seconds between background refreshes of the list; 0 turns them off. */
+    @api autoRefreshSeconds = DEFAULT_AUTO_REFRESH_SECONDS;
 
     buildingId = '';
     severity = '';
@@ -244,13 +296,29 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     ingestStarting = false;
     ingestError = '';
     ingestState = null;
+    // What the last run was started with, for the run log: { clock, scenario, pages }.
+    ingestRun = null;
     // Whether automatic ingestion (the scheduled job, D040) is on and when it next runs; null until loaded or if it fails.
     programacion = null;
     _ingestSince;
     _ingestTimer;
 
+    // Severity changes still on screen, by asset Id: { up, toRank, tone, glyph, text, atMs, ringDone }.
+    changeMarks = {};
+    // Polite live region: the assets that went up in the last result (downs are not announced).
+    changeAnnouncement = '';
+    // Last level seen for each asset in any result of this session, whatever the filters, so an asset that enters a
+    // severity-filtered view after changing level is still marked.
+    _knownRanks = new Map();
+    // When the last background refresh failed (the list on screen is older); null after a successful read.
+    autoRefreshFailedAtMs = null;
+
     _assetsResult;
     _timer;
+    _autoTimer;
+    // Background refresh in flight; while set, a failure keeps the last list on screen.
+    _silentRefresh = null;
+    _lastRefreshMs = 0;
     _focusTarget; // 'detail', 'filtros' (building select) or an asset Id whose "Ver activo" button should regain focus
 
     connectedCallback() {
@@ -259,10 +327,13 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         this._timer = setInterval(() => {
             this.nowMs = Date.now();
         }, TICK_MS);
+        // eslint-disable-next-line @lwc/lwc/no-async-operation
+        this._autoTimer = setInterval(() => this.autoRefreshTick(), AUTO_REFRESH_CHECK_MS);
     }
 
     disconnectedCallback() {
         clearInterval(this._timer);
+        clearInterval(this._autoTimer);
         clearInterval(this._ingestTimer);
     }
 
@@ -297,19 +368,27 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         const { data, error } = result;
         if (data) {
             const page = parseAssetsResponse(data);
+            this.updatedAtMs = Date.now();
+            this.nowMs = this.updatedAtMs;
+            this.autoRefreshFailedAtMs = null;
+            this.trackSeverityChanges(page.assets, this.updatedAtMs, page.truncated || this.truncated);
             this.assets = page.assets;
             this.truncated = page.truncated;
             this.assetLimit = page.assetLimit;
             this.totalCount = page.totalCount;
             this.assetsError = undefined;
             this.assetsLoaded = true;
-            this.updatedAtMs = Date.now();
-            this.nowMs = this.updatedAtMs;
             // The selected asset left the payload (filters or data changed): fall back to the list.
             if (this.selectedAssetId && !page.assets.some((a) => a.assetId === this.selectedAssetId)) {
                 this.selectedAssetId = null;
             }
         } else if (error) {
+            // A failed background refresh keeps the last list and says so next to "Vista actualizada". A manual or
+            // filter refresh (isRefreshing) still shows the error.
+            if (this._silentRefresh && !this.isRefreshing && this.assets) {
+                this.autoRefreshFailedAtMs = this.autoRefreshFailedAtMs || Date.now();
+                return;
+            }
             this.assets = undefined;
             this.truncated = false;
             this.assetsError = error;
@@ -318,6 +397,57 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         }
         if (data || error) {
             this.isRefreshing = false;
+        }
+    }
+
+    // Compares each asset of a result with the last level this session saw for it, in any earlier result and with any
+    // filters (D042). An asset seen for the first time and an unchanged level mark nothing. A mark outlives later results
+    // (up to CHANGE_MARK_TTL_MS) while the asset stays at the level it changed to; only new marks are announced and
+    // animated. With a cut result a lower level is not remembered, so readings left out by the cut cannot later look
+    // like a rise.
+    trackSeverityChanges(assets, atMs, truncated) {
+        const known = this._knownRanks;
+        const marks = {};
+        const spoken = [];
+        assets.forEach((a) => {
+            const rank = rankOf(a);
+            const before = known.get(a.assetId);
+            if (before !== undefined) {
+                const mark = changeMark(before, a, truncated);
+                if (mark) {
+                    marks[a.assetId] = { ...mark, atMs, ringDone: false };
+                    if (mark.up) {
+                        spoken.push(mark.spoken);
+                    }
+                } else {
+                    const kept = this.changeMarks[a.assetId];
+                    if (kept && atMs - kept.atMs < CHANGE_MARK_TTL_MS && kept.toRank === rank) {
+                        marks[a.assetId] = kept;
+                    }
+                }
+            }
+            if (before === undefined || !truncated || rank >= before) {
+                known.set(a.assetId, rank);
+            }
+        });
+        this.changeMarks = marks;
+        this.changeAnnouncement = changeAnnouncement(spoken);
+    }
+
+    activeChangeMark(assetId) {
+        const mark = this.changeMarks[assetId];
+        return mark && this.nowMs - mark.atMs < CHANGE_MARK_TTL_MS ? mark : null;
+    }
+
+    // The ring plays once per change: a card drawn again later (back from the detail) does not replay it.
+    handleRingEnd(event) {
+        if (event.target !== event.currentTarget || !String(event.animationName).includes('nc-anillo')) {
+            return;
+        }
+        const id = event.currentTarget.dataset.id;
+        const mark = this.changeMarks[id];
+        if (mark && !mark.ringDone) {
+            this.changeMarks = { ...this.changeMarks, [id]: { ...mark, ringDone: true } };
         }
     }
 
@@ -488,13 +618,86 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     }
 
     async handleRefresh() {
+        await this.refreshList(false);
+    }
+
+    // After a save or an ingestion run: a background refresh in flight may have started before the write, so its
+    // answer is awaited and then the list is read again.
+    async refreshAfterWrite() {
+        await this.refreshList(true);
+    }
+
+    async refreshList(afterWrite) {
         this.isRefreshing = true;
+        this._lastRefreshMs = Date.now();
         try {
-            await refreshApex(this._assetsResult);
+            if (this._silentRefresh) {
+                await this._silentRefresh;
+                if (afterWrite) {
+                    await refreshApex(this._assetsResult);
+                }
+            } else {
+                await refreshApex(this._assetsResult);
+            }
         } catch (e) {
             // The wire re-emits the error; nothing else to do here.
         }
         this.isRefreshing = false;
+        this.noteRefreshOutcome();
+    }
+
+    // A refresh whose data did not change does not re-run the wire handler, so a successful read is recorded here too;
+    // otherwise "Vista actualizada" could not tell "nothing changed" from "failed".
+    noteRefreshOutcome() {
+        if (this._assetsResult && this._assetsResult.error) {
+            return;
+        }
+        this.autoRefreshFailedAtMs = null;
+        this.updatedAtMs = Date.now();
+        this.nowMs = this.updatedAtMs;
+    }
+
+    get hasAutoRefreshFailure() {
+        return Boolean(this.autoRefreshFailedAtMs) && Boolean(this.assets);
+    }
+
+    get autoRefreshMs() {
+        const seconds = Number(this.autoRefreshSeconds);
+        return seconds > 0 ? Math.max(seconds, MIN_AUTO_REFRESH_SECONDS) * 1000 : 0;
+    }
+
+    // Background refresh (D042): only while the list is on screen in a visible tab, with no ingestion run, refresh or
+    // form in progress. It never shows the skeleton.
+    autoRefreshTick() {
+        const interval = this.autoRefreshMs;
+        if (
+            !interval ||
+            this.selectedAssetId ||
+            document.visibilityState !== 'visible' ||
+            this.ingestRunning ||
+            this.isRefreshing ||
+            this._silentRefresh ||
+            this.formMode ||
+            this.isSaving ||
+            !this.assetsLoaded ||
+            this.assetsError ||
+            !this._assetsResult
+        ) {
+            return;
+        }
+        if (Date.now() - Math.max(this.updatedAtMs || 0, this._lastRefreshMs) < interval) {
+            return;
+        }
+        this.runSilentRefresh();
+    }
+
+    async runSilentRefresh() {
+        this._lastRefreshMs = Date.now();
+        // A failure is handled in wiredAssets, which keeps the last list on screen.
+        this._silentRefresh = Promise.resolve(refreshApex(this._assetsResult)).catch(() => undefined);
+        await this._silentRefresh;
+        this._silentRefresh = null;
+        this.noteRefreshOutcome();
     }
 
     // ---- state ----
@@ -694,6 +897,7 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
                     total: 0,
                     critical: 0,
                     warning: 0,
+                    stable: 0,
                     noData: 0,
                     stale: 0
                 });
@@ -704,6 +908,8 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
                 b.critical += 1;
             } else if (a.severityLevel === 1) {
                 b.warning += 1;
+            } else if (a.severityLevel === 0) {
+                b.stable += 1;
             } else if (a.severityLevel == null) {
                 b.noData += 1;
             }
@@ -713,17 +919,23 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         });
         return [...byBuilding.values()]
             .sort((x, y) => y.critical - x.critical || y.warning - x.warning || x.name.localeCompare(y.name))
-            .map((b) => ({
-                ...b,
-                hasCritical: b.critical > 0,
-                hasWarning: b.warning > 0,
-                hasNoData: b.noData > 0,
-                hasStale: b.stale > 0,
-                hasAccount: Boolean(b.accountId),
-                filterLabel: `Filtrar por ${b.name}`,
-                viewLabel: `Ver edificio ${b.name}`,
-                rowClass: b.critical > 0 ? 'edif-fila edif-critico' : 'edif-fila'
-            }));
+            .map((b) => {
+                const worst = severityUi(worstLevelOf(b));
+                return {
+                    ...b,
+                    worstClass: `sev sev-${worst.key}`,
+                    worstGlyph: worst.glyph,
+                    worstLabel: worst.label,
+                    hasCritical: b.critical > 0,
+                    hasWarning: b.warning > 0,
+                    hasNoData: b.noData > 0,
+                    hasStale: b.stale > 0,
+                    hasAccount: Boolean(b.accountId),
+                    filterLabel: `Filtrar por ${b.name}`,
+                    viewLabel: `Ver edificio ${b.name}`,
+                    rowClass: `edif-fila edif-${worst.key}`
+                };
+            });
     }
     get showBuildingSummary() {
         return this.showList && this.buildingSummary.length > 0;
@@ -870,6 +1082,12 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         const closedDay = closed ? formatDayMonth(closed.closedDate) : '';
         const closedWhen = closedDay ? `, cerrada el ${closedDay}` : '';
         const unreadable = !hasReadings;
+        const change = this.activeChangeMark(a.assetId);
+        // After the level-change ring the critical pulse must not start again: ring + pulse would run past 5 s.
+        let ring = '';
+        if (change && change.up) {
+            ring = change.ringDone ? ' sin-pulso' : ` anillo-${change.tone}`;
+        }
         return {
             key: a.assetId,
             assetId: a.assetId,
@@ -879,12 +1097,14 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             externalId: a.externalId || '',
             hasExternalId: Boolean(a.externalId),
             hasStatusRow: Boolean(a.externalId || headAge),
-            isPump: a.assetType === ICON_PUMP,
-            isVentilation: a.assetType === ICON_VENTILATION,
-            isOtherType: a.assetType !== ICON_PUMP && a.assetType !== ICON_VENTILATION,
+            assetType: a.assetType || '',
             level,
-            cardClass: `tarjeta-activo ${ui.key}`,
+            cardClass: `tarjeta-activo ${ui.key}${ring}`,
             heroClass: `tarjeta hero-activo ${ui.key}`,
+            bandClass: `banda banda-${ui.key}`,
+            hasChange: Boolean(change),
+            changeText: change ? change.text : '',
+            changeGlyph: change ? change.glyph : '',
             sevClass: `sev sev-${ui.key}`,
             sevGlyph: ui.glyph,
             sevLabel: ui.label,
@@ -911,6 +1131,8 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             hasLast: Boolean(latest),
             tableRows: [...sorted, ...missing],
             hasIntervention: Boolean(inv),
+            // Red is reserved for critical (D041, D042): the open-intervention band is neutral unless the asset is critical.
+            intHeadClass: level === 2 ? 'int-cab int-cab-critico' : 'int-cab int-cab-abierta',
             caseId: inv ? inv.caseId : null,
             caseNumber: inv ? inv.caseNumber : '',
             caseStatus: inv ? inv.status : '',
@@ -1224,11 +1446,11 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
                 this.toast('Seguimiento actualizado', '', 'success');
             }
             this.formMode = null;
-            await this.handleRefresh();
+            await this.refreshAfterWrite();
         } catch (e) {
             this.actionError = reduceError(e);
             // The state may have changed under us (another person opened one first): show the real state.
-            await this.handleRefresh();
+            await this.refreshAfterWrite();
         }
         this.isSaving = false;
     }
@@ -1463,7 +1685,7 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
                 clearInterval(this._ingestTimer);
                 this.toast('Ingesta terminada', this.ingestSummary, 'success');
                 this.loadProgramacion(); // the next scheduled run time moved on while this one ran
-                await this.handleRefresh();
+                await this.refreshAfterWrite();
             }
         } catch (e) {
             clearInterval(this._ingestTimer);

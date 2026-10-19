@@ -19,9 +19,97 @@
 .bloque {
     margin-bottom: 12px;
 }
+
+/* Header: band in the traffic-light color of the asset level, then the type illustration (D042) */
+.cabecera-activo {
+    margin-bottom: 12px;
+    border: 2px solid #94a3b8;
+    border-radius: 8px;
+    overflow: hidden;
+}
+/* Critical: 3 x 1.5 s glow and band pulse when the panel appears, under the 5 s of WCAG 2.2.2 */
+.cab-critico {
+    border-color: #e11d48;
+    animation: nc-pulso-critico 1.5s ease-out 3;
+}
+.cab-advertencia {
+    border-color: #facc15;
+}
+.cab-normal {
+    border-color: #22c55e;
+}
+.banda {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px 10px;
+    padding: 7px 14px;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    background: #64748b;
+    color: #fff;
+}
+/* Each text color passes 4.5:1 on its band */
+.banda-critico {
+    background: #e11d48;
+    color: #fff;
+}
+.banda-critico {
+    animation: nc-banda-pulso 1.5s ease-in-out 3;
+}
+@keyframes nc-banda-pulso {
+    0%,
+    100% {
+        background: #e11d48;
+    }
+    50% {
+        background: #9f1239;
+    }
+}
+.banda-advertencia {
+    background: #facc15;
+    color: #422006;
+}
+.banda-normal {
+    background: #22c55e;
+    color: #052e16;
+}
+.banda-estado {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.banda-nota {
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: none;
+}
+.cab-ident {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    padding: 12px 14px;
+}
+.micro {
+    display: block;
+    margin-bottom: 2px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--nc-tinta-media);
+}
+.cab-valor {
+    font-size: 16px;
+    font-weight: 600;
+}
 .titulo {
     margin: 0 0 6px;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -37,13 +125,13 @@
 table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 13px;
+    font-size: 14px;
 }
 th {
     height: 30px;
     padding: 0 10px;
     text-align: left;
-    font-size: 10.5px;
+    font-size: 12px;
     font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -53,7 +141,7 @@ th {
     white-space: nowrap;
 }
 td {
-    height: 36px;
+    height: 40px;
     padding: 4px 10px;
     border-bottom: 1px solid var(--nc-linea-suave);
     vertical-align: middle;
@@ -79,19 +167,19 @@ tbody tr:last-child td {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    height: 20px;
+    height: 22px;
     margin-left: 6px;
     padding: 0 9px;
     border-radius: 999px;
-    border: 1px solid #d97706;
+    border: 1px solid #eab308;
     background: #fff;
-    color: #92400e;
-    font-size: 11px;
+    color: #713f12;
+    font-size: 12px;
     font-weight: 700;
     white-space: nowrap;
 }
 
-/* Open intervention: white card with a red header band */
+/* Open intervention: white card with a header band, red only when the asset is critical (dark neutral otherwise, 10:1) */
 .caso {
     border: 1px solid var(--nc-linea);
     border-radius: 6px;
@@ -105,17 +193,28 @@ tbody tr:last-child td {
     justify-content: space-between;
     gap: 4px 12px;
     padding: 6px 12px;
-    background: var(--nc-critico);
+    background: #334155;
     color: #fff;
-    font-size: 10.5px;
+    font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
 }
+.caso-critico {
+    background: var(--nc-critico);
+}
 .caso-titulo {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     margin: 0;
     font-size: inherit;
     font-weight: inherit;
+}
+.caso-ico {
+    width: 14px;
+    height: 14px;
+    flex: none;
 }
 .caso-estado {
     white-space: nowrap;
@@ -125,34 +224,34 @@ tbody tr:last-child td {
 }
 .caso-enlace {
     color: var(--nc-primario);
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 700;
 }
 .caso-asunto {
     margin: 2px 0 0;
-    font-size: 12.5px;
+    font-size: 14px;
     color: #334155;
 }
 .caso-mas {
     margin: 8px 0 0;
     padding-top: 6px;
     border-top: 1px solid var(--nc-linea-suave);
-    font-size: 12px;
+    font-size: 13px;
     color: var(--nc-tinta-media);
 }
 .nota {
     margin: 0.25rem 0 0;
-    font-size: 13px;
+    font-size: 14px;
     color: var(--nc-tinta-media);
 }
 .aviso-truncado {
     margin: 0 0 10px;
     padding: 6px 10px;
-    border: 1px solid #fde68a;
+    border: 1px solid #fde047;
     border-radius: 6px;
-    background: #fef3c7;
-    color: #92400e;
-    font-size: 12px;
+    background: #fef9c3;
+    color: #713f12;
+    font-size: 13px;
 }
 
 /* Severity pill: glyph + text, never color alone */
@@ -160,11 +259,11 @@ tbody tr:last-child td {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    height: 20px;
+    height: 22px;
     padding: 0 9px;
     border-radius: 999px;
     border: 1px solid transparent;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     white-space: nowrap;
 }
@@ -184,9 +283,9 @@ tbody tr:last-child td {
     }
 }
 .sev-advertencia {
-    background: #fef3c7;
-    border-color: #fde68a;
-    color: #b45309;
+    background: #fef9c3;
+    border-color: #fde047;
+    color: #854d0e;
 }
 .sev-normal {
     background: #ecfdf5;
@@ -207,7 +306,9 @@ tbody tr:last-child td {
     * {
         transition: none !important;
     }
-    .sev-critico {
+    .sev-critico,
+    .cab-critico,
+    .banda-critico {
         animation: none;
     }
 }
