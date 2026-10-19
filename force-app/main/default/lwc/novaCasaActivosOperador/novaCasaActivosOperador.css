@@ -925,8 +925,15 @@
 .tarjeta-activo:hover {
     border-color: var(--nc-tinta-suave);
 }
+/* Critical: 3 x 1.5 s glow when the card appears or turns critical, under the 5 s of WCAG 2.2.2 (no pause control
+   needed). The level-change ring below replaces it when both apply. */
 .tarjeta-activo.critico {
     border: 2px solid var(--nc-banda-critico);
+    animation: nc-pulso-critico 1.5s ease-out 3;
+}
+.tarjeta-activo.sin-pulso,
+.tarjeta-activo.sin-pulso .banda-critico {
+    animation: none;
 }
 .tarjeta-activo.advertencia {
     border: 2px solid var(--nc-banda-advertencia);
@@ -1012,6 +1019,19 @@
 .banda-critico {
     background: var(--nc-banda-critico);
     color: var(--nc-banda-critico-texto);
+}
+.banda-critico {
+    animation: nc-banda-pulso 1.5s ease-in-out 3;
+}
+/* Darker red at mid-cycle: a soft pulse, never more than one flash per second; white text stays above 4.5:1 */
+@keyframes nc-banda-pulso {
+    0%,
+    100% {
+        background: var(--nc-banda-critico);
+    }
+    50% {
+        background: #9f1239;
+    }
 }
 .banda-advertencia {
     background: var(--nc-banda-advertencia);
@@ -1490,6 +1510,8 @@
         transition: none !important;
     }
     .sev-critico,
+    .banda-critico,
+    .tarjeta-activo.critico,
     .tarjeta-activo.anillo-critico,
     .tarjeta-activo.anillo-advertencia {
         animation: none;

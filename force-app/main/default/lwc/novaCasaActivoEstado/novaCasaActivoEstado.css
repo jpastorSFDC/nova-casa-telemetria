@@ -27,8 +27,10 @@
     border-radius: 8px;
     overflow: hidden;
 }
+/* Critical: 3 x 1.5 s glow and band pulse when the panel appears, under the 5 s of WCAG 2.2.2 */
 .cab-critico {
     border-color: #e11d48;
+    animation: nc-pulso-critico 1.5s ease-out 3;
 }
 .cab-advertencia {
     border-color: #facc15;
@@ -54,6 +56,18 @@
 .banda-critico {
     background: #e11d48;
     color: #fff;
+}
+.banda-critico {
+    animation: nc-banda-pulso 1.5s ease-in-out 3;
+}
+@keyframes nc-banda-pulso {
+    0%,
+    100% {
+        background: #e11d48;
+    }
+    50% {
+        background: #9f1239;
+    }
 }
 .banda-advertencia {
     background: #facc15;
@@ -292,7 +306,9 @@ tbody tr:last-child td {
     * {
         transition: none !important;
     }
-    .sev-critico {
+    .sev-critico,
+    .cab-critico,
+    .banda-critico {
         animation: none;
     }
 }

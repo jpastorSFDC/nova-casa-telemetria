@@ -1083,7 +1083,11 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         const closedWhen = closedDay ? `, cerrada el ${closedDay}` : '';
         const unreadable = !hasReadings;
         const change = this.activeChangeMark(a.assetId);
-        const ring = change && change.up && !change.ringDone ? ` anillo-${change.tone}` : '';
+        // After the level-change ring the critical pulse must not start again: ring + pulse would run past 5 s.
+        let ring = '';
+        if (change && change.up) {
+            ring = change.ringDone ? ' sin-pulso' : ` anillo-${change.tone}`;
+        }
         return {
             key: a.assetId,
             assetId: a.assetId,
