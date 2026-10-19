@@ -2713,7 +2713,7 @@ private class ActivosOperadorControllerTest {
         Assert.areEqual(2, adminSignals.signals.size(), 'a user who sees the asset gets the signals');
         Assert.areEqual(2, forAdmin.senalesEnlazadas);
         Assert.areEqual(2, forAdmin.assetLevel);
-        Assert.areEqual('AST-CASE-GATE', forAdmin.assetExternalId, 'a user who sees the asset gets its code');
+        Assert.areEqual('AST-CASE-GATE', forAdmin.assetName, 'a user who sees the asset gets its name');
     }
 
     @isTest
