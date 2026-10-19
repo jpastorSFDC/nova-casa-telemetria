@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Ultima_Critica_At__c</fullName>
+    <label>Última crítica: ocurrió</label>
+    <description>Momento en que ocurrió la señal crítica más reciente vinculada a esta intervención de telemetría (D039). Es el occurredAt de la señal (hora en el origen), no la hora de procesamiento. La escribe IntervencionService al abrir el Case y cada vez que llega una señal crítica más reciente del mismo activo mientras el Case sigue abierto. Queda vacía en las intervenciones manuales (Origin = Operador).</description>
+    <inlineHelpText>Cuándo ocurrió en el sensor la señal crítica más reciente de este activo (no cuándo se procesó). Se llena sola.</inlineHelpText>
+    <type>DateTime</type>
+</CustomField>

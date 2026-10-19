@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Ultima_Critica_Identidad__c</fullName>
+    <label>Última crítica: identidad</label>
+    <description>Identidad (source|messageId) de la señal crítica más reciente vinculada a esta intervención de telemetría (D039). Es técnica: existe para que la comparación de cuál señal es más reciente sea determinista cuando dos señales comparten occurredAt (D003). La escribe IntervencionService al abrir el Case y cada vez que llega una señal crítica más reciente del mismo activo mientras el Case sigue abierto. Queda vacía en las intervenciones manuales (Origin = Operador).</description>
+    <inlineHelpText>Clave técnica source|messageId de la señal crítica más reciente de este activo. Se llena sola y queda vacía en las creadas a mano.</inlineHelpText>
+    <type>Text</type>
+    <length>60</length>
+</CustomField>

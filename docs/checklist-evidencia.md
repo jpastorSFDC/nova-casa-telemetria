@@ -135,19 +135,20 @@ Como `novacasa.admin` (o con un usuario con `Nova_Casa_Admin`), en la pestaña *
 
 ## Bloque B — `DUPLICATES`
 
-### US-205 · una intervención por mensaje crítico único
+### US-205 · una intervención abierta por activo (D039)
 
-Estos criterios describen el comportamiento implementado hoy (D010: un caso por identidad). Si el facilitador confirma la consolidación (D039, ver [preguntas-facilitador.md](preguntas-facilitador.md)), el criterio de evidencia pasa a ser «un solo caso abierto por activo» (o por el alcance que confirme), con el valor de la señal crítica más reciente, y los pasos 1 y 4 se reescriben antes de correr nada. Hasta entonces D039 está en Propuesta y estos pasos valen.
+Desde D039, un activo tiene un solo caso de telemetría abierto: las críticas siguientes se enlazan a él (`Caso__c`) y actualizan sus campos `Ultima_Critica_*`. El org todavía tiene casos abiertos acumulados de antes de D039; anotar la hora de inicio de la corrida (UTC) y usarla en las consultas, o cerrarlos antes con «Cerrar las N abiertas» (D035).
 
-1. Ninguna identidad con más de un caso. **Pasa si** devuelve 0 filas:
+1. Ningún activo con más de un caso de telemetría abierto creado en la corrida, y ninguna identidad con más de un caso. **Pasa si** las dos devuelven 0 filas (cambiar `<inicio>` por la hora anotada, p. ej. `2026-10-18T22:00:00Z`):
 
    ```bash
+   sf data query -o nova-cdo -q "SELECT AssetId, COUNT(Id) FROM Case WHERE Origin = 'Telemetria' AND IsClosed = false AND CreatedDate >= <inicio> GROUP BY AssetId HAVING COUNT(Id) > 1"
    sf data query -o nova-cdo -q "SELECT Identidad_Senal__c, COUNT(Id) FROM Case WHERE Origin = 'Telemetria' GROUP BY Identidad_Senal__c HAVING COUNT(Id) > 1"
    ```
 
 2. Reenvíos: filas con `Reenvios__c > 0` (list view **Duplicadas (reenvíos)**). **Pasa si** su `Resultado__c` no cambió por el reenvío y sigue con un solo `Caso__c` (si lo tenía).
 3. Conflictos: list view **Conflictos**. Una fila `Conflicto` conserva el `Caso__c` original, así que la columna no prueba nada. **Pasa si** el total de `Case` con `Origin = 'Telemetria'` es igual antes y después de que lleguen los conflictos: anotar el conteo de `Case` justo después de `wait` y compararlo con el del paso 1.
-4. Guardar: el conteo de casos frente al de filas `Procesada` críticas de `evidence`, la captura de la list view **Intervenciones abiertas**, y la cifra de la consulta del paso 1.
+4. Guardar: el conteo de casos creados en la corrida frente al de activos con alguna fila `Procesada` crítica (deben coincidir si esos activos no tenían caso abierto antes), la captura de un caso con su sección **Última señal crítica** igual a la crítica más reciente de su activo en `evidence`, la captura de la list view **Intervenciones abiertas** y las cifras de las consultas del paso 1.
 
 ### US-209 · duplicada y conflicto
 

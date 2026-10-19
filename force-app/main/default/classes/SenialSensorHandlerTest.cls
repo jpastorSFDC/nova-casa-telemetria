@@ -4,6 +4,9 @@ private class SenialSensorHandlerTest {
     private static final String ANTERIOR = '2026-09-30T16:40:00.000Z';
     // Posterior a OCURRIDO y a ANTERIOR, sin milisegundos: Occurred_At__c no los guarda y así la igualdad con la fila no depende del recorte.
     private static final String MAS_RECIENTE = '2026-09-30T16:50:00.000Z';
+    // También sin milisegundos, para comparar con Case.Ultima_Critica_At__c (D039): ANTERIOR < INTERMEDIO < MAS_RECIENTE < POSTERIOR.
+    private static final String INTERMEDIO = '2026-09-30T16:45:00.000Z';
+    private static final String POSTERIOR = '2026-09-30T16:55:00.000Z';
     private static final String SALA = 'AST-BOG-TEMP-001';
 
     private static final String FUENTE = 'nova-casa-simulator';
@@ -778,13 +781,14 @@ private class SenialSensorHandlerTest {
 
         Test.startTest();
         new SenialSensorHandler().procesar(lote);
-        // Consultas: umbrales + logs + activos + lecturas (handler) + Cases existentes (IntervencionService) = 5.
-        // DML: insert de Cases + upsert de lecturas + upsert de logs = 3. Ninguno escala con el tamaño del lote.
+        // Consultas: umbrales + logs + activos + lecturas (handler) + Cases por identidad, bloqueo de activos y Cases
+        // abiertos (IntervencionService, D039) = 7. DML: insert de Cases + upsert de lecturas + upsert de logs = 3 (sin
+        // Cases abiertos no hay update). Ninguno escala con el tamaño del lote.
         Integer consultas = Limits.getQueries();
         Integer dml = Limits.getDmlStatements();
         Test.stopTest();
 
-        Assert.areEqual(5, consultas, 'Consultas fijas por lote');
+        Assert.areEqual(7, consultas, 'Consultas fijas por lote');
         Assert.areEqual(3, dml, 'Sentencias DML fijas por lote');
         Assert.areEqual(200, [SELECT COUNT() FROM Log_Senial__c], 'Una fila de log por identidad');
         Assert.areEqual(10, [SELECT COUNT() FROM Lectura_Vigente__c], 'Una lectura por activo');
@@ -871,8 +875,9 @@ private class SenialSensorHandlerTest {
         Integer dml = Limits.getDmlStatements();
         Test.stopTest();
 
-        // Mismo conteo que el lote homogéneo: umbrales + logs + activos + lecturas + Cases existentes; Cases + lecturas + logs.
-        Assert.areEqual(5, consultas, 'Consultas fijas por lote, también con inválidas mezcladas');
+        // Mismo conteo que el lote homogéneo: umbrales + logs + activos + lecturas + las tres de IntervencionService;
+        // Cases + lecturas + logs.
+        Assert.areEqual(7, consultas, 'Consultas fijas por lote, también con inválidas mezcladas');
         Assert.areEqual(3, dml, 'Sentencias DML fijas por lote, también con inválidas mezcladas');
         Assert.areEqual(0, SenialSensorHandler.erroresInesperados, 'Ninguna excepción inesperada');
         Assert.areEqual(0, SenialSensorHandler.fallosDeLog, 'Todas las filas de log se guardan');
@@ -1222,6 +1227,372 @@ private class SenialSensorHandlerTest {
         Assert.areEqual(abreCase, log.Caso__c != null, contexto + ' - el log enlaza Case solo si es crítica');
     }
 
+    // ─── Una intervención abierta por activo (US-205, D039) ──────────────
+    // Umbrales usados: TEMPERATURE GT 35 Critica (CELSIUS) y WATER_PRESSURE GT 6 Critica (BAR) en TECHNICAL_ROOM.
+
+    @IsTest
+    static void dosCriticasDeDistintaMedicionDelMismoActivoEnUnLoteDejanUnSoloCase() {
+        verificarDosCriticasEnUnLote(false);
+    }
+
+    @IsTest
+    static void dosCriticasDeDistintaMedicionDelMismoActivoEnUnLoteDejanUnSoloCaseEnOrdenInverso() {
+        verificarDosCriticasEnUnLote(true);
+    }
+
+    private static void verificarDosCriticasEnUnLote(Boolean nuevaPrimero) {
+        Senial_Sensor__e temperatura = medicion('msg_temp', SALA, 'TEMPERATURE', '40', 'CELSIUS', ANTERIOR);
+        Senial_Sensor__e presion = medicion('msg_pres', SALA, 'WATER_PRESSURE', '7', 'BAR', MAS_RECIENTE);
+
+        Test.startTest();
+        new SenialSensorHandler().procesar(nuevaPrimero
+            ? new List<Senial_Sensor__e>{ presion, temperatura }
+            : new List<Senial_Sensor__e>{ temperatura, presion });
+        Test.stopTest();
+
+        Assert.areEqual(1, [SELECT COUNT() FROM Case], 'Dos críticas del mismo activo dejan una sola intervención (D039)');
+        Case caso = casoAbiertoUnico(SALA);
+        for (String mid : new List<String>{ 'msg_temp', 'msg_pres' }) {
+            Log_Senial__c log = filaLog(identidad(mid));
+            Assert.areEqual('Procesada', log.Resultado__c, mid + ' se procesa: ' + log.Motivo__c);
+            Assert.areEqual(caso.Id, log.Caso__c, mid + ' enlaza la intervención abierta del activo');
+        }
+        Assert.areEqual(40, lectura(SALA + '|TEMPERATURE').Valor__c, 'La temperatura escribe su lectura');
+        Assert.areEqual(7, lectura(SALA + '|WATER_PRESSURE').Valor__c, 'La presión escribe su lectura');
+        Assert.areEqual(2, SenialSensorHandler.criticasProcesadas.size(), 'Las dos críticas cuentan como procesadas');
+        Assert.areEqual(identidad('msg_pres'), caso.Identidad_Senal__c, 'La abre la crítica más reciente del lote, sin importar el orden');
+        verificarUltimaCritica(caso, 'msg_pres', 'WATER_PRESSURE', 7, 'BAR', MAS_RECIENTE, 'El Case registra la crítica más reciente');
+    }
+
+    @IsTest
+    static void dosCriticasDeDistintaMedicionDelMismoActivoEnDosLotesDejanUnSoloCaseConLaMasReciente() {
+        verificarDosCriticasEnDosLotes(false);
+    }
+
+    @IsTest
+    static void dosCriticasDeDistintaMedicionDelMismoActivoEnDosLotesDejanUnSoloCaseConLaMasRecienteEnOrdenInverso() {
+        verificarDosCriticasEnDosLotes(true);
+    }
+
+    private static void verificarDosCriticasEnDosLotes(Boolean nuevaPrimero) {
+        Senial_Sensor__e temperatura = medicion('msg_temp', SALA, 'TEMPERATURE', '40', 'CELSIUS', ANTERIOR);
+        Senial_Sensor__e presion = medicion('msg_pres', SALA, 'WATER_PRESSURE', '7', 'BAR', MAS_RECIENTE);
+        Senial_Sensor__e primera = nuevaPrimero ? presion : temperatura;
+        Senial_Sensor__e segunda = nuevaPrimero ? temperatura : presion;
+
+        Test.startTest();
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ primera });
+        Id casoId = filaLog(identidad(primera.Message_Id__c)).Caso__c;
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ segunda });
+        Test.stopTest();
+
+        Assert.isNotNull(casoId, 'La primera crítica abre la intervención');
+        Assert.areEqual(1, [SELECT COUNT() FROM Case], 'La crítica del segundo lote no abre otra intervención (D039)');
+        Log_Senial__c logSegunda = filaLog(identidad(segunda.Message_Id__c));
+        Assert.areEqual('Procesada', logSegunda.Resultado__c, 'La segunda crítica se procesa: ' + logSegunda.Motivo__c);
+        Assert.areEqual(casoId, logSegunda.Caso__c, 'La crítica del segundo lote enlaza el Case del primero');
+        Case caso = casoAbiertoUnico(SALA);
+        Assert.areEqual(casoId, caso.Id, 'Sigue siendo el Case del primer lote');
+        Assert.areEqual(identidad(primera.Message_Id__c), caso.Identidad_Senal__c, 'Identidad_Senal__c es la de la señal que lo abrió');
+        verificarUltimaCritica(caso, 'msg_pres', 'WATER_PRESSURE', 7, 'BAR', MAS_RECIENTE, 'En los dos órdenes el Case queda con la más reciente');
+        Assert.areEqual(40, lectura(SALA + '|TEMPERATURE').Valor__c, 'La temperatura escribe su lectura');
+        Assert.areEqual(7, lectura(SALA + '|WATER_PRESSURE').Valor__c, 'La presión escribe su lectura');
+    }
+
+    @IsTest
+    static void unaCriticaMasNuevaDeLaMismaMedicionEnOtroLoteActualizaElCaseSinAbrirOtro() {
+        Test.startTest();
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_c1', SALA, 'TEMPERATURE', '36', 'CELSIUS', INTERMEDIO) });
+        Case antes = casoAbiertoUnico(SALA);
+        // La corrida siguiente, cinco minutos después: el activo sigue crítico.
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_c2', SALA, 'TEMPERATURE', '38', 'CELSIUS', MAS_RECIENTE) });
+        Test.stopTest();
+
+        Assert.areEqual(1, [SELECT COUNT() FROM Case], 'La crítica siguiente no abre otra intervención');
+        Log_Senial__c nueva = filaLog(identidad('msg_c2'));
+        Assert.areEqual('Procesada', nueva.Resultado__c, 'La crítica nueva se procesa: ' + nueva.Motivo__c);
+        Assert.areEqual(antes.Id, nueva.Caso__c, 'La crítica nueva enlaza el Case abierto');
+        Case despues = caso(antes.Id);
+        verificarUltimaCritica(despues, 'msg_c2', 'TEMPERATURE', 38, 'CELSIUS', MAS_RECIENTE, 'El Case pasa a la crítica más nueva');
+        Assert.areEqual(identidad('msg_c1'), despues.Identidad_Senal__c, 'Identidad_Senal__c sigue siendo la de la señal que lo abrió');
+        Assert.areEqual(antes.Subject, despues.Subject, 'El asunto no cambia');
+        Assert.areEqual(antes.Description, despues.Description, 'La descripción no cambia');
+        Assert.areEqual(antes.Status, despues.Status, 'El estado no cambia');
+        Assert.areEqual(identidad('msg_c2'), lectura(SALA + '|TEMPERATURE').Identidad_Senal__c, 'La lectura vigente es la nueva');
+    }
+
+    // Criterio 3 de D039: solo una crítica que gana llega a IntervencionService. El Case abierto registra una crítica
+    // enlazada (no la que lo abrió) en INTERMEDIO, más vieja que la lectura vigente de temperatura (POSTERIOR, de un Case ya
+    // cerrado). Así, salvo el reenvío idéntico, cada evento cambiaría el Case si llegara al servicio: el conflicto no es la
+    // identidad que lo abrió y todos son más recientes que INTERMEDIO.
+    @IsTest
+    static void niUnReenvioNiUnConflictoNiUnaAtrasadaSuperadaORechazadaCambianElCase() {
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_a', SALA, 'TEMPERATURE', '36', 'CELSIUS', POSTERIOR) });
+        Id cerradoId = casoAbiertoUnico(SALA).Id;
+        update new Case(Id = cerradoId, Status = 'Closed');
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_p', SALA, 'WATER_PRESSURE', '7', 'BAR', ANTERIOR) });
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_q', SALA, 'WATER_PRESSURE', '8', 'BAR', INTERMEDIO) });
+        Case abierto = casoAbiertoUnico(SALA);
+        Assert.areEqual(identidad('msg_p'), abierto.Identidad_Senal__c, 'Precondición: msg_p abrió el Case');
+        verificarUltimaCritica(abierto, 'msg_q', 'WATER_PRESSURE', 8, 'BAR', INTERMEDIO, 'Precondición: el Case registra msg_q');
+
+        Senial_Sensor__e ajena = medicion('msg_ajena', SALA, 'TEMPERATURE', '40', 'CELSIUS', POSTERIOR);
+        ajena.Building_Id__c = 'BLD-OTRO-999';
+        List<Senial_Sensor__e> eventos = new List<Senial_Sensor__e>{
+            medicion('msg_q', SALA, 'WATER_PRESSURE', '8', 'BAR', INTERMEDIO), // reenvío idéntico
+            medicion('msg_q', SALA, 'WATER_PRESSURE', '9', 'BAR', MAS_RECIENTE), // misma identidad, otro contenido
+            medicion('msg_t', SALA, 'TEMPERATURE', '37', 'CELSIUS', MAS_RECIENTE), // más antigua que la vigente msg_a
+            medicion('msg_zz', SALA, 'TEMPERATURE', '38', 'CELSIUS', POSTERIOR), // mismo occurredAt que msg_a, pierde D003 por messageId
+            ajena, // edificio que no es el del activo
+            medicion('msg_fuera', SALA, 'TEMPERATURE', '90', 'CELSIUS', POSTERIOR) // fuera del rango físico (GE 81)
+        };
+        List<String> esperados = new List<String>{ 'Reenvio', 'Conflicto', 'Atrasada', 'Superada', 'Rechazada', 'Rechazada' };
+
+        Test.startTest();
+        for (Integer i = 0; i < eventos.size(); i++) {
+            String mid = eventos[i].Message_Id__c;
+            String contexto = esperados[i] + ' (' + mid + ')';
+            new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ eventos[i] });
+            Assert.areEqual(esperados[i], SenialSensorHandler.clasificacionPorMessageId.get(mid).resultado, contexto + ': resultado de la señal');
+            Assert.isTrue(SenialSensorHandler.criticasProcesadas.isEmpty(), contexto + ': no cuenta como crítica procesada');
+            Assert.areEqual(2, [SELECT COUNT() FROM Case], contexto + ': no abre otra intervención');
+            verificarUltimaCritica(caso(abierto.Id), 'msg_q', 'WATER_PRESSURE', 8, 'BAR', INTERMEDIO, contexto + ': el Case no cambia');
+        }
+        Test.stopTest();
+
+        Assert.areEqual(identidad('msg_a'), lectura(SALA + '|TEMPERATURE').Identidad_Senal__c, 'La lectura de temperatura no cambia');
+        Assert.areEqual(identidad('msg_q'), lectura(SALA + '|WATER_PRESSURE').Identidad_Senal__c, 'La lectura de presión no cambia');
+        verificarUltimaCritica(caso(cerradoId), 'msg_a', 'TEMPERATURE', 36, 'CELSIUS', POSTERIOR, 'El Case cerrado tampoco cambia');
+    }
+
+    @IsTest
+    static void unaCriticaAtrasadaTrasCerrarElCaseNoAbreOtro() {
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_abre', SALA, 'TEMPERATURE', '36', 'CELSIUS', MAS_RECIENTE) });
+        Id cerradoId = casoAbiertoUnico(SALA).Id;
+        update new Case(Id = cerradoId, Status = 'Closed');
+
+        Test.startTest();
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_tarde', SALA, 'TEMPERATURE', '38', 'CELSIUS', ANTERIOR) });
+        Test.stopTest();
+
+        Log_Senial__c tarde = filaLog(identidad('msg_tarde'));
+        Assert.areEqual('Atrasada', tarde.Resultado__c, 'La crítica más vieja que la vigente queda Atrasada: ' + tarde.Motivo__c);
+        Assert.isNull(tarde.Caso__c, 'La atrasada no enlaza Case');
+        Assert.areEqual(1, [SELECT COUNT() FROM Case], 'Una crítica atrasada no abre intervención aunque el activo no tenga ninguna abierta');
+        Case cerrado = caso(cerradoId);
+        Assert.isTrue(cerrado.IsClosed, 'El Case cerrado sigue cerrado');
+        verificarUltimaCritica(cerrado, 'msg_abre', 'TEMPERATURE', 36, 'CELSIUS', MAS_RECIENTE, 'El Case cerrado no cambia');
+    }
+
+    @IsTest
+    static void unaCriticaNuevaTrasCerrarElCaseAbreOtroYLoEnlaza() {
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_primera', SALA, 'TEMPERATURE', '36', 'CELSIUS', ANTERIOR) });
+        Id cerradoId = casoAbiertoUnico(SALA).Id;
+        update new Case(Id = cerradoId, Status = 'Closed');
+
+        Test.startTest();
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_segunda', SALA, 'TEMPERATURE', '38', 'CELSIUS', MAS_RECIENTE) });
+        Test.stopTest();
+
+        Assert.areEqual(2, [SELECT COUNT() FROM Case], 'Cerrado el Case, la siguiente crítica vigente abre uno nuevo');
+        Case nuevo = casoAbiertoUnico(SALA);
+        Assert.areNotEqual(cerradoId, nuevo.Id, 'El Case cerrado no se reabre ni se enlaza');
+        Assert.areEqual(identidad('msg_segunda'), nuevo.Identidad_Senal__c, 'Lo abre la crítica nueva');
+        verificarUltimaCritica(nuevo, 'msg_segunda', 'TEMPERATURE', 38, 'CELSIUS', MAS_RECIENTE, 'El Case nuevo registra su crítica');
+        Log_Senial__c segunda = filaLog(identidad('msg_segunda'));
+        Assert.areEqual('Procesada', segunda.Resultado__c, 'La crítica nueva se procesa: ' + segunda.Motivo__c);
+        Assert.areEqual(nuevo.Id, segunda.Caso__c, 'El log enlaza el Case nuevo');
+        Case cerrado = caso(cerradoId);
+        Assert.isTrue(cerrado.IsClosed, 'El Case cerrado sigue cerrado');
+        verificarUltimaCritica(cerrado, 'msg_primera', 'TEMPERATURE', 36, 'CELSIUS', ANTERIOR, 'El Case cerrado no cambia');
+    }
+
+    @IsTest
+    static void dosCriticasConElMismoOccurredAtEnDosLotesDejanElCaseConElMessageIdMenor() {
+        verificarEmpateEntreMediciones(true);
+    }
+
+    @IsTest
+    static void dosCriticasConElMismoOccurredAtEnDosLotesDejanElCaseConElMessageIdMenorEnOrdenInverso() {
+        verificarEmpateEntreMediciones(false);
+    }
+
+    // Mismo occurredAt y distinta medición: cada una gana su clave, y el Case aplica D003 extendido al activo (messageId menor).
+    private static void verificarEmpateEntreMediciones(Boolean menorPrimero) {
+        Senial_Sensor__e menor = medicion('msg_a', SALA, 'TEMPERATURE', '36', 'CELSIUS', MAS_RECIENTE);
+        Senial_Sensor__e mayor = medicion('msg_b', SALA, 'WATER_PRESSURE', '7', 'BAR', MAS_RECIENTE);
+
+        Test.startTest();
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ menorPrimero ? menor : mayor });
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ menorPrimero ? mayor : menor });
+        Test.stopTest();
+
+        Assert.areEqual(1, [SELECT COUNT() FROM Case], 'Una sola intervención para el activo');
+        Case caso = casoAbiertoUnico(SALA);
+        verificarUltimaCritica(caso, 'msg_a', 'TEMPERATURE', 36, 'CELSIUS', MAS_RECIENTE, 'Mismo occurredAt: gana el messageId menor en los dos órdenes');
+        for (String mid : new List<String>{ 'msg_a', 'msg_b' }) {
+            Log_Senial__c log = filaLog(identidad(mid));
+            Assert.areEqual('Procesada', log.Resultado__c, mid + ' gana su propia clave: ' + log.Motivo__c);
+            Assert.areEqual(caso.Id, log.Caso__c, mid + ' enlaza la intervención del activo');
+        }
+    }
+
+    @IsTest
+    static void unCaseManualAbiertoNoSeTocaYLaIngestaAbreYActualizaElSuyo() {
+        Case manual = new Case(AssetId = activo(SALA).Id, Status = 'En curso', Origin = 'Operador', Subject = 'Intervención manual en SALA');
+        insert manual;
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_m1', SALA, 'TEMPERATURE', '36', 'CELSIUS', ANTERIOR) });
+        Id telemetriaId = filaLog(identidad('msg_m1')).Caso__c;
+        Assert.isNotNull(telemetriaId, 'La crítica abre una intervención');
+        // El manual pasa a ser el abierto más reciente del activo: solo el filtro por Origin lo deja fuera.
+        // Test.setCreatedDate solo se permite antes de Test.startTest().
+        Test.setCreatedDate(telemetriaId, Datetime.now().addDays(-1));
+
+        Test.startTest();
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_m2', SALA, 'WATER_PRESSURE', '7', 'BAR', MAS_RECIENTE) });
+        Test.stopTest();
+
+        Assert.areNotEqual(manual.Id, telemetriaId, 'El Case manual no absorbe la crítica: la ingesta abre el suyo');
+        Assert.areEqual(2, [SELECT COUNT() FROM Case], 'Uno manual y uno de telemetría');
+        Assert.areEqual(telemetriaId, filaLog(identidad('msg_m2')).Caso__c, 'La segunda crítica enlaza el Case de telemetría, no el manual');
+        verificarUltimaCritica(caso(telemetriaId), 'msg_m2', 'WATER_PRESSURE', 7, 'BAR', MAS_RECIENTE, 'El Case de telemetría se actualiza');
+        Case manualDespues = caso(manual.Id);
+        Assert.areEqual('Operador', manualDespues.Origin, 'El manual conserva su origen');
+        Assert.areEqual('En curso', manualDespues.Status, 'El manual conserva su estado');
+        Assert.areEqual('Intervención manual en SALA', manualDespues.Subject, 'El manual conserva su asunto');
+        Assert.isNull(manualDespues.Identidad_Senal__c, 'El manual no tiene identidad de señal');
+        Assert.isNull(manualDespues.Ultima_Critica_Identidad__c, 'El manual no registra críticas');
+        Assert.isNull(manualDespues.Ultima_Critica_Medicion__c, 'El manual no registra críticas');
+        Assert.isNull(manualDespues.Ultima_Critica_Valor__c, 'El manual no registra críticas');
+        Assert.isNull(manualDespues.Ultima_Critica_Unidad__c, 'El manual no registra críticas');
+        Assert.isNull(manualDespues.Ultima_Critica_At__c, 'El manual no registra críticas');
+    }
+
+    @IsTest
+    static void siFallaLaActualizacionDelCaseSoloEsaCriticaQuedaFallidaYSuReintentoLoActualiza() {
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_abre', SALA, 'TEMPERATURE', '36', 'CELSIUS', INTERMEDIO) });
+        Id casoId = casoAbiertoUnico(SALA).Id;
+        String identidadFalla = identidad('msg_falla');
+        IntervencionService.identidadesConFalloDeActualizacion = new Set<String>{ identidadFalla };
+
+        Test.startTest();
+        // msg_falla es la crítica más reciente de SALA: sus valores son los que se escriben en el Case, y esa actualización falla.
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{
+            medicion('msg_falla', SALA, 'TEMPERATURE', '40', 'CELSIUS', MAS_RECIENTE),
+            medicion('msg_presion', SALA, 'WATER_PRESSURE', '7', 'BAR', ANTERIOR), // mismo activo, más vieja que la registrada
+            medicion('msg_otra', SALA_2, 'TEMPERATURE', '36', 'CELSIUS', MAS_RECIENTE),
+            medicion('msg_normal', SALA_3, 'TEMPERATURE', '25', 'CELSIUS', MAS_RECIENTE)
+        });
+        Log_Senial__c fallida = filaLog(identidadFalla);
+        Lectura_Vigente__c temperaturaTrasFallo = lectura(SALA + '|TEMPERATURE');
+        Case casoTrasFallo = caso(casoId);
+
+        // Reintento con el mismo contenido, ya sin el fallo forzado.
+        IntervencionService.identidadesConFalloDeActualizacion = new Set<String>();
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_falla', SALA, 'TEMPERATURE', '40', 'CELSIUS', MAS_RECIENTE) });
+        Test.stopTest();
+
+        Assert.areEqual('Fallida', fallida.Resultado__c, 'Si falla la actualización del Case, esa crítica queda Fallida');
+        Assert.isNull(fallida.Caso__c, 'La fallida no enlaza Case');
+        Assert.areEqual(identidad('msg_abre'), temperaturaTrasFallo.Identidad_Senal__c, 'La lectura vigente anterior sigue intacta');
+        Assert.areEqual(36, temperaturaTrasFallo.Valor__c, 'El valor anterior sigue intacto');
+        verificarUltimaCritica(casoTrasFallo, 'msg_abre', 'TEMPERATURE', 36, 'CELSIUS', INTERMEDIO, 'El Case no cambia si su actualización falla');
+        Log_Senial__c presion = filaLog(identidad('msg_presion'));
+        Assert.areEqual('Procesada', presion.Resultado__c, 'La otra crítica del mismo activo se procesa: ' + presion.Motivo__c);
+        Assert.areEqual(casoId, presion.Caso__c, 'La otra crítica del mismo activo sigue enlazada al Case');
+        Assert.areEqual(7, lectura(SALA + '|WATER_PRESSURE').Valor__c, 'La otra crítica del mismo activo escribe su lectura');
+        Log_Senial__c otra = filaLog(identidad('msg_otra'));
+        Assert.areEqual('Procesada', otra.Resultado__c, 'La crítica de otro activo se procesa: ' + otra.Motivo__c);
+        Assert.isNotNull(otra.Caso__c, 'La crítica de otro activo abre su intervención');
+        Assert.areNotEqual(casoId, otra.Caso__c, 'Otro activo, otra intervención');
+        Assert.areEqual('Procesada', filaLog(identidad('msg_normal')).Resultado__c, 'La señal normal del lote se procesa');
+
+        Log_Senial__c reintento = filaLog(identidadFalla);
+        Assert.areEqual('Procesada', reintento.Resultado__c, 'El reintento con la misma huella se procesa: ' + reintento.Motivo__c);
+        Assert.areEqual(casoId, reintento.Caso__c, 'El reintento enlaza la misma intervención');
+        Assert.areEqual(40, lectura(SALA + '|TEMPERATURE').Valor__c, 'El reintento aplica su lectura');
+        verificarUltimaCritica(caso(casoId), 'msg_falla', 'TEMPERATURE', 40, 'CELSIUS', MAS_RECIENTE, 'El reintento actualiza el Case');
+        Assert.areEqual(2, [SELECT COUNT() FROM Case], 'Ni el fallo ni el reintento abren otra intervención');
+    }
+
+    @IsTest
+    static void doscientasCriticasSobreDiezActivosDejanUnCaseAbiertoPorActivoConConsultasYDmlFijas() {
+        Map<String, Id> activoPorExterno = new Map<String, Id>();
+        for (Asset a : [SELECT Id, External_Id__c FROM Asset WHERE External_Id__c LIKE 'AST-BULK-0%']) {
+            activoPorExterno.put(a.External_Id__c, a.Id);
+        }
+        Assert.areEqual(10, activoPorExterno.size(), 'Precondición: diez activos de carga');
+        Datetime base = Datetime.newInstanceGmt(2026, 9, 30, 10, 0, 0);
+        // AST-BULK-00..04 ya tienen una intervención de telemetría abierta con una crítica anterior al lote (update);
+        // AST-BULK-05..09 no tienen ninguna (insert).
+        List<Case> previos = new List<Case>();
+        for (Integer activo = 0; activo < 5; activo++) {
+            String previa = identidad('previa_' + activo);
+            previos.add(new Case(AssetId = activoPorExterno.get('AST-BULK-0' + activo), Origin = 'Telemetria', Status = 'En curso',
+                Priority = 'Critica', Subject = 'Previa AST-BULK-0' + activo, Identidad_Senal__c = previa,
+                Ultima_Critica_Identidad__c = previa, Ultima_Critica_Medicion__c = 'TEMPERATURE', Ultima_Critica_Valor__c = 36,
+                Ultima_Critica_Unidad__c = 'CELSIUS', Ultima_Critica_At__c = base.addDays(-1)));
+        }
+        insert previos;
+        // 20 críticas por activo, intercaladas: las pares de temperatura y las impares de presión. Gana una por clave
+        // (n = 18 y n = 19), así que a IntervencionService llegan dos por activo y la más reciente es la presión n = 19.
+        List<Senial_Sensor__e> lote = new List<Senial_Sensor__e>();
+        for (Integer n = 0; n < 20; n++) {
+            String ocurrido = base.addMinutes(n).formatGmt(FORMATO_ISO);
+            for (Integer activo = 0; activo < 10; activo++) {
+                String mid = 'blk_' + activo + '_' + n;
+                lote.add(Math.mod(n, 2) == 0
+                    ? medicion(mid, 'AST-BULK-0' + activo, 'TEMPERATURE', String.valueOf(36 + n), 'CELSIUS', ocurrido)
+                    : medicion(mid, 'AST-BULK-0' + activo, 'WATER_PRESSURE', String.valueOf(7 + n), 'BAR', ocurrido));
+            }
+        }
+        Assert.areEqual(200, lote.size(), 'El lote de prueba son 200 eventos');
+
+        Test.startTest();
+        new SenialSensorHandler().procesar(lote);
+        // Consultas: umbrales + logs + activos + lecturas (handler) + Cases por identidad, bloqueo de activos y Cases abiertos
+        // (IntervencionService) = 7. DML: insert y update de Cases + upsert de lecturas + upsert de logs = 4.
+        Integer consultas = Limits.getQueries();
+        Integer dml = Limits.getDmlStatements();
+        Test.stopTest();
+
+        Assert.areEqual(7, consultas, 'Consultas fijas por lote');
+        Assert.areEqual(4, dml, 'Sentencias DML fijas por lote');
+        Assert.areEqual(0, SenialSensorHandler.erroresInesperados, 'Ninguna excepción inesperada');
+        Assert.areEqual(200, [SELECT COUNT() FROM Log_Senial__c], 'Una fila de log por identidad');
+        Assert.areEqual(20, [SELECT COUNT() FROM Log_Senial__c WHERE Resultado__c = 'Procesada'], 'Dos ganadoras por activo');
+        Assert.areEqual(180, [SELECT COUNT() FROM Log_Senial__c WHERE Resultado__c = 'Atrasada'], 'El resto queda como evidencia');
+        Assert.areEqual(20, [SELECT COUNT() FROM Lectura_Vigente__c], 'Dos lecturas por activo');
+        Assert.areEqual(10, [SELECT COUNT() FROM Case], 'Cinco previas y cinco nuevas: una por activo');
+
+        Map<Id, Case> casoPorActivo = new Map<Id, Case>();
+        for (Case c : [
+            SELECT Id, AssetId, Identidad_Senal__c, Ultima_Critica_Identidad__c, Ultima_Critica_Medicion__c, Ultima_Critica_Valor__c
+            FROM Case WHERE Origin = 'Telemetria' AND IsClosed = false
+        ]) {
+            Assert.isFalse(casoPorActivo.containsKey(c.AssetId), 'Más de una intervención abierta en el activo ' + c.AssetId);
+            casoPorActivo.put(c.AssetId, c);
+        }
+        Assert.areEqual(10, casoPorActivo.size(), 'Una intervención abierta por activo');
+        for (Integer activo = 0; activo < 10; activo++) {
+            String externo = 'AST-BULK-0' + activo;
+            Case c = casoPorActivo.get(activoPorExterno.get(externo));
+            String ganadora = identidad('blk_' + activo + '_19');
+            Assert.areEqual(ganadora, c.Ultima_Critica_Identidad__c, externo + ': el Case registra la crítica más reciente');
+            Assert.areEqual('WATER_PRESSURE', c.Ultima_Critica_Medicion__c, externo + ': medición de la más reciente');
+            Assert.areEqual(26, c.Ultima_Critica_Valor__c, externo + ': valor de la más reciente');
+            if (activo < 5) {
+                Assert.areEqual(previos[activo].Id, c.Id, externo + ': se enlaza el Case que ya estaba abierto');
+                Assert.areEqual(identidad('previa_' + activo), c.Identidad_Senal__c, externo + ': conserva la identidad que lo abrió');
+            } else {
+                Assert.areEqual(ganadora, c.Identidad_Senal__c, externo + ': lo abre la crítica más reciente del lote');
+            }
+        }
+        for (Log_Senial__c log : [SELECT Identidad__c, Asset__c, Caso__c FROM Log_Senial__c WHERE Resultado__c = 'Procesada']) {
+            Assert.areEqual(casoPorActivo.get(log.Asset__c).Id, log.Caso__c, log.Identidad__c + ' enlaza la intervención de su activo');
+        }
+    }
+
     // ─── Helpers de persistencia ─────────────────────────────────────────
 
     // D003: mismo occurredAt en el mismo lote. Gana el nivel mayor; a igual nivel, el messageId menor.
@@ -1409,6 +1780,32 @@ private class SenialSensorHandlerTest {
         ];
         Assert.areEqual(1, filas.size(), 'Debe existir exactamente una lectura vigente para ' + clave);
         return filas[0];
+    }
+
+    private static Case caso(Id casoId) {
+        List<Case> filas = [
+            SELECT Id, Origin, Status, IsClosed, Subject, Description, Identidad_Senal__c, Ultima_Critica_Medicion__c,
+                Ultima_Critica_Valor__c, Ultima_Critica_Unidad__c, Ultima_Critica_At__c, Ultima_Critica_Identidad__c
+            FROM Case WHERE Id = :casoId
+        ];
+        Assert.areEqual(1, filas.size(), 'Debe existir el Case ' + casoId);
+        return filas[0];
+    }
+
+    // D039: un activo tiene como mucho una intervención de telemetría abierta.
+    private static Case casoAbiertoUnico(String externo) {
+        Id activoId = activo(externo).Id;
+        List<Case> abiertos = [SELECT Id FROM Case WHERE AssetId = :activoId AND Origin = 'Telemetria' AND IsClosed = false];
+        Assert.areEqual(1, abiertos.size(), 'Debe haber exactamente una intervención de telemetría abierta en ' + externo);
+        return caso(abiertos[0].Id);
+    }
+
+    private static void verificarUltimaCritica(Case c, String messageId, String medicion, Decimal valor, String unidad, String occurredAt, String contexto) {
+        Assert.areEqual(identidad(messageId), c.Ultima_Critica_Identidad__c, contexto + ' - identidad de la última crítica');
+        Assert.areEqual(medicion, c.Ultima_Critica_Medicion__c, contexto + ' - medición de la última crítica');
+        Assert.areEqual(valor, c.Ultima_Critica_Valor__c, contexto + ' - valor de la última crítica');
+        Assert.areEqual(unidad, c.Ultima_Critica_Unidad__c, contexto + ' - unidad de la última crítica');
+        Assert.areEqual(fecha(occurredAt), c.Ultima_Critica_At__c, contexto + ' - occurredAt de la última crítica');
     }
 
     private static Umbral__c umbralDeTemperatura(String operador, Decimal valor, String severidad) {
