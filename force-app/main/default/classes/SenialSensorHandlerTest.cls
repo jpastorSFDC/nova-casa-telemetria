@@ -1441,13 +1441,14 @@ private class SenialSensorHandlerTest {
     static void unCaseManualAbiertoNoSeTocaYLaIngestaAbreYActualizaElSuyo() {
         Case manual = new Case(AssetId = activo(SALA).Id, Status = 'En curso', Origin = 'Operador', Subject = 'Intervención manual en SALA');
         insert manual;
-
-        Test.startTest();
         new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_m1', SALA, 'TEMPERATURE', '36', 'CELSIUS', ANTERIOR) });
         Id telemetriaId = filaLog(identidad('msg_m1')).Caso__c;
         Assert.isNotNull(telemetriaId, 'La crítica abre una intervención');
         // El manual pasa a ser el abierto más reciente del activo: solo el filtro por Origin lo deja fuera.
+        // Test.setCreatedDate solo se permite antes de Test.startTest().
         Test.setCreatedDate(telemetriaId, Datetime.now().addDays(-1));
+
+        Test.startTest();
         new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_m2', SALA, 'WATER_PRESSURE', '7', 'BAR', MAS_RECIENTE) });
         Test.stopTest();
 
