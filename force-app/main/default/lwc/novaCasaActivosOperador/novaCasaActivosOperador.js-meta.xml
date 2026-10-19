@@ -13,6 +13,8 @@
         <targetConfig targets="lightning__AppPage,lightning__HomePage">
             <!-- Default must match DEFAULT_STALE_MINUTES in novaCasaActivosOperador.js -->
             <property name="staleMinutes" type="Integer" default="15" min="1" label="Minutes before a signal is stale" description="A last signal older than this is flagged as stale."/>
+            <!-- Default must match DEFAULT_AUTO_REFRESH_SECONDS in novaCasaActivosOperador.js -->
+            <property name="autoRefreshSeconds" type="Integer" default="60" min="0" label="Refresco automático (segundos, 0 = apagado)" description="Refreshes the asset list in the background while it is visible. Values below 15 count as 15."/>
         </targetConfig>
     </targetConfigs>
 </LightningComponentBundle>

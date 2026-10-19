@@ -54,9 +54,15 @@ const SEVERITY_NO_READING_UI = { key: 'nivel', label: 'Sin lecturas', glyph: '?'
 // Active measurement types: the detail table lists the ones an asset has no reading for as "Sin lecturas".
 const MEASUREMENT_TYPES = Object.keys(MEASUREMENT_LABELS);
 
-// Asset.Tipo_Activo__c values that have their own icon; any other type gets the neutral icon.
-const ICON_PUMP = 'WATER_PUMP';
-const ICON_VENTILATION = 'VENTILATION';
+// Background refresh of the list (D042). Keep the default in sync with autoRefreshSeconds in
+// novaCasaActivosOperador.js-meta.xml; a configured value below the minimum counts as the minimum.
+const DEFAULT_AUTO_REFRESH_SECONDS = 60;
+const MIN_AUTO_REFRESH_SECONDS = 15;
+const AUTO_REFRESH_CHECK_MS = 5000;
+// A severity-change badge lasts until the next result or this long, whichever comes first.
+const CHANGE_MARK_TTL_MS = 10 * 60000;
+// The live region names at most this many assets per result, then "y N más".
+const MAX_ANNOUNCED_CHANGES = 5;
 
 // Fleet donut: one slice per level, in this order. Stale is not a level (an asset can be stable and stale), so it has no slice.
 const DONUT_LEVELS = [
@@ -178,6 +184,7 @@ function severityUiFor(level, hasReadings) {
     return hasReadings ? severityUi(level) : SEVERITY_NO_READING_UI;
 }
 
+// Also used for assets (same severityLevel key): null < 0 < 1 < 2.
 function rankOf(reading) {
     return reading.severityLevel === null || reading.severityLevel === undefined ? -1 : reading.severityLevel;
 }
@@ -186,9 +193,50 @@ function plural(count, one, many) {
     return `${count} ${count === 1 ? one : many}`;
 }
 
+// Severity change of one asset between two results of the same filters, or null. No level -> Estable is not an alert.
+// The texts never mention interventions: a level change says nothing about whether a case exists.
+function changeMark(fromRank, asset) {
+    const toRank = rankOf(asset);
+    if (toRank === fromRank || (fromRank === -1 && toRank === 0)) {
+        return null;
+    }
+    if (toRank > fromRank) {
+        const ui = severityUi(asset.severityLevel);
+        return {
+            up: true,
+            toRank,
+            tone: ui.key,
+            glyph: ui.glyph,
+            text: toRank === 2 ? 'Nuevo crítico' : 'Subió a precaución',
+            spoken: `${asset.name || 'Un activo'} pasó a ${ui.label}.`
+        };
+    }
+    const ui = severityUiFor(asset.severityLevel, (asset.readings || []).length > 0);
+    return { up: false, toRank, tone: 'baja', glyph: '↓', text: `Bajó a ${ui.label.toLowerCase()}` };
+}
+
+// Traffic light of a building row: its worst asset (critical > warning > stable > none).
+function worstLevelOf(building) {
+    if (building.critical > 0) {
+        return 2;
+    }
+    if (building.warning > 0) {
+        return 1;
+    }
+    return building.stable > 0 ? 0 : null;
+}
+
+function changeAnnouncement(sentences) {
+    const shown = sentences.slice(0, MAX_ANNOUNCED_CHANGES).join(' ');
+    const rest = sentences.length - MAX_ANNOUNCED_CHANGES;
+    return rest > 0 ? `${shown} y ${rest} más.` : shown;
+}
+
 export default class NovaCasaActivosOperador extends NavigationMixin(LightningElement) {
     /** Minutes without a signal before the asset is flagged as stale. */
     @api staleMinutes = DEFAULT_STALE_MINUTES;
+    /** Seconds between background refreshes of the list; 0 turns them off. */
+    @api autoRefreshSeconds = DEFAULT_AUTO_REFRESH_SECONDS;
 
     buildingId = '';
     severity = '';
@@ -251,8 +299,20 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     _ingestSince;
     _ingestTimer;
 
+    // Severity changes still on screen, by asset Id: { up, toRank, tone, glyph, text, atMs, ringDone }.
+    changeMarks = {};
+    // Polite live region: the assets that went up in the last result (downs are not announced).
+    changeAnnouncement = '';
+    // Ranks of the previous successful result and the filters it was read with; only results of the same filters compare.
+    _baselineRanks = null;
+    _baselineKey;
+
     _assetsResult;
     _timer;
+    _autoTimer;
+    // Background refresh in flight; while set, a failure keeps the last list on screen.
+    _silentRefresh = null;
+    _lastRefreshMs = 0;
     _focusTarget; // 'detail', 'filtros' (building select) or an asset Id whose "Ver activo" button should regain focus
 
     connectedCallback() {
@@ -261,10 +321,13 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         this._timer = setInterval(() => {
             this.nowMs = Date.now();
         }, TICK_MS);
+        // eslint-disable-next-line @lwc/lwc/no-async-operation
+        this._autoTimer = setInterval(() => this.autoRefreshTick(), AUTO_REFRESH_CHECK_MS);
     }
 
     disconnectedCallback() {
         clearInterval(this._timer);
+        clearInterval(this._autoTimer);
         clearInterval(this._ingestTimer);
     }
 
@@ -299,19 +362,25 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         const { data, error } = result;
         if (data) {
             const page = parseAssetsResponse(data);
+            this.updatedAtMs = Date.now();
+            this.nowMs = this.updatedAtMs;
+            this.trackSeverityChanges(page.assets, this.updatedAtMs);
             this.assets = page.assets;
             this.truncated = page.truncated;
             this.assetLimit = page.assetLimit;
             this.totalCount = page.totalCount;
             this.assetsError = undefined;
             this.assetsLoaded = true;
-            this.updatedAtMs = Date.now();
-            this.nowMs = this.updatedAtMs;
             // The selected asset left the payload (filters or data changed): fall back to the list.
             if (this.selectedAssetId && !page.assets.some((a) => a.assetId === this.selectedAssetId)) {
                 this.selectedAssetId = null;
             }
         } else if (error) {
+            // A failed background refresh keeps the last list; its "Vista actualizada" time keeps aging. A manual or
+            // filter refresh (isRefreshing) still shows the error.
+            if (this._silentRefresh && !this.isRefreshing && this.assets) {
+                return;
+            }
             this.assets = undefined;
             this.truncated = false;
             this.assetsError = error;
@@ -320,6 +389,59 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         }
         if (data || error) {
             this.isRefreshing = false;
+        }
+    }
+
+    // Compares a result with the previous one of the same filters (D042). The first load, a filter change, assets that
+    // appear or disappear and an unchanged level mark nothing. A mark outlives later results (up to CHANGE_MARK_TTL_MS)
+    // while the asset stays at the level it changed to, so a background refresh does not erase it; only new marks are
+    // announced and animated.
+    trackSeverityChanges(assets, atMs) {
+        const key = `${this.accountIdParam}|${this.severityParam}|${this.assetTypeParam}`;
+        const sameFilters = this._baselineKey === key;
+        const previous = sameFilters ? this._baselineRanks : null;
+        const previousMarks = sameFilters ? this.changeMarks : {};
+        this._baselineRanks = new Map(assets.map((a) => [a.assetId, rankOf(a)]));
+        this._baselineKey = key;
+        const marks = {};
+        const spoken = [];
+        if (previous) {
+            assets.forEach((a) => {
+                if (!previous.has(a.assetId)) {
+                    return;
+                }
+                const mark = changeMark(previous.get(a.assetId), a);
+                if (mark) {
+                    marks[a.assetId] = { ...mark, atMs, ringDone: false };
+                    if (mark.up) {
+                        spoken.push(mark.spoken);
+                    }
+                    return;
+                }
+                const kept = previousMarks[a.assetId];
+                if (kept && atMs - kept.atMs < CHANGE_MARK_TTL_MS && kept.toRank === rankOf(a)) {
+                    marks[a.assetId] = kept;
+                }
+            });
+        }
+        this.changeMarks = marks;
+        this.changeAnnouncement = changeAnnouncement(spoken);
+    }
+
+    activeChangeMark(assetId) {
+        const mark = this.changeMarks[assetId];
+        return mark && this.nowMs - mark.atMs < CHANGE_MARK_TTL_MS ? mark : null;
+    }
+
+    // The ring plays once per change: a card drawn again later (back from the detail) does not replay it.
+    handleRingEnd(event) {
+        if (event.target !== event.currentTarget || !String(event.animationName).includes('nc-anillo')) {
+            return;
+        }
+        const id = event.currentTarget.dataset.id;
+        const mark = this.changeMarks[id];
+        if (mark && !mark.ringDone) {
+            this.changeMarks = { ...this.changeMarks, [id]: { ...mark, ringDone: true } };
         }
     }
 
@@ -491,12 +613,51 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
 
     async handleRefresh() {
         this.isRefreshing = true;
+        this._lastRefreshMs = Date.now();
         try {
-            await refreshApex(this._assetsResult);
+            // A background refresh already in flight is awaited instead of starting a second call.
+            await (this._silentRefresh || refreshApex(this._assetsResult));
         } catch (e) {
             // The wire re-emits the error; nothing else to do here.
         }
         this.isRefreshing = false;
+    }
+
+    get autoRefreshMs() {
+        const seconds = Number(this.autoRefreshSeconds);
+        return seconds > 0 ? Math.max(seconds, MIN_AUTO_REFRESH_SECONDS) * 1000 : 0;
+    }
+
+    // Background refresh (D042): only while the list is on screen in a visible tab, with no ingestion run, refresh or
+    // form in progress. It never shows the skeleton.
+    autoRefreshTick() {
+        const interval = this.autoRefreshMs;
+        if (
+            !interval ||
+            this.selectedAssetId ||
+            document.visibilityState !== 'visible' ||
+            this.ingestRunning ||
+            this.isRefreshing ||
+            this._silentRefresh ||
+            this.formMode ||
+            this.isSaving ||
+            !this.assetsLoaded ||
+            !this._assetsResult
+        ) {
+            return;
+        }
+        if (Date.now() - Math.max(this.updatedAtMs || 0, this._lastRefreshMs) < interval) {
+            return;
+        }
+        this.runSilentRefresh();
+    }
+
+    async runSilentRefresh() {
+        this._lastRefreshMs = Date.now();
+        // A failure is handled in wiredAssets, which keeps the last list on screen.
+        this._silentRefresh = Promise.resolve(refreshApex(this._assetsResult)).catch(() => undefined);
+        await this._silentRefresh;
+        this._silentRefresh = null;
     }
 
     // ---- state ----
@@ -696,6 +857,7 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
                     total: 0,
                     critical: 0,
                     warning: 0,
+                    stable: 0,
                     noData: 0,
                     stale: 0
                 });
@@ -706,6 +868,8 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
                 b.critical += 1;
             } else if (a.severityLevel === 1) {
                 b.warning += 1;
+            } else if (a.severityLevel === 0) {
+                b.stable += 1;
             } else if (a.severityLevel == null) {
                 b.noData += 1;
             }
@@ -717,6 +881,7 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             .sort((x, y) => y.critical - x.critical || y.warning - x.warning || x.name.localeCompare(y.name))
             .map((b) => ({
                 ...b,
+                worstLevel: worstLevelOf(b),
                 hasCritical: b.critical > 0,
                 hasWarning: b.warning > 0,
                 hasNoData: b.noData > 0,
@@ -872,6 +1037,8 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         const closedDay = closed ? formatDayMonth(closed.closedDate) : '';
         const closedWhen = closedDay ? `, cerrada el ${closedDay}` : '';
         const unreadable = !hasReadings;
+        const change = this.activeChangeMark(a.assetId);
+        const ring = change && change.up && !change.ringDone ? ` anillo-${change.tone}` : '';
         return {
             key: a.assetId,
             assetId: a.assetId,
@@ -881,12 +1048,14 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             externalId: a.externalId || '',
             hasExternalId: Boolean(a.externalId),
             hasStatusRow: Boolean(a.externalId || headAge),
-            isPump: a.assetType === ICON_PUMP,
-            isVentilation: a.assetType === ICON_VENTILATION,
-            isOtherType: a.assetType !== ICON_PUMP && a.assetType !== ICON_VENTILATION,
+            assetType: a.assetType || '',
             level,
-            cardClass: `tarjeta-activo ${ui.key}`,
+            cardClass: `tarjeta-activo ${ui.key}${ring}`,
             heroClass: `tarjeta hero-activo ${ui.key}`,
+            hasChange: Boolean(change),
+            changeText: change ? change.text : '',
+            changeGlyph: change ? change.glyph : '',
+            changeClass: change ? `cambio cambio-${change.tone}` : 'cambio',
             sevClass: `sev sev-${ui.key}`,
             sevGlyph: ui.glyph,
             sevLabel: ui.label,
@@ -913,6 +1082,8 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             hasLast: Boolean(latest),
             tableRows: [...sorted, ...missing],
             hasIntervention: Boolean(inv),
+            // Red is reserved for critical (D041, D042): the open-intervention band is neutral unless the asset is critical.
+            intHeadClass: level === 2 ? 'int-cab int-cab-critico' : 'int-cab int-cab-abierta',
             caseId: inv ? inv.caseId : null,
             caseNumber: inv ? inv.caseNumber : '',
             caseStatus: inv ? inv.status : '',

@@ -1,0 +1,81 @@
+/* Lamp colors are the D041 severity colors; glyphs are white on red and dark on amber and green for contrast. */
+:host {
+    display: inline-flex;
+    flex: none;
+    vertical-align: middle;
+}
+
+.caja {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 4px;
+    border-radius: 10px;
+    background: #1e293b;
+}
+.caja.horizontal {
+    flex-direction: row;
+}
+.luz {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: rgba(71, 85, 105, 0.45);
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 1;
+}
+.compacto {
+    gap: 2px;
+    padding: 3px;
+    border-radius: 8px;
+}
+.compacto .luz {
+    width: 11px;
+    height: 11px;
+    font-size: 7px;
+}
+
+.roja.encendida {
+    background: #e11d48;
+    color: #fff;
+    box-shadow: 0 0 6px 1px rgba(225, 29, 72, 0.65);
+    /* Same timing as nc-pulso-critico: 3 x 1.5 s stays under the 5 s of WCAG 2.2.2 and far below 3 flashes per second */
+    animation: nc-semaforo-pulso 1.5s ease-out 3;
+}
+.ambar.encendida {
+    background: #d97706;
+    color: #0f172a;
+    box-shadow: 0 0 6px 1px rgba(217, 119, 6, 0.6);
+}
+.verde.encendida {
+    background: #16a34a;
+    color: #0f172a;
+    box-shadow: 0 0 6px 1px rgba(22, 163, 74, 0.6);
+}
+.sin-dato .luz {
+    background: rgba(100, 116, 139, 0.7);
+}
+.sin-dato .ambar {
+    background: #64748b;
+    color: #fff;
+}
+
+@keyframes nc-semaforo-pulso {
+    from {
+        box-shadow: 0 0 6px 1px rgba(225, 29, 72, 0.65), 0 0 0 0 rgba(225, 29, 72, 0.6);
+    }
+    to {
+        box-shadow: 0 0 6px 1px rgba(225, 29, 72, 0.65), 0 0 0 5px rgba(225, 29, 72, 0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .roja.encendida {
+        animation: none;
+    }
+}

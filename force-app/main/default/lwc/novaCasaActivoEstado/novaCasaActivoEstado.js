@@ -1,10 +1,14 @@
 import { LightningElement, api, wire } from 'lwc';
 import { NavigationMixin } from 'lightning/navigation';
 import { refreshApex } from '@salesforce/apex';
+import { getRecord, getFieldValue, getFieldDisplayValue } from 'lightning/uiRecordApi';
+import TIPO_ACTIVO_FIELD from '@salesforce/schema/Asset.Tipo_Activo__c';
 import getEstadoActivo from '@salesforce/apex/ActivosOperadorController.getEstadoActivo';
 import { MEASUREMENT_LABELS, severityUi, reduceError, relativeAge } from 'c/novaCasaEtiquetas';
 
 const NUMBER_FORMAT = new Intl.NumberFormat('es', { maximumFractionDigits: 3 });
+// Same wording as the operator screen for an asset without readings; c/novaCasaEtiquetas only has "Sin dato".
+const SEVERITY_NO_READING_UI = { key: 'nivel', label: 'Sin lecturas', glyph: '?' };
 
 function formatValue(value, unit) {
     const number = value === null || value === undefined ? '—' : NUMBER_FORMAT.format(value);
@@ -24,6 +28,11 @@ export default class NovaCasaActivoEstado extends NavigationMixin(LightningEleme
     errorMessage;
     loaded = false;
     wiredResult;
+
+    // Only for the illustration and its label. Optional: without FLS on the field the card still loads, with the
+    // neutral illustration and no type text.
+    @wire(getRecord, { recordId: '$recordId', optionalFields: [TIPO_ACTIVO_FIELD] })
+    assetRecord;
 
     @wire(getEstadoActivo, { assetId: '$recordId' })
     wiredEstado(result) {
@@ -107,11 +116,44 @@ export default class NovaCasaActivoEstado extends NavigationMixin(LightningEleme
     get hasReadings() {
         return this.readings.length > 0;
     }
+
+    // ---- header: illustration, traffic light and asset severity ----
+
+    get assetType() {
+        const record = this.assetRecord && this.assetRecord.data;
+        return (record && getFieldValue(record, TIPO_ACTIVO_FIELD)) || '';
+    }
+    get typeLabel() {
+        const record = this.assetRecord && this.assetRecord.data;
+        return (record && (getFieldDisplayValue(record, TIPO_ACTIVO_FIELD) || getFieldValue(record, TIPO_ACTIVO_FIELD))) || '';
+    }
+    get hasTypeLabel() {
+        return Boolean(this.typeLabel);
+    }
+    // Asset severity = the highest level among its latest readings (null when none has a level).
+    get assetLevel() {
+        const list = this.estado ? this.estado.readings || [] : [];
+        return list.reduce((max, r) => {
+            const level = r.severityLevel;
+            return level !== null && level !== undefined && (max === null || level > max) ? level : max;
+        }, null);
+    }
+    get assetSeverity() {
+        return this.hasReadings ? severityUi(this.assetLevel) : SEVERITY_NO_READING_UI;
+    }
+    get assetSevClass() {
+        return `sev sev-${this.assetSeverity.key}`;
+    }
+
     get intervention() {
         return this.estado ? this.estado.openIntervention : null;
     }
     get hasIntervention() {
         return Boolean(this.intervention);
+    }
+    // Red is reserved for critical (D041, D042): the band is neutral unless the asset is critical.
+    get caseHeadClass() {
+        return this.assetLevel === 2 ? 'caso-cabecera caso-critico' : 'caso-cabecera';
     }
     get caseTitle() {
         return this.intervention ? `Caso ${this.intervention.caseNumber}` : '';

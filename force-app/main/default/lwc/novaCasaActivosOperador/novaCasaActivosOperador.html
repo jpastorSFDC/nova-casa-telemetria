@@ -1,5 +1,8 @@
 <template>
     <div class="lwc">
+        <!-- Always rendered, so screen readers hear each new text once -->
+        <div class="solo-lectura" aria-live="polite" aria-atomic="true">{changeAnnouncement}</div>
+
         <!-- Header -->
         <div class="tarjeta cabecera">
             <div class="cab-fila">
@@ -47,7 +50,7 @@
                             </li>
                         </template>
                         <template if:true={hasFuture}>
-                            <li class="kpi kpi-rojo">
+                            <li class="kpi kpi-calidad">
                                 <span class="kpi-glifo" aria-hidden="true">&#9888;</span>
                                 <span class="kpi-texto"><span class="micro">Fecha de origen en el futuro</span><span class="kpi-valor">{futureCountText}</span></span>
                             </li>
@@ -184,6 +187,7 @@
                             <thead>
                                 <tr>
                                     <th scope="col">Edificio</th>
+                                    <th scope="col" class="centro">Estado</th>
                                     <th scope="col" class="centro">Activos</th>
                                     <th scope="col" class="centro">Críticos</th>
                                     <th scope="col" class="centro">Precaución</th>
@@ -195,7 +199,15 @@
                             <tbody>
                                 <template for:each={buildingSummary} for:item="b">
                                     <tr key={b.key} class={b.rowClass}>
-                                        <td class="celda-fuerte celda-edificio">{b.name}</td>
+                                        <td class="celda-fuerte celda-edificio">
+                                            <span class="edif-nombre">
+                                                <c-nova-casa-ilustracion tipo="BUILDING" tamano="sm"></c-nova-casa-ilustracion>
+                                                <span>{b.name}</span>
+                                            </span>
+                                        </td>
+                                        <td class="centro">
+                                            <c-nova-casa-semaforo nivel={b.worstLevel} orientacion="horizontal" compacto></c-nova-casa-semaforo>
+                                        </td>
                                         <td class="centro num fuerte">{b.total}</td>
                                         <td class="centro">
                                             <template if:true={b.hasCritical}>
@@ -363,21 +375,11 @@
         <template if:true={showList}>
             <div class="cuadricula">
                 <template for:each={rows} for:item="row">
-                    <article key={row.key} class={row.cardClass} data-id={row.assetId} onclick={handleViewAsset}>
+                    <article key={row.key} class={row.cardClass} data-id={row.assetId} onclick={handleViewAsset} onanimationend={handleRingEnd}>
                         <div class="tarjeta-cuerpo">
                             <div class="tarjeta-top">
                                 <div class="ident">
-                                    <div class="tipo-ico" aria-hidden="true">
-                                        <template if:true={row.isPump}>
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="7" y="11" width="10" height="8" rx="1.5"/><path d="M12 11V6M9 6h6"/><circle cx="12" cy="15.5" r="1.6" fill="currentColor" stroke="none"/></svg>
-                                        </template>
-                                        <template if:true={row.isVentilation}>
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="2.2"/><path d="M12 4.5v3.2M12 16.3v3.2M4.5 12h3.2M16.3 12h3.2M6.4 6.4l2.3 2.3M15.3 15.3l2.3 2.3M17.6 6.4l-2.3 2.3M8.7 15.3l-2.3 2.3"/></svg>
-                                        </template>
-                                        <template if:true={row.isOtherType}>
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 9h6v6H9z"/></svg>
-                                        </template>
-                                    </div>
+                                    <c-nova-casa-ilustracion tipo={row.assetType} nivel={row.level} tamano="md"></c-nova-casa-ilustracion>
                                     <div class="ident-texto">
                                         <template if:true={row.hasEyebrow}>
                                             <span class="eyebrow">{row.eyebrow}</span>
@@ -385,8 +387,14 @@
                                         <p class="nombre-activo">{row.name}</p>
                                     </div>
                                 </div>
-                                <span class={row.sevClass}><span class="glifo" aria-hidden="true">{row.sevGlyph}</span> {row.sevLabel}</span>
+                                <div class="estado-lado">
+                                    <span class={row.sevClass}><span class="glifo" aria-hidden="true">{row.sevGlyph}</span> {row.sevLabel}</span>
+                                    <c-nova-casa-semaforo nivel={row.level} etiqueta-sin-dato={row.sevLabel}></c-nova-casa-semaforo>
+                                </div>
                             </div>
+                            <template if:true={row.hasChange}>
+                                <p class={row.changeClass}><span aria-hidden="true">{row.changeGlyph}</span> {row.changeText}</p>
+                            </template>
                             <div class="lectura-bloque">
                                 <template if:true={row.hasHeadline}>
                                     <span class="micro">{row.headLabel}</span>
@@ -437,17 +445,7 @@
                 <section class={selectedRow.heroClass} aria-label="Resumen del activo">
                     <div class="hero">
                         <div class="hero-izq">
-                            <div class="tipo-ico tipo-ico-grande" aria-hidden="true">
-                                <template if:true={selectedRow.isPump}>
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="7" y="11" width="10" height="8" rx="1.5"/><path d="M12 11V6M9 6h6"/><circle cx="12" cy="15.5" r="1.6" fill="currentColor" stroke="none"/></svg>
-                                </template>
-                                <template if:true={selectedRow.isVentilation}>
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="2.2"/><path d="M12 4.5v3.2M12 16.3v3.2M4.5 12h3.2M16.3 12h3.2M6.4 6.4l2.3 2.3M15.3 15.3l2.3 2.3M17.6 6.4l-2.3 2.3M8.7 15.3l-2.3 2.3"/></svg>
-                                </template>
-                                <template if:true={selectedRow.isOtherType}>
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 9h6v6H9z"/></svg>
-                                </template>
-                            </div>
+                            <c-nova-casa-ilustracion tipo={selectedRow.assetType} nivel={selectedRow.level} tamano="lg"></c-nova-casa-ilustracion>
                             <div class="hero-texto">
                                 <template if:true={selectedRow.hasEyebrow}>
                                     <span class="eyebrow">{selectedRow.eyebrow}</span>
@@ -458,7 +456,10 @@
                                 </template>
                             </div>
                         </div>
-                        <span class={selectedRow.sevClass}><span class="glifo" aria-hidden="true">{selectedRow.sevGlyph}</span> {selectedRow.sevLabel}</span>
+                        <div class="estado-lado">
+                            <span class={selectedRow.sevClass}><span class="glifo" aria-hidden="true">{selectedRow.sevGlyph}</span> {selectedRow.sevLabel}</span>
+                            <c-nova-casa-semaforo nivel={selectedRow.level} etiqueta-sin-dato={selectedRow.sevLabel}></c-nova-casa-semaforo>
+                        </div>
                     </div>
                     <div class="franja">
                         <div class="franja-celda">
@@ -508,8 +509,11 @@
 
                     <template if:true={selectedRow.hasIntervention}>
                         <section class="tarjeta intervencion" aria-label="Intervención en curso">
-                            <div class="int-cab int-cab-abierta">
-                                <span><span aria-hidden="true">&#9679;</span> Intervención abierta</span>
+                            <div class={selectedRow.intHeadClass}>
+                                <span class="int-titulo">
+                                    <svg class="int-ico" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5V3h6v1.5"/><path d="M9 10h6M9 14h6M9 18h3"/></svg>
+                                    Intervención abierta
+                                </span>
                                 <span><span class="solo-lectura">Estado: </span>{selectedRow.caseStatus}</span>
                             </div>
                             <div class="int-cuerpo">

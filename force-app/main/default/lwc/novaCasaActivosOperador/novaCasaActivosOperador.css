@@ -34,6 +34,11 @@
     --nc-normal-borde: #a7f3d0;
     --nc-nivel: #64748b;
     --nc-nivel-fondo: #f1f5f9;
+    /* Data-quality notices (origin time in the future): neutral, never the critical red (D042) */
+    --nc-calidad-texto: #334155;
+    --nc-calidad-borde: #94a3b8;
+    --nc-calidad-acento: #64748b;
+    --nc-neutro-oscuro: #334155;
 
     color: var(--nc-tinta);
     font-size: 13px;
@@ -263,14 +268,15 @@
 .kpi-ambar .kpi-valor {
     color: var(--nc-ambar-texto);
 }
-.kpi-rojo {
-    background: var(--nc-papel);
-    border-color: var(--nc-critico);
+.kpi-calidad {
+    background: var(--nc-nivel-fondo);
+    border-color: var(--nc-calidad-borde);
+    border-left: 4px solid var(--nc-calidad-acento);
 }
-.kpi-rojo .kpi-glifo,
-.kpi-rojo .micro,
-.kpi-rojo .kpi-valor {
-    color: var(--nc-critico-texto);
+.kpi-calidad .kpi-glifo,
+.kpi-calidad .micro,
+.kpi-calidad .kpi-valor {
+    color: var(--nc-calidad-texto);
 }
 
 /* Buttons and links */
@@ -659,7 +665,12 @@
     color: var(--nc-tinta-suave);
 }
 .celda-edificio {
-    min-width: 9rem;
+    min-width: 11rem;
+}
+.edif-nombre {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
 }
 .edif-critico td:first-child {
     box-shadow: inset 4px 0 0 var(--nc-critico);
@@ -898,6 +909,35 @@
 .tarjeta-activo.critico {
     border-left: 4px solid var(--nc-critico);
 }
+/* Severity went up since the previous result: 3 x 1.2 s, under the 5 s of WCAG 2.2.2 and below 1 flash per second */
+.tarjeta-activo.anillo-critico {
+    animation: nc-anillo-critico 1.2s ease-out 3;
+}
+.tarjeta-activo.anillo-advertencia {
+    animation: nc-anillo-advertencia 1.2s ease-out 3;
+}
+@keyframes nc-anillo-critico {
+    0% {
+        box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 8px rgba(225, 29, 72, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(225, 29, 72, 0);
+    }
+}
+@keyframes nc-anillo-advertencia {
+    0% {
+        box-shadow: 0 0 0 0 rgba(217, 119, 6, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 8px rgba(217, 119, 6, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(217, 119, 6, 0);
+    }
+}
 .tarjeta-cuerpo {
     display: flex;
     flex-direction: column;
@@ -933,33 +973,43 @@
     font-weight: 600;
     overflow-wrap: anywhere;
 }
-
-.tipo-ico {
-    width: 36px;
-    height: 36px;
-    flex: none;
-    border-radius: 6px;
+/* Severity pill and traffic light, side by side; the pill keeps the text next to the lamps */
+.estado-lado {
     display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    flex: none;
+}
+
+/* Severity-change badge: up to critical is solid red, up to warning is soft amber, down is neutral gray */
+.cambio {
+    align-self: flex-start;
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    background: var(--nc-nivel-fondo);
-    color: var(--nc-tinta-media);
+    gap: 5px;
+    margin: 0;
+    min-height: 22px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    font-size: 11.5px;
+    font-weight: 700;
+    line-height: 16px;
 }
-.tipo-ico svg {
-    width: 20px;
-    height: 20px;
-}
-.critico .tipo-ico {
+.cambio-critico {
     background: var(--nc-critico);
+    border-color: var(--nc-critico);
     color: #fff;
 }
-.advertencia .tipo-ico {
+.cambio-advertencia {
     background: var(--nc-advertencia-fondo);
+    border-color: var(--nc-advertencia-borde);
     color: var(--nc-advertencia-texto);
 }
-.normal .tipo-ico {
-    background: var(--nc-normal-fondo);
-    color: var(--nc-normal-texto);
+.cambio-baja {
+    background: var(--nc-nivel-fondo);
+    border-color: var(--nc-linea);
+    color: var(--nc-neutro-oscuro);
 }
 
 .lectura-bloque {
@@ -1003,10 +1053,10 @@
     line-height: 16px;
 }
 .aviso-futuro {
-    background: var(--nc-papel);
-    color: var(--nc-critico-texto);
-    border-color: var(--nc-critico);
-    border-left-width: 4px;
+    background: var(--nc-nivel-fondo);
+    color: var(--nc-calidad-texto);
+    border-color: var(--nc-calidad-borde);
+    border-left: 4px solid var(--nc-calidad-acento);
     font-weight: 600;
 }
 .aviso-vieja {
@@ -1134,14 +1184,6 @@
 .hero-texto {
     min-width: 0;
 }
-.tipo-ico-grande {
-    width: 44px;
-    height: 44px;
-}
-.tipo-ico-grande svg {
-    width: 24px;
-    height: 24px;
-}
 .hero-nombre {
     margin: 2px 0;
     font-size: 20px;
@@ -1197,7 +1239,12 @@
     font-weight: 600;
 }
 .franja-futuro {
-    color: var(--nc-critico-texto);
+    padding: 2px 8px;
+    border: 1px solid var(--nc-calidad-borde);
+    border-left: 4px solid var(--nc-calidad-acento);
+    border-radius: 4px;
+    background: var(--nc-nivel-fondo);
+    color: var(--nc-calidad-texto);
 }
 .franja-vieja {
     color: var(--nc-ambar-texto);
@@ -1272,9 +1319,24 @@
     letter-spacing: 0.06em;
     text-transform: uppercase;
 }
+/* Open intervention: red band only when the asset is critical; otherwise a dark neutral band (white text, 10:1) */
 .int-cab-abierta {
+    background: var(--nc-neutro-oscuro);
+    color: #fff;
+}
+.int-cab-critico {
     background: var(--nc-critico);
     color: #fff;
+}
+.int-titulo {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.int-ico {
+    width: 14px;
+    height: 14px;
+    flex: none;
 }
 .int-cab-ninguna {
     background: var(--nc-nivel-fondo);
@@ -1394,7 +1456,9 @@
     * {
         transition: none !important;
     }
-    .sev-critico {
+    .sev-critico,
+    .tarjeta-activo.anillo-critico,
+    .tarjeta-activo.anillo-advertencia {
         animation: none;
     }
 }
