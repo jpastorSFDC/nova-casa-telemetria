@@ -2012,6 +2012,781 @@ private class ActivosOperadorControllerTest {
         Assert.areEqual(closed.ClosedDate, page.assets[0].lastClosedIntervention.closedDate);
     }
 
+    // ---------- intervention record page (HP-07) ----------
+
+    @isTest
+    static void interventionMethodsRejectNullAnAssetIdAndAHiddenCaseWithTheSameSafeMessage() {
+        // Given two operators with the shipped set, and a Case with a linked signal on operator A's building
+        User operatorA = newUserWithPermissionSet('nc207caseopa', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User operatorB = newUserWithPermissionSet('nc207caseopb', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Account building = newAccount('Edificio Caso Oculto', operatorA.Id);
+        Asset asset = newAsset('AST-CASE-DENY', building, 'WATER_PUMP');
+        Case hidden = newCase(asset, 'En curso', 'Caso de A');
+        insert linkedLog(asset, hidden.Id, baseTime());
+
+        // When the owner passes null and an Asset Id, and operator B passes A's Case Id, to both methods
+        List<String> forNull = bothOutcomes(operatorA, null);
+        List<String> forAsset = bothOutcomes(operatorA, asset.Id);
+        List<String> forHidden = bothOutcomes(operatorB, hidden.Id);
+
+        // Then every call fails with the same static message and returns nothing, while the owner does get the signal
+        List<String> denied = new List<String>{ ActivosOperadorController.CASE_MESSAGE, ActivosOperadorController.CASE_MESSAGE };
+        Assert.areEqual(denied, forNull, 'a null id must be rejected by both methods');
+        Assert.areEqual(denied, forAsset, 'an Asset id must be rejected by both methods');
+        Assert.areEqual(denied, forHidden, 'a Case the user cannot see must be rejected like a missing one, without its log');
+        Assert.areEqual(1, interventionSignals(operatorA, hidden.Id, null).signals.size(), 'the owner sees the linked signal');
+    }
+
+    @isTest
+    static void realOperatorCoordinatorGerenteAndAdminPermissionSetsReadAVisibleIntervention() {
+        // Given the four shipped screen sets (the Gerente's grants no access to IntervencionOperadorController), and a
+        // telemetry Case with priority and origin on the operator's building, with one linked signal
+        User operator = newUserWithPermissionSet('nc207caseroleop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Map<String, User> bySet = new Map<String, User>{
+            'Nova_Casa_Operator' => operator,
+            'Nova_Casa_Coordinator' => newUserWithPermissionSet('nc207caserolecoord', 'Nova_Casa_Coordinator', COORDINATOR_ROLE),
+            'Nova_Casa_Gerente' => newUserWithPermissionSet('nc207caseroleger', 'Nova_Casa_Gerente', GERENTE_ROLE),
+            'Nova_Casa_Admin' => newUserWithPermissionSet('nc207caseroleadm', 'Nova_Casa_Admin', null)
+        };
+        Set<String> gerenteClasses = apexClassesOf('Nova_Casa_Gerente');
+        Assert.isTrue(gerenteClasses.contains('ActivosOperadorController'), 'Nova_Casa_Gerente must be able to call the record-page methods');
+        Assert.isFalse(gerenteClasses.contains('IntervencionOperadorController'),
+            'precondition: the Gerente cannot call IntervencionOperadorController, so the page must not need it');
+        Account building = newAccount('Edificio Caso Roles', operator.Id);
+        Asset asset = newAsset('AST-CASE-ROLES', building, 'WATER_PUMP');
+        newReading(asset, 'TEMPERATURE', 'CELSIUS', 95, baseTime(), 2);
+        Case c = caseDraft(asset, operator.Id, 'En curso', 'Señal crítica roles');
+        c.Origin = 'Telemetria';
+        c.Priority = 'Critica';
+        insert c;
+        insert linkedLog(asset, c.Id, baseTime());
+
+        // When each opens the intervention and its signals
+        Map<String, ActivosOperadorController.IntervencionDetalle> details = new Map<String, ActivosOperadorController.IntervencionDetalle>();
+        Map<String, ActivosOperadorController.SenalesIntervencion> signalLists = new Map<String, ActivosOperadorController.SenalesIntervencion>();
+        Map<String, String> errors = new Map<String, String>();
+        for (String setName : bySet.keySet()) {
+            System.runAs(bySet.get(setName)) {
+                try {
+                    details.put(setName, ActivosOperadorController.getIntervencion(c.Id));
+                    signalLists.put(setName, ActivosOperadorController.getSenalesDeIntervencion(c.Id, null));
+                } catch (AuraHandledException e) {
+                    errors.put(setName, e.getMessage());
+                }
+            }
+        }
+
+        // Then nobody gets an error (the detail reads Case.Origin and Case.Priority WITH USER_MODE) and the detail carries them
+        for (String setName : bySet.keySet()) {
+            Assert.isNull(errors.get(setName), setName + ' must read the intervention');
+            ActivosOperadorController.IntervencionDetalle detalle = details.get(setName);
+            Assert.areEqual(c.Id, detalle.caseId, setName);
+            Assert.areEqual('Critica', detalle.priority, setName + ' must receive Case.Priority');
+            Assert.areEqual('Telemetria', detalle.origin, setName + ' must receive Case.Origin');
+            Assert.isTrue(detalle.esTelemetria, setName);
+            Assert.isTrue(detalle.recibeCriticas, setName + ': the only open telemetry Case of the asset receives its criticals');
+            Assert.areEqual(asset.Id, detalle.assetId, setName);
+            Assert.areEqual('AST-CASE-ROLES', detalle.assetName, setName);
+            Assert.areEqual(building.Id, detalle.accountId, setName);
+            Assert.areEqual('Edificio Caso Roles', detalle.accountName, setName);
+            Assert.areEqual(2, detalle.assetLevel, setName);
+            Assert.areEqual(1, detalle.senalesEnlazadas, setName);
+            Assert.isFalse(detalle.estados.isEmpty(), setName + ' must receive the follow-up statuses');
+            Assert.areEqual(1, signalLists.get(setName).signals.size(), setName);
+        }
+    }
+
+    @isTest
+    static void interventionDetailWithoutReadOnCaseOriginOrPriorityGetsTheSafeAccessMessage() {
+        // Given three users who each own a building with an open Case: one reads every field the detail selects, the other
+        // two miss only Case.Origin or only Case.Priority
+        Map<String, User> byMissingField = new Map<String, User>{
+            'nothing' => newUserWithCaseReadExcept('nc207caseallfls', null),
+            'Case.Origin' => newUserWithCaseReadExcept('nc207casenoorigin', 'Case.Origin'),
+            'Case.Priority' => newUserWithCaseReadExcept('nc207casenoprio', 'Case.Priority')
+        };
+        Map<String, Case> caseByMissingField = new Map<String, Case>();
+        for (String missing : byMissingField.keySet()) {
+            User owner = byMissingField.get(missing);
+            Account building = newAccount('Edificio FLS ' + missing, owner.Id);
+            Asset asset = newAsset('AST-CASE-FLS-' + caseByMissingField.size(), building, 'WATER_PUMP');
+            newReading(asset, 'TEMPERATURE', 'CELSIUS', 95, baseTime(), 2);
+            Case c = caseDraft(asset, owner.Id, 'En curso', 'FLS ' + missing);
+            c.Priority = 'Critica';
+            insert c;
+            insert linkedLog(asset, c.Id, baseTime());
+            caseByMissingField.put(missing, c);
+        }
+
+        // When each opens the detail and the signal list of their own Case
+        Map<String, String> detailErrors = new Map<String, String>();
+        Map<String, Integer> signalCounts = new Map<String, Integer>();
+        for (String missing : byMissingField.keySet()) {
+            Id caseId = caseByMissingField.get(missing).Id;
+            System.runAs(byMissingField.get(missing)) {
+                try {
+                    ActivosOperadorController.getIntervencion(caseId);
+                    detailErrors.put(missing, null);
+                } catch (AuraHandledException e) {
+                    detailErrors.put(missing, e.getMessage());
+                }
+                signalCounts.put(missing, ActivosOperadorController.getSenalesDeIntervencion(caseId, null).signals.size());
+            }
+        }
+
+        // Then the full set loads; missing either field fails with the static access message, not data or platform text,
+        // while the signal list (which reads neither field) loads for everyone
+        Assert.isNull(detailErrors.get('nothing'), 'with every field readable the detail must load, or the failures below prove nothing');
+        for (String missing : new List<String>{ 'Case.Origin', 'Case.Priority' }) {
+            Assert.areEqual(ActivosOperadorController.ACCESS_MESSAGE, detailErrors.get(missing), 'without read on ' + missing);
+            Assert.isFalse(detailErrors.get(missing).contains(missing.substringAfter('.')), 'the message must not name the field');
+        }
+        for (String missing : byMissingField.keySet()) {
+            Assert.areEqual(1, signalCounts.get(missing), missing);
+        }
+    }
+
+    @isTest
+    static void lastFollowUpIsTheLastMatchingLineSplitIntoDateAuthorAndTextAndOtherLinesAreIgnored() {
+        // Given a coordinator above the building, and a telemetry Case whose Description has two follow-up lines (CRLF-
+        // separated), then lines that do not match the pattern; it also carries the manual-reason separator
+        User operator = newUserWithPermissionSet('nc207fupop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User coordinator = newUserWithPermissionSet('nc207fupcoord', 'Nova_Casa_Coordinator', COORDINATOR_ROLE);
+        Account building = newAccount('Edificio Seguimiento', operator.Id);
+        Asset asset = newAsset('AST-CASE-FUP', building, 'WATER_PUMP');
+        Case c = caseDraft(asset, operator.Id, 'En curso', 'Seguimiento');
+        c.Origin = 'Telemetria';
+        c.Description = 'Texto inicial'
+            + '\n\nAbierta por: Alguien'
+            + '\n[2026-10-01 09:15 Ana Pérez] Revisando la bomba'
+            + '\r\n[2026-10-02 18:40 Luis Gómez] Cambio de válvula'
+            + '\r\nnota suelta sin formato'
+            + '\n[2026-10-03 Sin Hora] fecha incompleta'
+            + '\n[2026-10-04 07:00 Sin Texto]';
+        insert c;
+
+        // When the coordinator opens it
+        Boolean readsDescription;
+        ActivosOperadorController.IntervencionDetalle detalle;
+        System.runAs(coordinator) {
+            readsDescription = Schema.SObjectType.Case.fields.Description.isAccessible();
+            detalle = ActivosOperadorController.getIntervencion(c.Id);
+        }
+
+        // Then the last line that matches is returned split into its parts, and a telemetry Case has no manual reason
+        Assert.isTrue(readsDescription, 'precondition: Nova_Casa_Coordinator reads Case.Description');
+        Assert.isNotNull(detalle.ultimoSeguimiento, 'the last matching follow-up line must be found');
+        Assert.areEqual('2026-10-02 18:40', detalle.ultimoSeguimiento.fecha);
+        Assert.areEqual('Luis Gómez', detalle.ultimoSeguimiento.autor);
+        Assert.areEqual('Cambio de válvula', detalle.ultimoSeguimiento.texto);
+        Assert.isNull(detalle.motivo, 'only an Origin Operador intervention has a reason, even when the separator is present');
+    }
+
+    @isTest
+    static void manualReasonIsTheTextBeforeAbiertaPorForTheCoordinatorAndTheOperatorGetsNoPartOfTheDescription() {
+        // Given a manual intervention whose Description is what crearIntervencion writes plus one follow-up line
+        User operator = newUserWithPermissionSet('nc207motop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User coordinator = newUserWithPermissionSet('nc207motcoord', 'Nova_Casa_Coordinator', COORDINATOR_ROLE);
+        Account building = newAccount('Edificio Motivo', operator.Id);
+        Asset asset = newAsset('AST-CASE-MOTIVO', building, 'WATER_PUMP');
+        Case manual = caseDraft(asset, operator.Id, 'En curso', 'Intervención manual en AST-CASE-MOTIVO');
+        manual.Origin = 'Operador';
+        manual.Description = 'La bomba vibra al arrancar\ny hace ruido'
+            + '\n\nAbierta por: Operador Uno'
+            + '\n[2026-10-05 08:30 Coordinador Uno] Visita programada';
+        insert manual;
+
+        // When the coordinator and the operator open it
+        Boolean coordinatorReadsDescription;
+        Boolean operatorReadsDescription;
+        ActivosOperadorController.IntervencionDetalle forCoordinator;
+        ActivosOperadorController.IntervencionDetalle forOperator;
+        System.runAs(coordinator) {
+            coordinatorReadsDescription = Schema.SObjectType.Case.fields.Description.isAccessible();
+            forCoordinator = ActivosOperadorController.getIntervencion(manual.Id);
+        }
+        System.runAs(operator) {
+            operatorReadsDescription = Schema.SObjectType.Case.fields.Description.isAccessible();
+            forOperator = ActivosOperadorController.getIntervencion(manual.Id);
+        }
+
+        // Then the coordinator gets the reason and the follow-up; the operator gets the intervention without either
+        Assert.isTrue(coordinatorReadsDescription, 'precondition: Nova_Casa_Coordinator reads Case.Description');
+        Assert.isFalse(operatorReadsDescription, 'precondition: Nova_Casa_Operator must not read Case.Description, or this proves nothing');
+        Assert.areEqual('La bomba vibra al arrancar\ny hace ruido', forCoordinator.motivo);
+        Assert.isFalse(forCoordinator.esTelemetria);
+        Assert.areEqual('2026-10-05 08:30', forCoordinator.ultimoSeguimiento.fecha);
+        Assert.areEqual('Coordinador Uno', forCoordinator.ultimoSeguimiento.autor);
+        Assert.areEqual('Visita programada', forCoordinator.ultimoSeguimiento.texto);
+        Assert.areEqual(manual.Id, forOperator.caseId, 'the operator still gets the intervention');
+        Assert.areEqual('Operador', forOperator.origin);
+        Assert.isNull(forOperator.motivo, 'no reason without FLS on Description');
+        Assert.isNull(forOperator.ultimoSeguimiento, 'no follow-up without FLS on Description');
+        String operatorPayload = JSON.serialize(forOperator);
+        Assert.isFalse(operatorPayload.contains('vibra'), 'no part of the Description reaches a user without FLS on it');
+        Assert.isFalse(operatorPayload.contains('Visita programada'), 'no part of the Description reaches a user without FLS on it');
+    }
+
+    @isTest
+    static void interventionPayloadsCarryNoIdentityDescriptionMotivoOrHuella() {
+        // Given a telemetry Case whose identity, Description and linked log row carry recognizable values, opened by an
+        // operator, a coordinator and an admin (both read Description; only the admin reads the log)
+        User operator = newUserWithPermissionSet('nc207leakop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Map<String, User> viewers = new Map<String, User>{
+            'Nova_Casa_Operator' => operator,
+            'Nova_Casa_Coordinator' => newUserWithPermissionSet('nc207leakcoord', 'Nova_Casa_Coordinator', COORDINATOR_ROLE),
+            'Nova_Casa_Admin' => newUserWithPermissionSet('nc207leakadm', 'Nova_Casa_Admin', null)
+        };
+        Account building = newAccount('Edificio Fuga', operator.Id);
+        Asset asset = newAsset('AST-CASE-LEAK', building, 'WATER_PUMP');
+        newReading(asset, 'TEMPERATURE', 'CELSIUS', 95, baseTime(), 2);
+        Log_Senial__c opener = linkedLog(asset, null, baseTime());
+        opener.Motivo__c = 'MOTIVO-SECRETO-XYZ';
+        opener.Huella__c = 'HUELLA-SECRETA-XYZ';
+        String identity = opener.Identidad__c;
+        Case c = caseDraft(asset, operator.Id, 'En curso', 'Señal crítica fuga');
+        c.Origin = 'Telemetria';
+        c.Priority = 'Critica';
+        c.Identidad_Senal__c = identity;
+        c.Ultima_Critica_Identidad__c = identity;
+        c.Ultima_Critica_Medicion__c = 'TEMPERATURE';
+        c.Ultima_Critica_Valor__c = 95.5;
+        c.Ultima_Critica_Unidad__c = 'CELSIUS';
+        c.Ultima_Critica_At__c = baseTime();
+        c.Description = 'DESCRIPCION-PRIVADA-XYZ\n[2026-10-01 10:00 Ana Pérez] Revisado en sitio';
+        insert c;
+        opener.Caso__c = c.Id;
+        insert opener;
+
+        // When each serializes both DTOs
+        Map<String, String> detailPayloads = new Map<String, String>();
+        Map<String, String> signalPayloads = new Map<String, String>();
+        for (String setName : viewers.keySet()) {
+            System.runAs(viewers.get(setName)) {
+                detailPayloads.put(setName, JSON.serialize(ActivosOperadorController.getIntervencion(c.Id)));
+                signalPayloads.put(setName, JSON.serialize(ActivosOperadorController.getSenalesDeIntervencion(c.Id, null)));
+            }
+        }
+
+        // Then no payload names or carries the identity, the Description, Motivo__c or Huella__c
+        List<String> forbidden = new List<String>{
+            'Identidad', 'Description', 'Motivo__c', 'Huella', identity, opener.Message_Id__c,
+            'SECRETO', 'SECRETA', 'DESCRIPCION-PRIVADA'
+        };
+        for (String setName : viewers.keySet()) {
+            for (String payload : new List<String>{ detailPayloads.get(setName), signalPayloads.get(setName) }) {
+                for (String token : forbidden) {
+                    Assert.isFalse(payload.contains(token), setName + ' payload must not contain ' + token);
+                }
+            }
+        }
+        // and only the agreed keys are present (checked where every nested part is filled)
+        String coordinatorDetail = detailPayloads.get('Nova_Casa_Coordinator');
+        Assert.isTrue(coordinatorDetail.contains('Revisado en sitio'), 'precondition: the derived follow-up does reach the coordinator');
+        Map<String, Object> top = (Map<String, Object>) JSON.deserializeUntyped(coordinatorDetail);
+        Assert.areEqual(new Set<String>{
+            'caseId', 'caseNumber', 'subject', 'status', 'isClosed', 'createdDate', 'closedDate', 'priority', 'origin',
+            'esTelemetria', 'recibeCriticas', 'horasAbierta', 'assetId', 'assetName', 'assetExternalId', 'assetType',
+            'accountId', 'accountName', 'assetLevel', 'lecturaActual', 'lecturasIncompletas', 'ultimaCritica',
+            'senalesEnlazadas', 'ultimoSeguimiento', 'motivo', 'estados', 'puedeSeguir'
+        }, top.keySet());
+        Assert.areEqual(new Set<String>{ 'measurementType', 'value', 'unit', 'occurredAt', 'severityLevel' },
+            ((Map<String, Object>) top.get('lecturaActual')).keySet());
+        Assert.areEqual(new Set<String>{ 'measurementType', 'value', 'unit', 'occurredAt' },
+            ((Map<String, Object>) top.get('ultimaCritica')).keySet());
+        Assert.areEqual(new Set<String>{ 'fecha', 'autor', 'texto' }, ((Map<String, Object>) top.get('ultimoSeguimiento')).keySet());
+        Map<String, Object> signalsTop = (Map<String, Object>) JSON.deserializeUntyped(signalPayloads.get('Nova_Casa_Admin'));
+        Assert.areEqual(new Set<String>{ 'signals', 'truncated' }, signalsTop.keySet());
+        Map<String, Object> first = (Map<String, Object>) ((List<Object>) signalsTop.get('signals'))[0];
+        Assert.areEqual(new Set<String>{ 'occurredAt', 'measurementType', 'value', 'unit', 'result', 'resends', 'abrio' }, first.keySet());
+        Assert.areEqual(true, first.get('abrio'), 'the opening signal is flagged without returning its identity');
+    }
+
+    @isTest
+    static void interventionSignalsAreOnlyThoseOfTheCaseNewestFirstWithTheOpenerFlaggedAndNullResendsAsZero() {
+        // Given an open telemetry Case with four linked rows inserted out of order (the opener, a resent one, one whose resend
+        // count is null and one without identity), plus a newer row of an older Case of the same asset and a newer unlinked row
+        User operator = newUserWithPermissionSet('nc207sigop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Account building = newAccount('Edificio Senales', operator.Id);
+        Asset asset = newAsset('AST-CASE-SIG', building, 'WATER_PUMP');
+        Datetime now = baseTime();
+        Log_Senial__c opener = linkedLog(asset, null, now.addMinutes(-20));
+        Case c = caseDraft(asset, operator.Id, 'En curso', 'Señal crítica señales');
+        c.Origin = 'Telemetria';
+        // Upper-cased on the Case: the opener must be matched ignoring letter case.
+        c.Identidad_Senal__c = opener.Identidad__c.toUpperCase();
+        Case older = caseDraft(asset, operator.Id, 'Closed', 'Anterior');
+        insert new List<Case>{ c, older };
+        Assert.isFalse(c.Identidad_Senal__c.equals(opener.Identidad__c), 'precondition: the two identities differ in letter case');
+        opener.Caso__c = c.Id;
+        opener.Reenvios__c = 0;
+        Log_Senial__c resent = linkedLog(asset, c.Id, now);
+        resent.Value__c = 97.5;
+        resent.Reenvios__c = 3;
+        Log_Senial__c nullResends = linkedLog(asset, c.Id, now.addMinutes(-10));
+        nullResends.Resultado__c = 'Superada';
+        Log_Senial__c noIdentity = linkedLog(asset, c.Id, now.addMinutes(-30));
+        noIdentity.Identidad__c = null;
+        Log_Senial__c ofOlderCase = linkedLog(asset, older.Id, now.addMinutes(5));
+        Log_Senial__c unlinked = linkedLog(asset, null, now.addMinutes(10));
+        insert new List<Log_Senial__c>{ nullResends, opener, unlinked, resent, ofOlderCase, noIdentity };
+        // Reenvios__c has a default value, so it is cleared after the insert.
+        update new Log_Senial__c(Id = nullResends.Id, Reenvios__c = null);
+        Assert.isNull([SELECT Reenvios__c FROM Log_Senial__c WHERE Id = :nullResends.Id].Reenvios__c, 'precondition: a null resend count');
+
+        // When the operator reads the signals of each Case, and the count on the detail
+        ActivosOperadorController.SenalesIntervencion all = interventionSignals(operator, c.Id, null);
+        ActivosOperadorController.SenalesIntervencion exact = interventionSignals(operator, c.Id, 4);
+        ActivosOperadorController.SenalesIntervencion cut = interventionSignals(operator, c.Id, 3);
+        ActivosOperadorController.SenalesIntervencion ofOlder = interventionSignals(operator, older.Id, null);
+        Integer linked = intervention(operator, c.Id).senalesEnlazadas;
+        Integer linkedToOlder = intervention(operator, older.Id).senalesEnlazadas;
+
+        // Then only this Case's rows come back, newest first, with its values and only the opener flagged
+        Assert.areEqual(4, all.signals.size(), 'only the rows linked to this Case, not to another Case or to none');
+        Assert.isFalse(all.truncated);
+        List<Datetime> times = new List<Datetime>();
+        for (ActivosOperadorController.SenalIntervencion s : all.signals) {
+            times.add(s.occurredAt);
+        }
+        Assert.areEqual(new List<Datetime>{ now, now.addMinutes(-10), now.addMinutes(-20), now.addMinutes(-30) }, times, 'newest first');
+        ActivosOperadorController.SenalIntervencion newest = all.signals[0];
+        Assert.areEqual('TEMPERATURE', newest.measurementType);
+        Assert.areEqual(97.5, newest.value);
+        Assert.areEqual('CELSIUS', newest.unit);
+        Assert.areEqual('Procesada', newest.result);
+        Assert.areEqual(3, newest.resends);
+        Assert.isFalse(newest.abrio);
+        Assert.areEqual('Superada', all.signals[1].result);
+        Assert.areEqual(0, all.signals[1].resends, 'a null resend count is returned as 0');
+        Assert.isFalse(all.signals[1].abrio);
+        Assert.isTrue(all.signals[2].abrio, 'the row whose identity opened the Case is flagged, ignoring letter case');
+        Assert.areEqual(0, all.signals[2].resends);
+        Assert.isFalse(all.signals[3].abrio, 'a row without identity never opened the Case');
+        // the limit cuts and flags only beyond the linked rows
+        Assert.areEqual(4, exact.signals.size());
+        Assert.isFalse(exact.truncated, 'exactly the number of linked rows is not a cut');
+        Assert.areEqual(3, cut.signals.size());
+        Assert.isTrue(cut.truncated);
+        Assert.areEqual(now, cut.signals[0].occurredAt);
+        // the other Case has its own row and no opener
+        Assert.areEqual(1, ofOlder.signals.size());
+        Assert.areEqual(now.addMinutes(5), ofOlder.signals[0].occurredAt);
+        Assert.isFalse(ofOlder.signals[0].abrio, 'a Case without an opening identity flags nothing');
+        // and the detail counts the linked rows
+        Assert.areEqual(4, linked);
+        Assert.areEqual(1, linkedToOlder);
+    }
+
+    @isTest
+    static void interventionSignalsLimitDefaultsToTwentyIsClampedBetweenOneAndFiftyAndFlagsTruncation() {
+        // Given a Case with 55 linked signals, one minute apart
+        User operator = newUserWithPermissionSet('nc207siglimop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Account building = newAccount('Edificio Senales Tope', operator.Id);
+        Asset asset = newAsset('AST-CASE-SIG-CAP', building, 'WATER_PUMP');
+        Case c = caseDraft(asset, operator.Id, 'En curso', 'Muchas señales');
+        insert c;
+        Datetime now = baseTime();
+        List<Log_Senial__c> rows = new List<Log_Senial__c>();
+        for (Integer i = 0; i < 55; i++) {
+            rows.add(linkedLog(asset, c.Id, now.addMinutes(-i)));
+        }
+        insert rows;
+
+        // When the operator asks with no limit, below 1, and above 50
+        ActivosOperadorController.SenalesIntervencion byDefault = interventionSignals(operator, c.Id, null);
+        ActivosOperadorController.SenalesIntervencion zero = interventionSignals(operator, c.Id, 0);
+        ActivosOperadorController.SenalesIntervencion negative = interventionSignals(operator, c.Id, -5);
+        ActivosOperadorController.SenalesIntervencion huge = interventionSignals(operator, c.Id, 500);
+        Integer linked = intervention(operator, c.Id).senalesEnlazadas;
+
+        // Then null means 20, the limit is clamped to 1..50, the newest rows win and the cut is flagged
+        Assert.areEqual(20, byDefault.signals.size(), 'no limit means 20');
+        Assert.isTrue(byDefault.truncated);
+        Assert.areEqual(now, byDefault.signals[0].occurredAt);
+        Assert.areEqual(now.addMinutes(-19), byDefault.signals[19].occurredAt);
+        Assert.areEqual(1, zero.signals.size(), 'a limit below 1 is clamped to 1');
+        Assert.isTrue(zero.truncated);
+        Assert.areEqual(now, zero.signals[0].occurredAt);
+        Assert.areEqual(1, negative.signals.size());
+        Assert.areEqual(50, huge.signals.size(), 'a limit above 50 is clamped to 50');
+        Assert.isTrue(huge.truncated);
+        Assert.areEqual(now.addMinutes(-49), huge.signals[49].occurredAt);
+        Assert.areEqual(55, linked, 'the linked count is not capped by the list limit');
+    }
+
+    @isTest
+    static void puedeSeguirIsTrueOnlyForTheCoordinatorOnAnOpenCaseWithAnAsset() {
+        // Given an operator, a coordinator and a Gerente on one building, an open and a closed Case with assets, and an open
+        // Case without asset
+        User operator = newUserWithPermissionSet('nc207segop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User coordinator = newUserWithPermissionSet('nc207segcoord', 'Nova_Casa_Coordinator', COORDINATOR_ROLE);
+        User gerente = newUserWithPermissionSet('nc207segger', 'Nova_Casa_Gerente', GERENTE_ROLE);
+        Account building = newAccount('Edificio Seguir', operator.Id);
+        Asset asset = newAsset('AST-CASE-SEGUIR', building, 'WATER_PUMP');
+        Asset closedAsset = newAsset('AST-CASE-SEGUIR-CERRADO', building, 'WATER_PUMP');
+        Case open = caseDraft(asset, operator.Id, 'En curso', 'Abierta');
+        Case closed = caseDraft(closedAsset, operator.Id, 'Closed', 'Cerrada');
+        Case withoutAsset = new Case(OwnerId = operator.Id, Status = 'En curso', Subject = 'Sin activo', Origin = 'Web');
+        insert new List<Case>{ open, closed, withoutAsset };
+
+        // When each opens the Cases
+        Map<String, Boolean> holdsTheKey = new Map<String, Boolean>();
+        Map<String, Boolean> canFollow = new Map<String, Boolean>();
+        System.runAs(coordinator) {
+            holdsTheKey.put('coordinator', FeatureManagement.checkPermission(IntervencionOperadorController.PERM_SEGUIR));
+            canFollow.put('coordinator open', ActivosOperadorController.getIntervencion(open.Id).puedeSeguir);
+            canFollow.put('coordinator closed', ActivosOperadorController.getIntervencion(closed.Id).puedeSeguir);
+            canFollow.put('coordinator without asset', ActivosOperadorController.getIntervencion(withoutAsset.Id).puedeSeguir);
+        }
+        System.runAs(operator) {
+            holdsTheKey.put('operator', FeatureManagement.checkPermission(IntervencionOperadorController.PERM_SEGUIR));
+            canFollow.put('operator open', ActivosOperadorController.getIntervencion(open.Id).puedeSeguir);
+        }
+        System.runAs(gerente) {
+            holdsTheKey.put('gerente', FeatureManagement.checkPermission(IntervencionOperadorController.PERM_SEGUIR));
+            canFollow.put('gerente open', ActivosOperadorController.getIntervencion(open.Id).puedeSeguir);
+        }
+
+        // Then only the coordinator, who holds Nova_Casa_Seguir_Intervencion, may follow up, and only an open Case with asset
+        Assert.isTrue(holdsTheKey.get('coordinator'), 'precondition: Nova_Casa_Coordinator holds the follow-up permission');
+        Assert.isFalse(holdsTheKey.get('operator'), 'precondition: Nova_Casa_Operator does not hold the follow-up permission');
+        Assert.isFalse(holdsTheKey.get('gerente'), 'precondition: Nova_Casa_Gerente does not hold the follow-up permission');
+        Assert.isTrue(canFollow.get('coordinator open'));
+        Assert.isFalse(canFollow.get('coordinator closed'), 'a closed Case cannot be followed up');
+        Assert.isFalse(canFollow.get('coordinator without asset'), 'a Case without asset cannot be followed up');
+        Assert.isFalse(canFollow.get('operator open'));
+        Assert.isFalse(canFollow.get('gerente open'));
+    }
+
+    @isTest
+    static void assetLevelIsTheHighestCurrentReadingAndUltimaCriticaIsOnlyFilledWhenTheCaseRecordsOne() {
+        // Given four assets: an older critical next to a newer normal of another type, a critical replaced by a newer warning
+        // of the same type, a reading without level, and no readings; a telemetry Case with its last critical on the first,
+        // and Cases without it on the rest
+        User operator = newUserWithPermissionSet('nc207lvlop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Account building = newAccount('Edificio Nivel', operator.Id);
+        Datetime now = baseTime();
+        Asset critical = newAsset('AST-CASE-LVL-CRIT', building, 'WATER_PUMP');
+        newReading(critical, 'TEMPERATURE', 'CELSIUS', 95, now.addMinutes(-30), 2);
+        newReading(critical, 'WATER_PRESSURE', 'BAR', 3, now, 0);
+        Asset replaced = newAsset('AST-CASE-LVL-REPL', building, 'WATER_PUMP');
+        newReading(replaced, 'TEMPERATURE', 'CELSIUS', 95, now.addMinutes(-30), 2);
+        newReading(replaced, 'TEMPERATURE', 'CELSIUS', 60, now, 1);
+        Asset noLevel = newAsset('AST-CASE-LVL-NULL', building, 'WATER_PUMP');
+        newReading(noLevel, 'TEMPERATURE', 'CELSIUS', 20, now, null);
+        Asset silent = newAsset('AST-CASE-LVL-NONE', building, 'WATER_PUMP');
+        Case telemetry = caseDraft(critical, operator.Id, 'En curso', 'Señal crítica nivel');
+        telemetry.Origin = 'Telemetria';
+        telemetry.Ultima_Critica_Medicion__c = 'TEMPERATURE';
+        telemetry.Ultima_Critica_Valor__c = 95.5;
+        telemetry.Ultima_Critica_Unidad__c = 'CELSIUS';
+        telemetry.Ultima_Critica_At__c = now.addMinutes(-30);
+        Case manual = caseDraft(replaced, operator.Id, 'En curso', 'Manual');
+        manual.Origin = 'Operador';
+        Case onNoLevel = caseDraft(noLevel, operator.Id, 'En curso', 'Sin nivel');
+        Case onSilent = caseDraft(silent, operator.Id, 'En curso', 'Sin lecturas');
+        insert new List<Case>{ telemetry, manual, onNoLevel, onSilent };
+
+        // When the operator opens each Case
+        ActivosOperadorController.IntervencionDetalle forCritical = intervention(operator, telemetry.Id);
+        ActivosOperadorController.IntervencionDetalle forReplaced = intervention(operator, manual.Id);
+        ActivosOperadorController.IntervencionDetalle forNoLevel = intervention(operator, onNoLevel.Id);
+        ActivosOperadorController.IntervencionDetalle forSilent = intervention(operator, onSilent.Id);
+
+        // Then the level is the highest of the latest reading per type, null without a level, and the last critical is
+        // returned only when the Case records one
+        Assert.areEqual(2, forCritical.assetLevel, 'a newer normal of another type does not hide the critical');
+        Assert.areEqual(1, forReplaced.assetLevel, 'a critical replaced by a newer warning of the same type is no longer current');
+        Assert.isNull(forNoLevel.assetLevel, 'a reading without level is never counted as normal');
+        Assert.isNull(forSilent.assetLevel, 'no readings means no level');
+        Assert.isNotNull(forCritical.ultimaCritica);
+        Assert.areEqual('TEMPERATURE', forCritical.ultimaCritica.measurementType);
+        Assert.areEqual(95.5, forCritical.ultimaCritica.value);
+        Assert.areEqual('CELSIUS', forCritical.ultimaCritica.unit);
+        Assert.areEqual(now.addMinutes(-30), forCritical.ultimaCritica.occurredAt);
+        Assert.isTrue(forCritical.esTelemetria);
+        Assert.isNull(forReplaced.ultimaCritica, 'a Case without Ultima_Critica_* has no last critical');
+        Assert.isFalse(forReplaced.esTelemetria);
+        Assert.isNull(forSilent.ultimaCritica);
+    }
+
+    @isTest
+    static void estadosMatchTheFollowUpStatusesInOrderEvenForTheGerente() {
+        // Given a Gerente above the building and an open Case
+        User operator = newUserWithPermissionSet('nc207estop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User gerente = newUserWithPermissionSet('nc207estger', 'Nova_Casa_Gerente', GERENTE_ROLE);
+        Account building = newAccount('Edificio Estados', operator.Id);
+        Asset asset = newAsset('AST-CASE-ESTADOS', building, 'WATER_PUMP');
+        Case c = caseDraft(asset, operator.Id, 'En curso', 'Estados');
+        insert c;
+
+        // When the Gerente opens it, and the follow-up form's list is read
+        List<IntervencionOperadorController.EstadoOpcion> expected;
+        ActivosOperadorController.IntervencionDetalle detalle;
+        System.runAs(gerente) {
+            expected = IntervencionOperadorController.getEstadosSeguimiento();
+            detalle = ActivosOperadorController.getIntervencion(c.Id);
+        }
+
+        // Then the detail offers the same statuses, value and label, in the same order
+        Assert.isFalse(expected.isEmpty(), 'precondition: Case.Status has active values');
+        Assert.areEqual(expected.size(), detalle.estados.size(), 'one option per follow-up status');
+        for (Integer i = 0; i < expected.size(); i++) {
+            Assert.areEqual(expected[i].value, detalle.estados[i].value, 'same value at position ' + i);
+            Assert.areEqual(expected[i].label, detalle.estados[i].label, 'same label at position ' + i);
+        }
+        Assert.areEqual('En curso', detalle.status);
+    }
+
+    @isTest
+    static void everyShippedScreenPermissionSetGrantsReadOnlyAccessToCaseOriginAndPriority() {
+        // Given the four shipped permission sets of the screen
+        List<String> shipped = new List<String>{ 'Nova_Casa_Operator', 'Nova_Casa_Coordinator', 'Nova_Casa_Gerente', 'Nova_Casa_Admin' };
+        List<String> fields = new List<String>{ 'Case.Origin', 'Case.Priority' };
+        Map<Id, PermissionSet> sets = new Map<Id, PermissionSet>([SELECT Id, Name FROM PermissionSet WHERE Name IN :shipped]);
+        Assert.areEqual(4, sets.size(), 'all four shipped permission sets must be deployed to the org');
+
+        // When their field permissions on Case.Origin and Case.Priority are read
+        List<FieldPermissions> fieldPerms = [
+            SELECT ParentId, Field, PermissionsRead, PermissionsEdit
+            FROM FieldPermissions
+            WHERE SobjectType = 'Case' AND Field IN :fields AND ParentId IN :sets.keySet()
+        ];
+        Map<String, FieldPermissions> bySetAndField = new Map<String, FieldPermissions>();
+        for (FieldPermissions fieldPerm : fieldPerms) {
+            bySetAndField.put(sets.get(fieldPerm.ParentId).Name + ' ' + fieldPerm.Field, fieldPerm);
+        }
+
+        // Then every set reads both fields and edits neither (getIntervencion reads them WITH USER_MODE)
+        for (String setName : shipped) {
+            for (String field : fields) {
+                FieldPermissions fieldPerm = bySetAndField.get(setName + ' ' + field);
+                Assert.isNotNull(fieldPerm, setName + ' must have a field permission on ' + field);
+                Assert.isTrue(fieldPerm.PermissionsRead, setName + ' must grant read on ' + field);
+                Assert.isFalse(fieldPerm.PermissionsEdit, setName + ' must not grant edit on ' + field);
+            }
+        }
+        Assert.areEqual(8, fieldPerms.size(), 'expected exactly one field permission per shipped set and field');
+    }
+
+    @isTest
+    static void lecturaActualIsTheMostSevereLatestReadingThenTheMostRecentAndNullWithoutReadings() {
+        // Given four assets: an older critical next to a newer normal of another type, two criticals of different types at
+        // different times, no readings, and more readings than the cap of one asset
+        User operator = newUserWithPermissionSet('nc207curop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Account building = newAccount('Edificio Lectura Actual', operator.Id);
+        Datetime now = baseTime();
+        Asset critical = newAsset('AST-CASE-CUR-CRIT', building, 'WATER_PUMP');
+        newReading(critical, 'TEMPERATURE', 'CELSIUS', 95.5, now.addMinutes(-30), 2);
+        newReading(critical, 'WATER_PRESSURE', 'BAR', 3.5, now, 0);
+        Asset twoCriticals = newAsset('AST-CASE-CUR-TIE', building, 'WATER_PUMP');
+        newReading(twoCriticals, 'TEMPERATURE', 'CELSIUS', 96.5, now.addMinutes(-20), 2);
+        newReading(twoCriticals, 'WATER_PRESSURE', 'BAR', 9.5, now.addMinutes(-5), 2);
+        Asset silent = newAsset('AST-CASE-CUR-NONE', building, 'WATER_PUMP');
+        Asset overCap = newAsset('AST-CASE-CUR-CAP', building, 'WATER_PUMP');
+        for (Integer i = 0; i < 6; i++) {
+            newReading(overCap, 'TEMPERATURE', 'CELSIUS', 20 + i, now.addMinutes(-i), 0);
+        }
+        Case onCritical = caseDraft(critical, operator.Id, 'En curso', 'Actual crítica');
+        Case onTwoCriticals = caseDraft(twoCriticals, operator.Id, 'En curso', 'Actual empate');
+        Case onSilent = caseDraft(silent, operator.Id, 'En curso', 'Actual sin lecturas');
+        Case onOverCap = caseDraft(overCap, operator.Id, 'En curso', 'Actual tope');
+        insert new List<Case>{ onCritical, onTwoCriticals, onSilent, onOverCap };
+
+        // When the operator opens each Case
+        ActivosOperadorController.IntervencionDetalle forCritical = intervention(operator, onCritical.Id);
+        ActivosOperadorController.IntervencionDetalle forTwoCriticals = intervention(operator, onTwoCriticals.Id);
+        ActivosOperadorController.IntervencionDetalle forSilent = intervention(operator, onSilent.Id);
+        ActivosOperadorController.IntervencionDetalle forOverCap = intervention(operator, onOverCap.Id);
+
+        // Then the current reading is the critical one even though a normal of another type is newer
+        ActivosOperadorController.EstadoLectura current = forCritical.lecturaActual;
+        Assert.isNotNull(current, 'an asset with readings has a current reading');
+        Assert.areEqual('TEMPERATURE', current.measurementType, 'a newer normal of another type does not replace the critical');
+        Assert.areEqual(95.5, current.value);
+        Assert.areEqual('CELSIUS', current.unit);
+        Assert.areEqual(now.addMinutes(-30), current.occurredAt);
+        Assert.areEqual(2, current.severityLevel);
+        Assert.isFalse(forCritical.lecturasIncompletas);
+        // among equally severe readings the most recent wins
+        Assert.areEqual('WATER_PRESSURE', forTwoCriticals.lecturaActual.measurementType, 'same level: the most recent wins');
+        Assert.areEqual(9.5, forTwoCriticals.lecturaActual.value);
+        Assert.areEqual(now.addMinutes(-5), forTwoCriticals.lecturaActual.occurredAt);
+        // no readings means no current reading, and the cap is flagged only when it cuts
+        Assert.isNull(forSilent.lecturaActual, 'no readings means no current reading');
+        Assert.isFalse(forSilent.lecturasIncompletas);
+        Assert.isTrue(forOverCap.lecturasIncompletas, 'more readings than the cap must be flagged as incomplete');
+    }
+
+    @isTest
+    static void recibeCriticasIsTrueOnlyForTheNewestOpenTelemetryCaseOfTheAsset() {
+        // Given one asset with two open telemetry Cases (the one that wins the Id tie-break is made the older), plus a closed
+        // telemetry Case, an open manual Case and an open Web Case that still carries a signal identity, all created later
+        User operator = newUserWithPermissionSet('nc207recop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Account building = newAccount('Edificio Recibe', operator.Id);
+        Asset asset = newAsset('AST-CASE-RECIBE', building, 'WATER_PUMP');
+        Case first = caseDraft(asset, operator.Id, 'En curso', 'Telemetría uno');
+        first.Origin = 'Telemetria';
+        Case second = caseDraft(asset, operator.Id, 'En curso', 'Telemetría dos');
+        second.Origin = 'Telemetria';
+        Case closed = caseDraft(asset, operator.Id, 'Closed', 'Telemetría cerrada');
+        closed.Origin = 'Telemetria';
+        Case manual = caseDraft(asset, operator.Id, 'En curso', 'Manual');
+        manual.Origin = 'Operador';
+        Case web = caseDraft(asset, operator.Id, 'En curso', 'Web con identidad');
+        web.Identidad_Senal__c = 'test-src|legacy-web';
+        insert new List<Case>{ first, second, closed, manual, web };
+        Id winsOnId = [SELECT Id FROM Case WHERE Id IN :new Set<Id>{ first.Id, second.Id } ORDER BY Id DESC LIMIT 1].Id;
+        Case newest = winsOnId == first.Id ? second : first;
+        Case older = winsOnId == first.Id ? first : second;
+        // Test.setCreatedDate is only allowed before Test.startTest().
+        Test.setCreatedDate(newest.Id, Datetime.now().addDays(-1));
+        Test.setCreatedDate(older.Id, Datetime.now().addDays(-2));
+
+        // When the operator opens each Case
+        Map<Id, ActivosOperadorController.IntervencionDetalle> details = new Map<Id, ActivosOperadorController.IntervencionDetalle>();
+        Test.startTest();
+        System.runAs(operator) {
+            for (Case c : new List<Case>{ newest, older, closed, manual, web }) {
+                details.put(c.Id, ActivosOperadorController.getIntervencion(c.Id));
+            }
+        }
+        Test.stopTest();
+
+        // Then only the newest open telemetry Case receives criticals, decided by CreatedDate and not by Id, and the later
+        // closed, manual and Web Cases neither receive them nor take the role away
+        Map<Id, Case> stamped = new Map<Id, Case>([SELECT CreatedDate FROM Case WHERE Id IN :new Set<Id>{ newest.Id, older.Id }]);
+        Assert.isTrue(stamped.get(newest.Id).CreatedDate > stamped.get(older.Id).CreatedDate, 'precondition: CreatedDate was set');
+        Assert.isTrue(details.get(newest.Id).recibeCriticas, 'the newest open telemetry Case receives the criticals');
+        Assert.isFalse(details.get(older.Id).recibeCriticas, 'an older open telemetry Case of the same asset does not');
+        Assert.isFalse(details.get(closed.Id).recibeCriticas, 'a closed Case does not');
+        Assert.isFalse(details.get(manual.Id).recibeCriticas, 'a manual Case does not');
+        Assert.isFalse(details.get(web.Id).recibeCriticas, 'only Origin Telemetria counts');
+        // and esTelemetria comes from Origin alone, not from a signal identity
+        Assert.isTrue(details.get(newest.Id).esTelemetria);
+        Assert.isTrue(details.get(older.Id).esTelemetria);
+        Assert.isFalse(details.get(manual.Id).esTelemetria);
+        Assert.isFalse(details.get(web.Id).esTelemetria, 'a signal identity without Origin Telemetria is not a telemetry Case');
+    }
+
+    @isTest
+    static void signalsStayHiddenWhenTheUserSeesTheCaseButNotItsAsset() {
+        // Given a building owned by the operator, and a Case on its asset owned by a stranger outside the role hierarchy
+        // (no Case.AccountId, so no implicit access to the building), with two linked signals and a critical reading
+        User operator = newUserWithPermissionSet('nc207gateop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User stranger = newUserWithPermissionSet('nc207gatestr', 'Nova_Casa_Operator', null);
+        User admin = newUserWithPermissionSet('nc207gateadm', 'Nova_Casa_Admin', null);
+        Account building = newAccount('Edificio Ajeno', operator.Id);
+        Asset asset = newAsset('AST-CASE-GATE', building, 'WATER_PUMP');
+        newReading(asset, 'TEMPERATURE', 'CELSIUS', 95, baseTime(), 2);
+        Case c = caseDraft(asset, stranger.Id, 'En curso', 'Caso del extraño');
+        c.Origin = 'Telemetria';
+        insert c;
+        insert new List<Log_Senial__c>{ linkedLog(asset, c.Id, baseTime()), linkedLog(asset, c.Id, baseTime().addMinutes(-1)) };
+
+        // When the stranger and the admin open it
+        Integer caseVisible;
+        Integer assetVisible;
+        ActivosOperadorController.IntervencionDetalle forStranger;
+        ActivosOperadorController.SenalesIntervencion strangerSignals;
+        System.runAs(stranger) {
+            caseVisible = [SELECT COUNT() FROM Case WHERE Id = :c.Id WITH USER_MODE];
+            assetVisible = [SELECT COUNT() FROM Asset WHERE Id = :asset.Id WITH USER_MODE];
+            forStranger = ActivosOperadorController.getIntervencion(c.Id);
+            strangerSignals = ActivosOperadorController.getSenalesDeIntervencion(c.Id, null);
+        }
+        ActivosOperadorController.IntervencionDetalle forAdmin = intervention(admin, c.Id);
+        ActivosOperadorController.SenalesIntervencion adminSignals = interventionSignals(admin, c.Id, null);
+
+        // Then the stranger gets the Case but neither its signals nor their count, while a user who sees the asset gets both
+        Assert.areEqual(1, caseVisible, 'precondition: the stranger owns the Case, so it sees it');
+        Assert.areEqual(0, assetVisible, 'precondition: the stranger must not see the asset, or this proves nothing');
+        Assert.isTrue(strangerSignals.signals.isEmpty(), 'no signal of an asset the user cannot see');
+        Assert.isFalse(strangerSignals.truncated);
+        Assert.areEqual(0, forStranger.senalesEnlazadas, 'not even the number of linked signals');
+        Assert.isNull(forStranger.assetLevel, 'the readings of a hidden asset stay hidden');
+        Assert.isNull(forStranger.lecturaActual);
+        Assert.isNull(forStranger.assetName, 'no name of an asset the user cannot see');
+        Assert.isNull(forStranger.assetExternalId, 'no code of an asset the user cannot see');
+        Assert.isNull(forStranger.accountName, 'no building of an asset the user cannot see');
+        Assert.areEqual(2, adminSignals.signals.size(), 'a user who sees the asset gets the signals');
+        Assert.areEqual(2, forAdmin.senalesEnlazadas);
+        Assert.areEqual(2, forAdmin.assetLevel);
+        Assert.areEqual('AST-CASE-GATE', forAdmin.assetExternalId, 'a user who sees the asset gets its code');
+    }
+
+    @isTest
+    static void manualReasonShapedLikeAFollowUpIsNotReturnedAsOneButARealLineAfterTheMarkerIs() {
+        // Given two manual Cases whose reason looks like a follow-up line; only the second has a real line after the marker
+        User operator = newUserWithPermissionSet('nc207fakeop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User coordinator = newUserWithPermissionSet('nc207fakecoord', 'Nova_Casa_Coordinator', COORDINATOR_ROLE);
+        Account building = newAccount('Edificio Motivo Falso', operator.Id);
+        Asset onlyReason = newAsset('AST-CASE-FAKE-1', building, 'WATER_PUMP');
+        Asset withFollowUp = newAsset('AST-CASE-FAKE-2', building, 'WATER_PUMP');
+        String reasonAndMarker = '[2026-10-19 10:02 Juan Diego] Revisado\n\nAbierta por: Operador X';
+        Case bare = caseDraft(onlyReason, operator.Id, 'En curso', 'Manual sin seguimiento');
+        bare.Origin = 'Operador';
+        bare.Description = reasonAndMarker;
+        Case followed = caseDraft(withFollowUp, operator.Id, 'En curso', 'Manual con seguimiento');
+        followed.Origin = 'Operador';
+        followed.Description = reasonAndMarker + '\n[2026-10-19 11:15 Coordinador Real] Visita hecha';
+        insert new List<Case>{ bare, followed };
+
+        // When the coordinator opens both
+        ActivosOperadorController.IntervencionDetalle forBare = intervention(coordinator, bare.Id);
+        ActivosOperadorController.IntervencionDetalle forFollowed = intervention(coordinator, followed.Id);
+
+        // Then the reason never passes for a follow-up, and a real line after the marker does count
+        Assert.isNull(forBare.ultimoSeguimiento, 'a reason shaped like a follow-up line is not a follow-up');
+        Assert.areEqual('[2026-10-19 10:02 Juan Diego] Revisado', forBare.motivo, 'it is still the reason');
+        Assert.isNotNull(forFollowed.ultimoSeguimiento, 'a real line after the marker is a follow-up');
+        Assert.areEqual('2026-10-19 11:15', forFollowed.ultimoSeguimiento.fecha);
+        Assert.areEqual('Coordinador Real', forFollowed.ultimoSeguimiento.autor);
+        Assert.areEqual('Visita hecha', forFollowed.ultimoSeguimiento.texto);
+        Assert.areEqual('[2026-10-19 10:02 Juan Diego] Revisado', forFollowed.motivo);
+    }
+
+    @isTest
+    static void signalsWithTheSameOccurredAtComeSmallerMessageIdFirstNotByArrivalOrId() {
+        // Given a Case with a newer row and two rows at the same instant; the one that wins on Id gets messageId msg_b
+        User operator = newUserWithPermissionSet('nc207sigtieop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Account building = newAccount('Edificio Empate Senales', operator.Id);
+        Asset asset = newAsset('AST-CASE-SIG-TIE', building, 'WATER_PUMP');
+        Case c = caseDraft(asset, operator.Id, 'En curso', 'Empate de señales');
+        insert c;
+        Datetime at = baseTime();
+        Log_Senial__c newer = linkedLog(asset, c.Id, at.addMinutes(1));
+        newer.Message_Id__c = 'msg_z';
+        newer.Identidad__c = 'test-src|msg_z';
+        newer.Value__c = 30.5;
+        Log_Senial__c one = linkedLog(asset, c.Id, at);
+        Log_Senial__c two = linkedLog(asset, c.Id, at);
+        insert new List<Log_Senial__c>{ newer, one, two };
+        Id winsOnId = [SELECT Id FROM Log_Senial__c WHERE Id IN :new Set<Id>{ one.Id, two.Id } ORDER BY Id DESC LIMIT 1].Id;
+        Id msgB = winsOnId;
+        Id msgA = winsOnId == one.Id ? two.Id : one.Id;
+        update new List<Log_Senial__c>{
+            new Log_Senial__c(Id = msgA, Message_Id__c = 'msg_a', Identidad__c = 'test-src|msg_a',
+                Measurement_Type__c = 'TEMPERATURE', Value__c = 10.5),
+            new Log_Senial__c(Id = msgB, Message_Id__c = 'msg_b', Identidad__c = 'test-src|msg_b',
+                Measurement_Type__c = 'WATER_PRESSURE', Value__c = 20.5)
+        };
+
+        // When the operator reads the signals
+        ActivosOperadorController.SenalesIntervencion result = interventionSignals(operator, c.Id, null);
+
+        // Then the newer row is first, and at the same instant msg_a comes before msg_b although msg_b wins on Id
+        Assert.areEqual(3, result.signals.size());
+        Assert.areEqual(30.5, result.signals[0].value, 'a later occurredAt always comes first');
+        Assert.areEqual(at, result.signals[1].occurredAt);
+        Assert.areEqual(at, result.signals[2].occurredAt);
+        Assert.areEqual('TEMPERATURE', result.signals[1].measurementType, 'same instant: messageId msg_a comes first');
+        Assert.areEqual(10.5, result.signals[1].value);
+        Assert.areEqual('WATER_PRESSURE', result.signals[2].measurementType);
+        Assert.areEqual(20.5, result.signals[2].value);
+    }
+
     // ---------- helpers ----------
 
     // Assigns a SHIPPED permission set (by Name) to a fresh user. Call before inserting data rows in the test.
@@ -2059,6 +2834,92 @@ private class ActivosOperadorControllerTest {
             insert new PermissionSetAssignment(AssigneeId = u.Id, PermissionSetId = ps.Id);
         }
         return u;
+    }
+
+    // A fresh user (no role) with Read on the objects the intervention page queries and read-only FLS on every field
+    // getIntervencion and getSenalesDeIntervencion select, except `missingField` (null keeps them all). Call before
+    // inserting data rows in the test.
+    private static User newUserWithCaseReadExcept(String prefix, String missingField) {
+        User u;
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            PermissionSet ps = newPermissionSet('NC207_Case_' + prefix);
+            insert ps;
+            List<ObjectPermissions> objectPerms = new List<ObjectPermissions>();
+            for (String obj : new List<String>{ 'Asset', 'Account', 'Contact', 'Case', 'Lectura_Vigente__c' }) {
+                objectPerms.add(new ObjectPermissions(ParentId = ps.Id, SobjectType = obj, PermissionsRead = true));
+            }
+            insert objectPerms;
+            Set<String> fields = new Set<String>{
+                'Asset.AccountId', 'Asset.Tipo_Activo__c', 'Asset.External_Id__c',
+                'Case.AssetId', 'Case.Subject', 'Case.ClosedDate', 'Case.Origin', 'Case.Priority', 'Case.Tiempo_Abierto_Horas__c',
+                'Case.Identidad_Senal__c', 'Case.Ultima_Critica_Medicion__c', 'Case.Ultima_Critica_Valor__c',
+                'Case.Ultima_Critica_Unidad__c', 'Case.Ultima_Critica_At__c',
+                'Lectura_Vigente__c.Severidad_Nivel__c', 'Lectura_Vigente__c.Sensor_Id__c'
+            };
+            fields.remove(missingField);
+            List<FieldPermissions> fieldPerms = new List<FieldPermissions>();
+            for (String f : fields) {
+                fieldPerms.add(new FieldPermissions(ParentId = ps.Id, SobjectType = f.substringBefore('.'),
+                    Field = f, PermissionsRead = true, PermissionsEdit = false));
+            }
+            insert fieldPerms;
+            Profile p = [SELECT Id FROM Profile WHERE Name = 'Minimum Access - Salesforce' LIMIT 1];
+            u = newUser(p.Id, prefix, String.valueOf(Crypto.getRandomInteger()).replace('-', 'n'));
+            insert u;
+            insert new PermissionSetAssignment(AssigneeId = u.Id, PermissionSetId = ps.Id);
+        }
+        return u;
+    }
+
+    // Names of the Apex classes a shipped permission set (by Name) grants access to.
+    private static Set<String> apexClassesOf(String permissionSetName) {
+        List<PermissionSet> sets = [SELECT Id FROM PermissionSet WHERE Name = :permissionSetName];
+        Assert.areEqual(1, sets.size(), permissionSetName + ' must be deployed to the org');
+        Set<Id> classIds = new Set<Id>();
+        for (SetupEntityAccess entityAccess : [
+            SELECT SetupEntityId FROM SetupEntityAccess WHERE ParentId = :sets[0].Id AND SetupEntityType = 'ApexClass'
+        ]) {
+            classIds.add(entityAccess.SetupEntityId);
+        }
+        Set<String> names = new Set<String>();
+        for (ApexClass cls : [SELECT Name FROM ApexClass WHERE Id IN :classIds]) {
+            names.add(cls.Name);
+        }
+        return names;
+    }
+
+    private static ActivosOperadorController.IntervencionDetalle intervention(User runAs, Id caseId) {
+        ActivosOperadorController.IntervencionDetalle result;
+        System.runAs(runAs) {
+            result = ActivosOperadorController.getIntervencion(caseId);
+        }
+        return result;
+    }
+
+    private static ActivosOperadorController.SenalesIntervencion interventionSignals(User runAs, Id caseId, Integer limite) {
+        ActivosOperadorController.SenalesIntervencion result;
+        System.runAs(runAs) {
+            result = ActivosOperadorController.getSenalesDeIntervencion(caseId, limite);
+        }
+        return result;
+    }
+
+    // Both record-page methods for one Id: each entry is the error message, or 'returned: ' + the payload when it succeeded.
+    private static List<String> bothOutcomes(User runAs, Id caseId) {
+        List<String> outcomes = new List<String>();
+        System.runAs(runAs) {
+            try {
+                outcomes.add('returned: ' + JSON.serialize(ActivosOperadorController.getIntervencion(caseId)));
+            } catch (AuraHandledException e) {
+                outcomes.add(e.getMessage());
+            }
+            try {
+                outcomes.add('returned: ' + JSON.serialize(ActivosOperadorController.getSenalesDeIntervencion(caseId, null)));
+            } catch (AuraHandledException e) {
+                outcomes.add(e.getMessage());
+            }
+        }
+        return outcomes;
     }
 
     private static ActivosOperadorController.EdificioResumen resumen(User runAs, Id accountId) {
@@ -2133,6 +2994,17 @@ private class ActivosOperadorControllerTest {
         l.Unit__c = unit;
         l.Value__c = value;
         insert l;
+        return l;
+    }
+
+    // A processed measurement linked to a Case (caseId may be null), with its unique source|messageId identity. Not inserted.
+    private static Log_Senial__c linkedLog(Asset asset, Id caseId, Datetime at) {
+        Log_Senial__c l = logRow(asset, 'MEASUREMENT', 'Procesada', at, null, null);
+        l.Caso__c = caseId;
+        l.Identidad__c = l.Source__c + '|' + l.Message_Id__c;
+        l.Measurement_Type__c = 'TEMPERATURE';
+        l.Unit__c = 'CELSIUS';
+        l.Value__c = 95.5;
         return l;
     }
 

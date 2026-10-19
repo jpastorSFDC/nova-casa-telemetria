@@ -1,0 +1,384 @@
+<template>
+    <div class="nc">
+        <div class="solo-lectura" aria-live="polite" aria-atomic="true">{liveMessage}</div>
+
+        <template if:true={isLoading}>
+            <div role="status" aria-live="polite">
+                <span class="solo-lectura">Cargando la intervención</span>
+                <div class="hueso hueso-cabecera" aria-hidden="true"></div>
+                <div class="dos" aria-hidden="true">
+                    <div class="hueso hueso-tarjeta"></div>
+                    <div class="hueso hueso-tarjeta"></div>
+                </div>
+            </div>
+        </template>
+
+        <template if:true={showError}>
+            <div class="tarjeta estado-centro" role="alert">
+                <div class="estado-icono" aria-hidden="true">&#9888;</div>
+                <p class="estado-titulo">No pudimos cargar la intervención</p>
+                <p class="estado-texto">
+                    Esta vista no muestra el estado actual de la intervención ni del activo. No asumas que todo está normal. Vuelve a intentar; si sigue, avisa a tu administrador.
+                </p>
+                <p class="estado-detalle">{errorMessage}</p>
+                <button type="button" class="boton primario" onclick={handleRetry}>Reintentar</button>
+            </div>
+        </template>
+
+        <template if:true={hasData}>
+            <section class="tarjeta resumen" aria-label="Resumen de la intervención">
+                <div class={bandClass}>
+                    <span class="banda-texto">
+                        <span class="solo-lectura">Estado actual del activo: </span>
+                        <span aria-hidden="true">{bandGlyph}</span> {bandLabel}
+                        <span class="banda-extra">{bandReading}</span>
+                        <template if:true={showBandIncomplete}>
+                            <span class="banda-nota">(lecturas incompletas)</span>
+                        </template>
+                    </span>
+                    <template if:true={hasBandAge}>
+                        <span class="banda-der">
+                            {bandAgeText}
+                            <template if:true={bandStale}>
+                                <span class="antiguo"><span aria-hidden="true">&#9201;</span> Dato antiguo</span>
+                            </template>
+                        </span>
+                    </template>
+                </div>
+
+                <div class="cabecera">
+                    <c-nova-casa-ilustracion tipo={detalle.assetType} nivel={detalle.assetLevel} tamano="md"></c-nova-casa-ilustracion>
+                    <div class="cabecera-texto">
+                        <span class="eyebrow">{eyebrow}</span>
+                        <h2 class="titulo">{caseTitle}</h2>
+                        <p class="asunto">{subjectText}</p>
+                        <template if:true={hasAsset}>
+                            <div class="chips">
+                                <button type="button" class="chip chip-enlace" data-id={detalle.assetId} onclick={handleOpenAsset}>
+                                    <span class="solo-lectura">Activo: </span>{assetName} <span aria-hidden="true">&#8599;</span>
+                                </button>
+                                <template if:true={hasExternalId}>
+                                    <span class="chip num"><span class="solo-lectura">Código del activo: </span>{detalle.assetExternalId}</span>
+                                </template>
+                                <template if:true={hasBuilding}>
+                                    <button type="button" class="chip chip-enlace" data-id={detalle.accountId} onclick={handleOpenBuilding}>
+                                        <span class="solo-lectura">Edificio: </span>{buildingName} <span aria-hidden="true">&#8599;</span>
+                                    </button>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                    <span class={statusClass}><span class="solo-lectura">Estado de la intervención: </span>{statusLabel}</span>
+                </div>
+
+                <template if:true={hasPath}>
+                    <ol class="ruta" aria-label="Estados de la intervención">
+                        <template for:each={pathSteps} for:item="step">
+                            <li key={step.key} class="ruta-item">
+                                <template if:true={canFollow}>
+                                    <button
+                                        type="button"
+                                        class={step.cls}
+                                        aria-current={step.ariaCurrent}
+                                        aria-label={step.name}
+                                        data-value={step.value}
+                                        data-return={step.returnKey}
+                                        disabled={isSaving}
+                                        onclick={handleStep}
+                                    >
+                                        <template if:true={step.isDone}><span aria-hidden="true">&#10003; </span></template>{step.label}
+                                    </button>
+                                </template>
+                                <template if:false={canFollow}>
+                                    <span class={step.cls} aria-current={step.ariaCurrent}>
+                                        <template if:true={step.isDone}><span aria-hidden="true">&#10003; </span></template>{step.label}<span class="solo-lectura">{step.srState}</span>
+                                    </span>
+                                </template>
+                            </li>
+                        </template>
+                    </ol>
+                </template>
+
+                <div class="franja">
+                    <div class="franja-celda">
+                        <span class="micro">{openTileLabel}</span>
+                        <span class="val">{openTileValue}</span>
+                        <span class="sub">{openTileSub}</span>
+                    </div>
+                    <div class="franja-celda">
+                        <span class="micro">Prioridad</span>
+                        <span class="val">{priorityText}</span>
+                        <span class="sub">{prioritySub}</span>
+                    </div>
+                    <template if:true={hasLastCritical}>
+                        <div class="franja-celda">
+                            <span class="micro">Última crítica registrada</span>
+                            <span class="val num">{lastCriticalValue}</span>
+                            <span class="sub">{lastCriticalSub}</span>
+                        </div>
+                    </template>
+                    <div class="franja-celda">
+                        <span class="micro">Señales enlazadas</span>
+                        <span class="val num">{linkedCount}</span>
+                        <span class="sub">{signalsTileSub}</span>
+                    </div>
+                    <div class="franja-celda">
+                        <span class="micro">Último seguimiento</span>
+                        <span class="val num">{followTileValue}</span>
+                        <span class="sub">{followTileSub}</span>
+                    </div>
+                </div>
+            </section>
+
+            <div class="dos">
+                <section class="tarjeta acciones-tarjeta">
+                    <div class="tarjeta-cab">
+                        <h3 class="tarjeta-titulo" tabindex="-1" data-focus="acciones">¿Qué hacer ahora?</h3>
+                        <template if:true={hasActionsNote}>
+                            <span class="tarjeta-cab-nota">{actionsNote}</span>
+                        </template>
+                    </div>
+                    <div class="cuerpo">
+                        <template if:true={canFollow}>
+                            <div class="acciones">
+                                <button
+                                    type="button"
+                                    class="boton primario"
+                                    aria-expanded={followButtonExpanded}
+                                    data-return="seguir"
+                                    disabled={isSaving}
+                                    onclick={handleOpenFollowUp}
+                                >
+                                    Actualizar seguimiento
+                                </button>
+                                <template if:true={canClose}>
+                                    <button
+                                        type="button"
+                                        class="boton boton-cerrar"
+                                        aria-expanded={closeButtonExpanded}
+                                        data-return="cerrar"
+                                        disabled={isSaving}
+                                        onclick={handleOpenClose}
+                                    >
+                                        <span aria-hidden="true">&#10003;</span> Cerrar intervención
+                                    </button>
+                                </template>
+                            </div>
+                        </template>
+
+                        <template if:true={isFollowing}>
+                            <div class="form" tabindex="-1" data-focus="seguir">
+                                <template if:true={hasFollowUpOptions}>
+                                    <fieldset class="grupo">
+                                        <legend class="rot-campo">Nuevo estado</legend>
+                                        <div class="segmento">
+                                            <template for:each={followUpOptions} for:item="o">
+                                                <label key={o.key} class={o.cls}>
+                                                    <input
+                                                        type="radio"
+                                                        class="radio-oculto"
+                                                        name="nuevoEstado"
+                                                        value={o.value}
+                                                        checked={o.checked}
+                                                        disabled={isSaving}
+                                                        onchange={handleEstado}
+                                                    />
+                                                    <span>{o.label}</span>
+                                                </label>
+                                            </template>
+                                        </div>
+                                    </fieldset>
+                                </template>
+                                <template if:true={showFollowUpEmpty}>
+                                    <p class="nota nota-error" role="alert">No hay estados disponibles para actualizar el seguimiento.</p>
+                                </template>
+                                <label class="rot-campo" for="nc-comentario-seguimiento">Comentario (opcional)</label>
+                                <textarea
+                                    class="campo campo-texto"
+                                    id="nc-comentario-seguimiento"
+                                    maxlength={commentMax}
+                                    rows="3"
+                                    placeholder="Ej.: técnico en camino, revisa la válvula de entrada…"
+                                    disabled={isSaving}
+                                    oninput={handleComentario}
+                                ></textarea>
+                                <p class="ayuda">El comentario queda en la intervención con tu nombre y la hora.</p>
+                                <div class="acciones">
+                                    <button type="button" class="boton primario" disabled={saveFollowDisabled} onclick={handleSaveFollowUp}>Guardar</button>
+                                    <button type="button" class="boton" disabled={isSaving} onclick={handleCancel}>Cancelar</button>
+                                </div>
+                            </div>
+                        </template>
+
+                        <template if:true={isClosing}>
+                            <div class="dialogo" role="group" aria-label={closeTitle}>
+                                <h4 class="dialogo-titulo" tabindex="-1" data-focus="cerrar">{closeTitle}</h4>
+                                <div class="dialogo-cuerpo">
+                                    <template if:true={closeWarnsTelemetryCritical}>
+                                        <p class="aviso aviso-critico">
+                                            <span aria-hidden="true">&#9679;</span>
+                                            <span>El activo sigue crítico. Si la cierras, la próxima señal crítica del activo puede abrir una intervención nueva.</span>
+                                        </p>
+                                    </template>
+                                    <template if:true={closeWarnsManualCritical}>
+                                        <p class="aviso aviso-critico">
+                                            <span aria-hidden="true">&#9679;</span>
+                                            <span>El activo sigue crítico.</span>
+                                        </p>
+                                    </template>
+                                    <template if:true={isManual}>
+                                        <p class="aviso aviso-info">Cerrarla no cambia lo que hace la telemetría con este activo.</p>
+                                    </template>
+                                    <label class="rot-campo" for="nc-comentario-cierre">Comentario de cierre (opcional)</label>
+                                    <textarea
+                                        class="campo campo-texto"
+                                        id="nc-comentario-cierre"
+                                        maxlength={commentMax}
+                                        rows="3"
+                                        placeholder="Qué se hizo para resolverla…"
+                                        disabled={isSaving}
+                                        oninput={handleComentario}
+                                    ></textarea>
+                                    <p class="ayuda">El comentario queda en la intervención con tu nombre y la hora.</p>
+                                </div>
+                                <div class="dialogo-botones">
+                                    <button type="button" class="boton" disabled={isSaving} onclick={handleCancel}>Cancelar</button>
+                                    <button type="button" class="boton boton-peligro" disabled={saveCloseDisabled} onclick={handleSaveClose}>
+                                        <span aria-hidden="true">&#10003;</span> Cerrar intervención
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+
+                        <template if:true={showActionError}>
+                            <p class="nota nota-error" role="alert">{actionError}</p>
+                        </template>
+
+                        <template if:true={showStableNote}>
+                            <p class="aviso aviso-normal">
+                                <span aria-hidden="true">&#9675;</span>
+                                <span>Las lecturas actuales del activo están en rango. La intervención sigue abierta hasta que coordinación la cierre.</span>
+                            </p>
+                        </template>
+                        <template if:true={showReceivesCriticalsNote}>
+                            <p class="aviso aviso-info">
+                                <span aria-hidden="true">&#9432;</span>
+                                <span>Mientras siga abierta, las nuevas críticas de este activo se registran aquí y no abren otra intervención.</span>
+                            </p>
+                        </template>
+                        <template if:true={showReadOnlyNote}>
+                            <p class="aviso aviso-info">Puedes ver esta intervención y sus señales. Cambiar su estado o cerrarla lo hace coordinación.</p>
+                        </template>
+                        <template if:true={showNoAssetNote}>
+                            <p class="aviso aviso-info">Esta intervención no está ligada a un activo, así que su seguimiento no se hace desde aquí. Usa los detalles del caso, más abajo.</p>
+                        </template>
+
+                        <template if:true={isClosed}>
+                            <p class="aviso aviso-info">
+                                <span>
+                                    <template if:true={hasClosingQuote}>
+                                        <span class="cita">{closingQuote}</span>
+                                        <span class="cita-meta"> ({closingMeta})</span>
+                                    </template>
+                                    {closedDurationText}
+                                </span>
+                            </p>
+                            <p class="ayuda">Una intervención cerrada no se reabre desde aquí.</p>
+                            <template if:true={closedAssetStillCritical}>
+                                <p class="aviso aviso-critico">
+                                    <span aria-hidden="true">&#9679;</span>
+                                    <span>El activo sigue crítico: la próxima señal crítica puede abrir una intervención nueva.</span>
+                                </p>
+                            </template>
+                        </template>
+                    </div>
+                </section>
+
+                <section class="tarjeta senales">
+                    <template if:true={isTelemetry}>
+                        <div class="tarjeta-cab">
+                            <h3 class="tarjeta-titulo">Señales de esta intervención</h3>
+                            <span class="tarjeta-cab-nota">{signalsCountText}</span>
+                        </div>
+                        <template if:true={signalsLoading}>
+                            <p class="nota cuerpo" role="status">Cargando señales…</p>
+                        </template>
+                        <template if:true={showSignalsError}>
+                            <p class="nota nota-error cuerpo" role="alert">{signalsErrorMessage}</p>
+                        </template>
+                        <template if:true={showSignalsEmpty}>
+                            <p class="nota cuerpo">{signalsEmptyText}</p>
+                        </template>
+                        <template if:true={showSignalsTable}>
+                            <div class="tabla-desliza">
+                                <table class="tabla">
+                                    <caption class="solo-lectura">Señales enlazadas a esta intervención, de la más nueva a la más antigua</caption>
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">Hora de origen</th>
+                                            <th scope="col">Medición</th>
+                                            <th scope="col">Valor</th>
+                                            <th scope="col">Resultado</th>
+                                            <th scope="col"><span class="solo-lectura">Etiquetas</span></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template for:each={signalRows} for:item="s">
+                                            <tr key={s.key} class={s.rowClass}>
+                                                <td class="celda-hora">
+                                                    <span class="num">{s.timeText}</span>
+                                                    <template if:true={s.isFuture}>
+                                                        <span class="edad"> · hora del simulador</span>
+                                                    </template>
+                                                </td>
+                                                <td>{s.measurementLabel}</td>
+                                                <td class={s.valueClass}>{s.valueText}</td>
+                                                <td><span class="etq etq-res">{s.resultText}</span></td>
+                                                <td class="celda-etq">
+                                                    <template if:true={s.isLatest}>
+                                                        <span class="etq etq-ultima">Última</span>
+                                                    </template>
+                                                    <template if:true={s.abrio}>
+                                                        <span class="etq etq-abrio">Abrió la intervención</span>
+                                                    </template>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <template if:true={showSignalsTruncated}>
+                                <p class="nota cuerpo-nota">{signalsTruncatedText}</p>
+                            </template>
+                        </template>
+                        <div class="pie">
+                            <span>Solo las señales enlazadas a esta intervención.</span>
+                            <template if:true={hasAsset}>
+                                <button type="button" class="enlace" data-id={detalle.assetId} onclick={handleOpenAsset}>
+                                    Ver historial completo del activo <span aria-hidden="true">&#8599;</span>
+                                </button>
+                            </template>
+                        </div>
+                    </template>
+
+                    <template if:true={isManual}>
+                        <div class="tarjeta-cab">
+                            <h3 class="tarjeta-titulo">Intervención manual</h3>
+                        </div>
+                        <div class="cuerpo">
+                            <template if:true={hasMotivo}>
+                                <div>
+                                    <span class="micro">Motivo</span>
+                                    <p class="motivo">{motivo}</p>
+                                </div>
+                            </template>
+                            <template if:false={hasMotivo}>
+                                <p class="nota">Intervención creada a mano: no tiene señales enlazadas.</p>
+                            </template>
+                        </div>
+                    </template>
+                </section>
+            </div>
+        </template>
+    </div>
+</template>

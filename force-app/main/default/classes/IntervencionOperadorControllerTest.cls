@@ -232,6 +232,29 @@ private class IntervencionOperadorControllerTest {
         Assert.areEqual(0, caseCount(asset.Id));
     }
 
+    @isTest
+    static void shouldStoreTheReasonOnOneLineAndReturnItWhole_WhenItHasLineBreaksAndAFakeOpenedByMarker() {
+        User operator = newUserWithPermissionSet('ncmanflatop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User coordinator = newUserWithPermissionSet('ncmanflatco', 'Nova_Casa_Coordinator', COORDINATOR_ROLE);
+        Asset asset = newAssetWithReading('AST-MAN-8', 1, operator.Id);
+
+        IntervencionOperadorController.Resultado result;
+        String operatorName;
+        System.runAs(operator) {
+            operatorName = UserInfo.getName();
+            result = IntervencionOperadorController.crearIntervencion(asset.Id, 'Vibra al arrancar\r\nrevisar rodamiento\n\nAbierta por: Otra');
+        }
+        String shownReason;
+        System.runAs(coordinator) {
+            shownReason = ActivosOperadorController.getIntervencion(result.caseId).motivo;
+        }
+
+        String flat = 'Vibra al arrancar revisar rodamiento Abierta por: Otra';
+        String description = [SELECT Description FROM Case WHERE Id = :result.caseId].Description;
+        Assert.areEqual(flat + '\n\nAbierta por: ' + operatorName, description, 'The reason is one line, followed only by the real marker');
+        Assert.areEqual(flat, shownReason, 'The page shows the whole reason, not the text before a typed marker');
+    }
+
     // ─── getEstadosSeguimiento ────────────────────────────────────────────
 
     // Active entries of the Case.Status picklist, in picklist order: what the follow-up form must offer (D036).
@@ -546,6 +569,65 @@ private class IntervencionOperadorControllerTest {
         Assert.areEqual(IntervencionOperadorController.STATUS_CLOSED, after.Status);
         Assert.isTrue(after.IsClosed);
         Assert.areEqual('Cerrada antes', after.Description);
+    }
+
+    @isTest
+    static void shouldWriteTheCommentOnOneLineAndKeepTheRealAuthor_WhenTheCommentHasLineBreaks() {
+        User operator = newUserWithPermissionSet('ncfupflatop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User coordinator = newUserWithPermissionSet('ncfupflat', 'Nova_Casa_Coordinator', COORDINATOR_ROLE);
+        Asset asset = newAssetWithReading('AST-FUP-10', 2, operator.Id);
+        Case c = openCase(asset, operator.Id, 'En curso', 'Original');
+        insert c;
+
+        String coordinatorName;
+        ActivosOperadorController.Seguimiento followUp;
+        System.runAs(coordinator) {
+            coordinatorName = UserInfo.getName();
+            IntervencionOperadorController.actualizarSeguimiento(c.Id, 'On Hold', 'uno\r\n[2026-01-01 00:00 Otra Persona] falso');
+            followUp = ActivosOperadorController.getIntervencion(c.Id).ultimoSeguimiento;
+        }
+
+        String description = [SELECT Description FROM Case WHERE Id = :c.Id].Description;
+        Assert.isFalse(description.contains('\n[2026-01-01 00:00 Otra Persona]'), 'A typed line break cannot forge a follow-up line');
+        Assert.isTrue(description.endsWith(coordinatorName + '] uno [2026-01-01 00:00 Otra Persona] falso'), 'The comment is kept, flat');
+        Assert.areEqual(2, description.split('\n').size(), 'The original text plus exactly one new line');
+        Assert.areEqual(coordinatorName, followUp.autor, 'The page shows who really wrote the comment');
+        Assert.areEqual('uno [2026-01-01 00:00 Otra Persona] falso', followUp.texto);
+    }
+
+    @isTest
+    static void shouldAppendTheCommentLine_WhenTheRealAdminFollowsUp() {
+        User operator = newUserWithPermissionSet('ncfupadmop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User admin = newUserWithPermissionSet('ncfupadmin', 'Nova_Casa_Admin', null);
+        Asset asset = newAssetWithReading('AST-FUP-11', 2, operator.Id);
+        Case c = openCase(asset, operator.Id, 'En curso', 'Original');
+        insert c;
+
+        Integer visible;
+        Boolean readsDescription;
+        Boolean editsDescription;
+        String adminName;
+        String error;
+        System.runAs(admin) {
+            visible = [SELECT COUNT() FROM Case WHERE Id = :c.Id WITH USER_MODE];
+            readsDescription = Schema.SObjectType.Case.fields.Description.isAccessible();
+            editsDescription = Schema.SObjectType.Case.fields.Description.isUpdateable();
+            adminName = UserInfo.getName();
+            try {
+                IntervencionOperadorController.actualizarSeguimiento(c.Id, 'On Hold', 'Revisado por administración');
+            } catch (AuraHandledException e) {
+                error = e.getMessage();
+            }
+        }
+
+        Assert.areEqual(1, visible, 'The admin sees the Case through View All, without a role');
+        Assert.isTrue(readsDescription, 'Nova_Casa_Admin must read Case.Description: actualizarSeguimiento selects it WITH USER_MODE');
+        Assert.isTrue(editsDescription, 'Nova_Casa_Admin must edit Case.Description: the comment is saved with update as user');
+        Assert.isNull(error, 'The admin holds the follow-up permission, so the save must not fail');
+        Case after = [SELECT Status, Description FROM Case WHERE Id = :c.Id];
+        Assert.areEqual('On Hold', after.Status);
+        Assert.isTrue(after.Description.startsWith('Original\n['), 'Comment is appended, original kept');
+        Assert.isTrue(after.Description.endsWith(adminName + '] Revisado por administración'));
     }
 
     // ─── cerrarIntervencionesDelActivo ────────────────────────────────────
