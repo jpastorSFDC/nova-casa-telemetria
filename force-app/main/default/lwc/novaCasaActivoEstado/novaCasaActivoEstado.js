@@ -141,8 +141,12 @@ export default class NovaCasaActivoEstado extends NavigationMixin(LightningEleme
     get assetSeverity() {
         return this.hasReadings ? severityUi(this.assetLevel) : SEVERITY_NO_READING_UI;
     }
-    get assetSevClass() {
-        return `sev sev-${this.assetSeverity.key}`;
+    // Header and band in the traffic-light color of the asset level (D042).
+    get headerClass() {
+        return `cabecera-activo cab-${this.assetSeverity.key}`;
+    }
+    get bandClass() {
+        return `banda banda-${this.assetSeverity.key}`;
     }
     // With a cut, a reading left out could be more severe: below critical the level is qualified, never an all-clear.
     get levelMayBeIncomplete() {
@@ -150,9 +154,6 @@ export default class NovaCasaActivoEstado extends NavigationMixin(LightningEleme
     }
     get incompleteText() {
         return '(lecturas incompletas)';
-    }
-    get incompleteSuffix() {
-        return this.levelMayBeIncomplete ? this.incompleteText : '';
     }
 
     get intervention() {

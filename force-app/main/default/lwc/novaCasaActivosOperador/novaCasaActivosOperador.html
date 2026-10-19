@@ -212,7 +212,7 @@
                                             </span>
                                         </td>
                                         <td class="centro">
-                                            <c-nova-casa-semaforo nivel={b.worstLevel} orientacion="horizontal" compacto sufijo={buildingLightSuffix}></c-nova-casa-semaforo>
+                                            <span class={b.worstClass}><span class="glifo" aria-hidden="true">{b.worstGlyph}</span> {b.worstLabel}</span>
                                         </td>
                                         <td class="centro num fuerte">{b.total}</td>
                                         <td class="centro">
@@ -382,25 +382,22 @@
             <div class="cuadricula">
                 <template for:each={rows} for:item="row">
                     <article key={row.key} class={row.cardClass} data-id={row.assetId} onclick={handleViewAsset} onanimationend={handleRingEnd}>
+                        <div class={row.bandClass}>
+                            <span class="banda-estado"><span class="glifo" aria-hidden="true">{row.sevGlyph}</span> {row.sevLabel}</span>
+                            <template if:true={row.hasChange}>
+                                <span class="cambio"><span aria-hidden="true">{row.changeGlyph}</span> {row.changeText}</span>
+                            </template>
+                        </div>
                         <div class="tarjeta-cuerpo">
-                            <div class="tarjeta-top">
-                                <div class="ident">
-                                    <c-nova-casa-ilustracion tipo={row.assetType} nivel={row.level} tamano="md"></c-nova-casa-ilustracion>
-                                    <div class="ident-texto">
-                                        <template if:true={row.hasEyebrow}>
-                                            <span class="eyebrow">{row.eyebrow}</span>
-                                        </template>
-                                        <p class="nombre-activo">{row.name}</p>
-                                    </div>
-                                </div>
-                                <div class="estado-lado">
-                                    <span class={row.sevClass}><span class="glifo" aria-hidden="true">{row.sevGlyph}</span> {row.sevLabel}</span>
-                                    <c-nova-casa-semaforo nivel={row.level} etiqueta-sin-dato={row.sevLabel}></c-nova-casa-semaforo>
+                            <div class="ident">
+                                <c-nova-casa-ilustracion tipo={row.assetType} nivel={row.level} tamano="md"></c-nova-casa-ilustracion>
+                                <div class="ident-texto">
+                                    <template if:true={row.hasEyebrow}>
+                                        <span class="eyebrow">{row.eyebrow}</span>
+                                    </template>
+                                    <p class="nombre-activo">{row.name}</p>
                                 </div>
                             </div>
-                            <template if:true={row.hasChange}>
-                                <p class={row.changeClass}><span aria-hidden="true">{row.changeGlyph}</span> {row.changeText}</p>
-                            </template>
                             <div class="lectura-bloque">
                                 <template if:true={row.hasHeadline}>
                                     <span class="micro">{row.headLabel}</span>
@@ -449,6 +446,9 @@
                 </nav>
 
                 <section class={selectedRow.heroClass} aria-label="Resumen del activo">
+                    <div class={selectedRow.bandClass}>
+                        <span class="banda-estado"><span class="glifo" aria-hidden="true">{selectedRow.sevGlyph}</span> {selectedRow.sevLabel}</span>
+                    </div>
                     <div class="hero">
                         <div class="hero-izq">
                             <c-nova-casa-ilustracion tipo={selectedRow.assetType} nivel={selectedRow.level} tamano="lg"></c-nova-casa-ilustracion>
@@ -461,10 +461,6 @@
                                     <span class="hero-id num">{selectedRow.externalId}</span>
                                 </template>
                             </div>
-                        </div>
-                        <div class="estado-lado">
-                            <span class={selectedRow.sevClass}><span class="glifo" aria-hidden="true">{selectedRow.sevGlyph}</span> {selectedRow.sevLabel}</span>
-                            <c-nova-casa-semaforo nivel={selectedRow.level} etiqueta-sin-dato={selectedRow.sevLabel}></c-nova-casa-semaforo>
                         </div>
                     </div>
                     <div class="franja">

@@ -19,28 +19,28 @@
     display: block;
 }
 .ilu-sm {
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
 }
 .ilu-sm svg {
-    width: 24px;
-    height: 24px;
+    width: 27px;
+    height: 27px;
 }
 .ilu-md {
-    width: 56px;
-    height: 56px;
+    width: 64px;
+    height: 64px;
 }
 .ilu-md svg {
-    width: 42px;
-    height: 42px;
+    width: 48px;
+    height: 48px;
 }
 .ilu-lg {
-    width: 72px;
-    height: 72px;
+    width: 80px;
+    height: 80px;
 }
 .ilu-lg svg {
-    width: 54px;
-    height: 54px;
+    width: 60px;
+    height: 60px;
 }
 
 .ilu-critico {
@@ -48,8 +48,8 @@
     color: #fff;
 }
 .ilu-advertencia {
-    --ilu-fondo: #fef3c7;
-    color: #b45309;
+    --ilu-fondo: #fef9c3;
+    color: #854d0e;
 }
 .ilu-normal {
     --ilu-fondo: #ecfdf5;

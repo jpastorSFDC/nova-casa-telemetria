@@ -657,11 +657,6 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         this.nowMs = this.updatedAtMs;
     }
 
-    // A cut summary may leave out a building's worse assets: its light says so instead of reading as an all-clear.
-    get buildingLightSuffix() {
-        return this.truncated ? '(resumen parcial)' : '';
-    }
-
     get hasAutoRefreshFailure() {
         return Boolean(this.autoRefreshFailedAtMs) && Boolean(this.assets);
     }
@@ -924,18 +919,23 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         });
         return [...byBuilding.values()]
             .sort((x, y) => y.critical - x.critical || y.warning - x.warning || x.name.localeCompare(y.name))
-            .map((b) => ({
-                ...b,
-                worstLevel: worstLevelOf(b),
-                hasCritical: b.critical > 0,
-                hasWarning: b.warning > 0,
-                hasNoData: b.noData > 0,
-                hasStale: b.stale > 0,
-                hasAccount: Boolean(b.accountId),
-                filterLabel: `Filtrar por ${b.name}`,
-                viewLabel: `Ver edificio ${b.name}`,
-                rowClass: b.critical > 0 ? 'edif-fila edif-critico' : 'edif-fila'
-            }));
+            .map((b) => {
+                const worst = severityUi(worstLevelOf(b));
+                return {
+                    ...b,
+                    worstClass: `sev sev-${worst.key}`,
+                    worstGlyph: worst.glyph,
+                    worstLabel: worst.label,
+                    hasCritical: b.critical > 0,
+                    hasWarning: b.warning > 0,
+                    hasNoData: b.noData > 0,
+                    hasStale: b.stale > 0,
+                    hasAccount: Boolean(b.accountId),
+                    filterLabel: `Filtrar por ${b.name}`,
+                    viewLabel: `Ver edificio ${b.name}`,
+                    rowClass: `edif-fila edif-${worst.key}`
+                };
+            });
     }
     get showBuildingSummary() {
         return this.showList && this.buildingSummary.length > 0;
@@ -1097,10 +1097,10 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             level,
             cardClass: `tarjeta-activo ${ui.key}${ring}`,
             heroClass: `tarjeta hero-activo ${ui.key}`,
+            bandClass: `banda banda-${ui.key}`,
             hasChange: Boolean(change),
             changeText: change ? change.text : '',
             changeGlyph: change ? change.glyph : '',
-            changeClass: change ? `cambio cambio-${change.tone}` : 'cambio',
             sevClass: `sev sev-${ui.key}`,
             sevGlyph: ui.glyph,
             sevLabel: ui.label,
