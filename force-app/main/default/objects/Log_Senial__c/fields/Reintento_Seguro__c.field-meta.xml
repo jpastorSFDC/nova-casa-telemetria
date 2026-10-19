@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
-    <fullName>Reintento_Seguro__c</fullName>
-    <label>Reintento seguro</label>
-    <description>Indicates the message can be safely reprocessed without exposing secrets (BR-209).</description>
-    <type>Checkbox</type>
-    <defaultValue>false</defaultValue>
-</CustomField>

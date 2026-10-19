@@ -6,11 +6,11 @@ Duration: about 14 minutes, plus preparation. The evidence by story is in [evide
 
 ## Before the demo (not timed)
 
-1. **Avisar en Slack** quién corre la ingesta y a qué hora. La corre Juan Diego (o John) con su propio usuario: los dos tienen `Nova_Casa_Admin` y `Nova_Casa_Simulator_Integration`. `novacasa.admin@` no tiene `Nova_Casa_Simulator_Integration`, así que "Traer señales" con ese usuario falla. Una corrida a la vez.
+1. **Avisar en Slack** quién corre la ingesta y a qué hora. La corre Juan Diego (o John) con su propio usuario: los dos tienen `Nova_Casa_Admin` y `Nova_Casa_Simulator_Integration`. El usuario de la persona administradora no tiene `Nova_Casa_Simulator_Integration`, así que "Traer señales" con ese usuario falla. Una corrida a la vez.
 2. **Ingesta automática apagada durante la demo.** La ingesta corre sola cada 5 minutos (D040). Para la demo se corren escenarios a mano (`QA_200`), así que primero se apaga el job automático para que no traiga `MIXED` ni choque con la regla de "una corrida a la vez": `sf apex run --file scripts/apex/desprogramar-ingesta.apex -o nova-cdo` (o `TelemetriaIngestaProgramada.desprogramar();` en Execute Anonymous). Se vuelve a encender al terminar con `programar-ingesta.apex`.
 3. **Org limpio.** El simulador reutiliza `messageId` entre sesiones: si quedan filas de corridas anteriores, todo sale como `Conflicto` o reenvío. El 2026-10-06 el org tenía 400 filas de `Log_Senial__c`, todas `Conflicto`. Antes de la demo se borran los `Log_Senial__c`, las `Lectura_Vigente__c` y los `Case` con `Origin = 'Telemetria'`, como en `evidencia-escenarios.md` (apaga antes la ingesta automática, paso 2). Borrar datos lo acuerdan John y Juan Diego (`CONTRIBUTING.md`). Para hacerlo y para las corridas: `scripts/org-check.sh clean` (muestra qué borraría y qué queda), `clean confirm=<org>:<n>`, `run <ESCENARIO>`, `wait <desde>` y `evidence`. La limpieza solo borra los `Case` de telemetría: las intervenciones creadas a mano (`Origin` distinto de `Telemetria`) siguen abiertas, así que se cierran a mano antes de la demo si no se quieren ver.
-4. **Catálogo cargado** (README, "Loading the building/asset catalog"): `CatalogoService.loadCatalog();` desde Execute Anonymous. Después, la consulta de "Dueño de los edificios" en `docs/acceso.md` debe volver vacía: BLD-BOG-001 (Edificio Nova Alameda) es de `novacasa.operador@` y BLD-BAQ-001 (Edificio Nova Caribe) de `novacasa.operador2@`. BLD-TEST-NOAUT (Edificio de prueba, fuera de jerarquía) sigue a nombre de Juan Diego, sin activos.
-5. **Usuarios persona** (`docs/acceso.md`, "Personas"), todos `@novacasa-telemetria.demo` y activos: `novacasa.operador`, `novacasa.operador2`, `novacasa.coordinador`, `novacasa.gerente`, `novacasa.admin`. "Log in as" ya está activo en el org (T8.7). Probarlo una vez con cada uno y abrir la app **Nova Casa Telemetry** al menos una vez: el 2026-10-13, la primera sesión de cada persona cayó en la app "Servicio" con "No tiene acceso a este registro", y Lightning abre después la última app usada (a comprobar en el ensayo).
+4. **Catálogo cargado** (README, "Loading the building/asset catalog"): `CatalogoService.loadCatalog();` desde Execute Anonymous. Después, la consulta de "Dueño de los edificios" en `docs/acceso.md` debe volver vacía: BLD-BOG-001 (Edificio Nova Alameda) es del operador 1 y BLD-BAQ-001 (Edificio Nova Caribe) del operador 2. BLD-TEST-NOAUT (Edificio de prueba, fuera de jerarquía) sigue a nombre de Juan Diego, sin activos.
+5. **Usuarios persona** (`docs/acceso.md`, "Personas"): operador 1, operador 2, coordinador, gerente y administrador, todos activos. "Log in as" ya está activo en el org (T8.7). Probarlo una vez con cada uno y abrir la app **Nova Casa Telemetry** al menos una vez: el 2026-10-13, la primera sesión de cada persona cayó en la app "Servicio" con "No tiene acceso a este registro", y Lightning abre después la última app usada (a comprobar en el ensayo).
 6. **Pruebas corridas el mismo día** y el resultado a mano (paso 9):
 
    ```bash
@@ -57,7 +57,7 @@ Duration: about 14 minutes, plus preparation. The evidence by story is in [evide
 
 ### 3. Sara starts her shift (3 min) · BR-206, BR-207, BR-208
 
-1. Setup > Users > `novacasa.operador@…` > **Login**.
+1. Setup > Users > the operator persona > **Login**.
 2. **Nova Casa Telemetry** app > **Activos del operador** tab.
 
 **What the audience should see**
@@ -104,7 +104,7 @@ If the pump didn't come out critical in the run, carry on with whatever critical
 
 ### 6. The coordinator organizes the work (1.5 min) · BR-204, BR-205
 
-1. Setup > Users > `novacasa.coordinador@…` > **Login**.
+1. Setup > Users > the coordinator persona > **Login**.
 2. Cases tab > **Intervenciones abiertas** list view.
 3. **Activos del operador** tab > a critical asset > **Actualizar seguimiento** (status On Hold, with a comment) > **Guardar**. If the asset has several open interventions, the **Cerrar las N abiertas** button closes them all at once, up to 200 at a time (D035).
 4. **Ver límites** (or Umbrales tab > **Nova Casa - Umbrales**).
@@ -117,8 +117,8 @@ If the pump didn't come out critical in the run, carry on with whatever critical
 
 ### 7. Everyone sees their own data (1.5 min) · BR-208
 
-1. Setup > Users > `novacasa.gerente@…` > **Login** > **Activos del operador**, and Accounts tab > **Nova Casa - Edificios**.
-2. Setup > Users > `novacasa.operador2@…` > **Login** > **Activos del operador**.
+1. Setup > Users > the manager persona > **Login** > **Activos del operador**, and Accounts tab > **Nova Casa - Edificios**.
+2. Setup > Users > the second operator persona > **Login** > **Activos del operador**.
 
 **What the audience should see**
 
@@ -129,7 +129,7 @@ If the pump didn't come out critical in the run, carry on with whatever critical
 
 ### 8. The administrator investigates (1.5 min) · BR-209
 
-With Juan Diego's user (or `novacasa.admin@…` via Login).
+With Juan Diego's user (or the admin persona via Login).
 
 1. `/lightning/o/Log_Senial__c/list?filterName=Rechazadas`, then `Conflictos` and `Fallidas`.
 2. Look up a signal by its identity in global search.
@@ -159,7 +159,7 @@ Wrap-up: what's still missing is in the evidence table, Status column.
 | The simulator doesn't respond or a job ends up `Failed` in Apex Jobs | Read the error in Apex Jobs. Run the same `iniciar` again: the identity prevents duplicates (D013, point 8). If it keeps failing, show the saved run in `evidencia-escenarios.md` and the data already in the org. |
 | Everything comes out as `Conflicto` or resend | The org wasn't clean. Show **Conflictos** and **Duplicadas (reenvíos)** as proof of BR-205 and carry on with whatever data there is. |
 | No critical signal came out, or no new Case | The result depends on how the batches are split (D011 h, not confirmed by the facilitator). Show a `CRITICAL_BURST` run in `evidencia-escenarios.md` (each Case with its `Procesada` row). |
-| "Traer señales" gives an error | `novacasa.admin@` is missing `Nova_Casa_Simulator_Integration`. Use Execute Anonymous with Juan Diego's user. |
+| "Traer señales" gives an error | The admin persona is missing `Nova_Casa_Simulator_Integration`. Use Execute Anonymous with Juan Diego's user. |
 | "Login" doesn't show up in Setup > Users | Check "Administrators Can Log in as Any User". If that's not possible, show the `UserRecordAccess` tables in `docs/acceso.md`. |
 | The screen says "No pudimos cargar tus activos" | **Reintentar**. If it persists, the user is missing permissions (FLS): it shows as the error state BR-207 asks for, and you carry on with another role. |
 | The run is slow | Pages are requested back to back, without waiting for `pollAfterMs` (D025); the 10-page runs on 2026-10-14 took up to 72 s in the job and 77 s until the last processed row. Use `QA_200` with few pages. |
