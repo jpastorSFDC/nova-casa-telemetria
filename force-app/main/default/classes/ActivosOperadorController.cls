@@ -22,6 +22,14 @@ public with sharing class ActivosOperadorController {
     @TestVisible private static final String BUILDING_SUMMARY_MESSAGE = 'El edificio no es válido o no tienes acceso a él.';
     @TestVisible private static final String ASSET_STATE_MESSAGE = 'El activo no es válido o no tienes acceso a él.';
     @TestVisible private static final String LOAD_MESSAGE = 'No se pudo cargar la información. Inténtalo de nuevo más tarde.';
+    @TestVisible private static final String CASE_MESSAGE = 'No encontramos esta intervención o no tienes acceso a ella.';
+    private static final String ORIGIN_TELEMETRY = 'Telemetria';
+    private static final String ORIGIN_OPERATOR = 'Operador';
+    // Follow-up line written by IntervencionOperadorController: "[yyyy-MM-dd HH:mm Name] comment".
+    private static final Pattern FOLLOW_UP_LINE = Pattern.compile('^\\[(\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}) ([^\\]]+)\\] (.+)$');
+    // Separator crearIntervencion puts after the reason of a manual intervention, and the line it starts.
+    private static final String OPENED_BY_MARKER = '\n\nAbierta por:';
+    private static final String OPENED_BY_PREFIX = 'Abierta por:';
 
     public class Option {
         @AuraEnabled public String value { get; private set; }
@@ -584,6 +592,364 @@ public with sharing class ActivosOperadorController {
         } catch (Exception e) {
             throw failure(e);
         }
+    }
+
+    /** Latest critical signal recorded on a telemetry intervention (D039). Never its identity. */
+    public class UltimaCritica {
+        @AuraEnabled public String measurementType { get; private set; }
+        @AuraEnabled public Decimal value { get; private set; }
+        @AuraEnabled public String unit { get; private set; }
+        @AuraEnabled public Datetime occurredAt { get; private set; }
+
+        public UltimaCritica(Case c) {
+            this.measurementType = c.Ultima_Critica_Medicion__c;
+            this.value = c.Ultima_Critica_Valor__c;
+            this.unit = c.Ultima_Critica_Unidad__c;
+            this.occurredAt = c.Ultima_Critica_At__c;
+        }
+    }
+
+    /** Last follow-up line of the Case Description, split into its parts; the rest of the Description never leaves the server. */
+    public class Seguimiento {
+        // As written by the server, in the writer's time zone: yyyy-MM-dd HH:mm.
+        @AuraEnabled public String fecha { get; private set; }
+        @AuraEnabled public String autor { get; private set; }
+        @AuraEnabled public String texto { get; private set; }
+
+        public Seguimiento(String fecha, String autor, String texto) {
+            this.fecha = fecha;
+            this.autor = autor;
+            this.texto = texto;
+        }
+    }
+
+    /**
+     * What the Case record page shows (HP-07). No identity, Description, Motivo__c or Huella__c: only flags and parts
+     * derived on the server.
+     */
+    public class IntervencionDetalle {
+        @AuraEnabled public Id caseId { get; private set; }
+        @AuraEnabled public String caseNumber { get; private set; }
+        @AuraEnabled public String subject { get; private set; }
+        @AuraEnabled public String status { get; private set; }
+        @AuraEnabled public Boolean isClosed { get; private set; }
+        @AuraEnabled public Datetime createdDate { get; private set; }
+        @AuraEnabled public Datetime closedDate { get; private set; }
+        @AuraEnabled public String priority { get; private set; }
+        @AuraEnabled public String origin { get; private set; }
+        // Opened by the telemetry (Origin Telemetria), as opposed to a manual one.
+        @AuraEnabled public Boolean esTelemetria { get; private set; }
+        // The open telemetry Case that new criticals of its asset are linked to: the newest open one (D039).
+        @AuraEnabled public Boolean recibeCriticas { get; private set; }
+        // Case.Tiempo_Abierto_Horas__c: null once closed.
+        @AuraEnabled public Decimal horasAbierta { get; private set; }
+        @AuraEnabled public Id assetId { get; private set; }
+        @AuraEnabled public String assetName { get; private set; }
+        @AuraEnabled public String assetExternalId { get; private set; }
+        @AuraEnabled public String assetType { get; private set; }
+        // Building of the asset (Asset.AccountId): the screen permission sets read Asset.AccountId, not Case.AccountId.
+        @AuraEnabled public Id accountId { get; private set; }
+        @AuraEnabled public String accountName { get; private set; }
+        // Current asset severity, same rule as the asset panel; null when no latest reading carries a level.
+        @AuraEnabled public Integer assetLevel { get; private set; }
+        // The latest reading behind assetLevel (highest level; on a tie the most recent); null when the asset has none.
+        @AuraEnabled public EstadoLectura lecturaActual { get; private set; }
+        // True when the readings row cap cut the asset's readings: one left out could be more severe.
+        @AuraEnabled public Boolean lecturasIncompletas { get; private set; }
+        // Last critical recorded on the Case (D039), not the current reading. Null on manual interventions.
+        @AuraEnabled public UltimaCritica ultimaCritica { get; private set; }
+        @AuraEnabled public Integer senalesEnlazadas { get; private set; }
+        // Null when the user cannot read Description or it has no follow-up line.
+        @AuraEnabled public Seguimiento ultimoSeguimiento { get; private set; }
+        // Reason of a manual intervention; null when not manual, not readable or absent.
+        @AuraEnabled public String motivo { get; private set; }
+        // Active Case.Status values (getEstadosSeguimiento, D036).
+        @AuraEnabled public List<Option> estados { get; private set; }
+        // Only drives what is shown: actualizarSeguimiento re-checks on the server (BR-208).
+        @AuraEnabled public Boolean puedeSeguir { get; private set; }
+
+        public IntervencionDetalle(
+            Case c,
+            Integer assetLevel,
+            EstadoLectura lecturaActual,
+            Boolean lecturasIncompletas,
+            Boolean recibeCriticas,
+            Integer linkedSignals,
+            String description,
+            List<Option> estados
+        ) {
+            this.caseId = c.Id;
+            this.caseNumber = c.CaseNumber;
+            this.subject = c.Subject;
+            this.status = c.Status;
+            this.isClosed = c.IsClosed;
+            this.createdDate = c.CreatedDate;
+            this.closedDate = c.ClosedDate;
+            this.priority = c.Priority;
+            this.origin = c.Origin;
+            this.esTelemetria = c.Origin == ORIGIN_TELEMETRY;
+            this.recibeCriticas = recibeCriticas;
+            this.horasAbierta = c.Tiempo_Abierto_Horas__c;
+            this.assetId = c.AssetId;
+            this.assetName = c.Asset?.Name;
+            this.assetExternalId = c.Asset?.External_Id__c;
+            this.assetType = c.Asset?.Tipo_Activo__c;
+            this.accountId = c.Asset?.AccountId;
+            this.accountName = c.Asset?.Account?.Name;
+            this.assetLevel = assetLevel;
+            this.lecturaActual = lecturaActual;
+            this.lecturasIncompletas = lecturasIncompletas;
+            Boolean hasCritical = c.Ultima_Critica_At__c != null || String.isNotBlank(c.Ultima_Critica_Medicion__c)
+                || c.Ultima_Critica_Valor__c != null || String.isNotBlank(c.Ultima_Critica_Unidad__c);
+            this.ultimaCritica = hasCritical ? new UltimaCritica(c) : null;
+            this.senalesEnlazadas = linkedSignals;
+            this.ultimoSeguimiento = lastFollowUp(description, c.Origin == ORIGIN_OPERATOR);
+            this.motivo = c.Origin == ORIGIN_OPERATOR ? manualReason(description) : null;
+            this.estados = estados;
+            this.puedeSeguir = FeatureManagement.checkPermission(IntervencionOperadorController.PERM_SEGUIR)
+                && !c.IsClosed && c.AssetId != null;
+        }
+    }
+
+    /** One signal linked to an intervention. Deliberately minimal: no identity, Motivo__c, Huella__c or delivery data. */
+    public class SenalIntervencion {
+        @AuraEnabled public Datetime occurredAt { get; private set; }
+        @AuraEnabled public String measurementType { get; private set; }
+        @AuraEnabled public Decimal value { get; private set; }
+        @AuraEnabled public String unit { get; private set; }
+        // Log_Senial__c.Resultado__c, e.g. Procesada.
+        @AuraEnabled public String result { get; private set; }
+        @AuraEnabled public Integer resends { get; private set; }
+        // True for the signal whose identity opened the Case; the identity itself is not returned.
+        @AuraEnabled public Boolean abrio { get; private set; }
+
+        public SenalIntervencion(Log_Senial__c l, String openerIdentity) {
+            this.occurredAt = l.Occurred_At__c;
+            this.measurementType = l.Measurement_Type__c;
+            this.value = l.Value__c;
+            this.unit = l.Unit__c;
+            this.result = l.Resultado__c;
+            this.resends = l.Reenvios__c == null ? 0 : l.Reenvios__c.intValue();
+            this.abrio = String.isNotBlank(openerIdentity) && openerIdentity.equalsIgnoreCase(l.Identidad__c);
+        }
+    }
+
+    public class SenalesIntervencion {
+        @AuraEnabled public List<SenalIntervencion> signals { get; private set; }
+        // True when the Case has more linked signals than were returned.
+        @AuraEnabled public Boolean truncated { get; private set; }
+        public SenalesIntervencion(List<SenalIntervencion> signals, Boolean truncated) {
+            this.signals = signals;
+            this.truncated = truncated;
+        }
+    }
+
+    // Same reasoning as HistoryReader: Log_Senial__c is Private and screen users have no access to it, so the read is
+    // system-mode on purpose, and `without sharing` because SYSTEM_MODE alone still honors the class sharing keyword.
+    // It is only reachable after getIntervencion / getSenalesDeIntervencion proved the Case is visible in USER_MODE.
+    // Identidad__c is read only to flag the opening signal and never returned.
+    private without sharing class CaseSignalReader {
+        Integer countFor(Id caseId) {
+            return [SELECT COUNT() FROM Log_Senial__c WHERE Caso__c = :caseId WITH SYSTEM_MODE];
+        }
+        // D003 order extended (as IntervencionService.isMoreRecent): later occurredAt, then smaller messageId, then smaller
+        // source, so arrival order never decides which row is first ("Última").
+        List<Log_Senial__c> read(Id caseId, Integer fetch) {
+            return [
+                SELECT Occurred_At__c, Measurement_Type__c, Value__c, Unit__c, Resultado__c, Reenvios__c, Identidad__c
+                FROM Log_Senial__c
+                WHERE Caso__c = :caseId
+                WITH SYSTEM_MODE
+                ORDER BY Occurred_At__c DESC, Message_Id__c ASC, Source__c ASC, Id DESC
+                LIMIT :fetch
+            ];
+        }
+    }
+
+    /**
+     * One intervention (Case) as the running user sees it, for the Case record page (HP-07).
+     * The Case is queried WITH USER_MODE; if the user cannot see it the call fails with the same static message as a
+     * non-existent one. The asset level and current reading use the same latest-reading rule as the asset panel
+     * (latestReadings). Description is read (WITH USER_MODE) only when the user has FLS on it, and only its last follow-up
+     * line and the manual reason are returned. The linked-signal count is read in system mode only after the visibility
+     * checks (CaseSignalReader, signalsVisible).
+     * @param caseId Case Id
+     */
+    @AuraEnabled(cacheable=true)
+    public static IntervencionDetalle getIntervencion(Id caseId) {
+        try {
+            if (caseId == null || caseId.getSobjectType() != Case.SObjectType) {
+                throw safeError(CASE_MESSAGE);
+            }
+            List<Case> visible = [
+                SELECT Id, CaseNumber, Subject, Status, IsClosed, CreatedDate, ClosedDate, Priority, Origin,
+                    Tiempo_Abierto_Horas__c, AssetId, Asset.Name, Asset.External_Id__c, Asset.Tipo_Activo__c,
+                    Asset.AccountId, Asset.Account.Name, Ultima_Critica_Medicion__c,
+                    Ultima_Critica_Valor__c, Ultima_Critica_Unidad__c, Ultima_Critica_At__c
+                FROM Case
+                WHERE Id = :caseId
+                WITH USER_MODE
+                LIMIT 1
+            ];
+            if (visible.isEmpty()) {
+                throw safeError(CASE_MESSAGE);
+            }
+            Case c = visible[0];
+            // Sharing is not enforced on parent fields: a visible Case can still carry the name and building of an asset
+            // the user cannot see, so those are dropped (D024: only assets the user already sees).
+            Boolean assetVisible = signalsVisible(c.AssetId);
+            if (!assetVisible) {
+                c.putSObject('Asset', null);
+            }
+
+            Integer level = null;
+            EstadoLectura current = null;
+            List<Boolean> capped = new List<Boolean>{ false };
+            if (c.AssetId != null && assetVisible) {
+                Map<String, Lectura_Vigente__c> byType = latestReadings(new Set<Id>{ c.AssetId }, capped).get(c.AssetId);
+                Integer best = highestLevel(byType);
+                level = best < 0 ? null : best;
+                Lectura_Vigente__c headline = headlineReading(byType);
+                current = headline == null ? null : new EstadoLectura(headline);
+            }
+
+            Boolean receivesCriticals = c.Origin == ORIGIN_TELEMETRY && !c.IsClosed && c.AssetId != null
+                && isNewestOpenTelemetryCase(c.Id, c.AssetId);
+
+            String description = null;
+            if (Schema.SObjectType.Case.fields.Description.isAccessible()) {
+                List<Case> withDescription = [SELECT Description FROM Case WHERE Id = :caseId WITH USER_MODE LIMIT 1];
+                description = withDescription.isEmpty() ? null : withDescription[0].Description;
+            }
+
+            List<Option> estados = new List<Option>();
+            for (IntervencionOperadorController.EstadoOpcion estado : IntervencionOperadorController.getEstadosSeguimiento()) {
+                estados.add(new Option(estado.value, estado.label));
+            }
+
+            Integer linked = assetVisible ? new CaseSignalReader().countFor(caseId) : 0;
+            return new IntervencionDetalle(c, level, current, capped[0], receivesCriticals, linked, description, estados);
+        } catch (AuraHandledException e) {
+            throw e;
+        } catch (Exception e) {
+            throw failure(e);
+        }
+    }
+
+    /**
+     * Signals linked to an intervention (Log_Senial__c.Caso__c), newest first.
+     * Authorization: the Case is first queried WITH USER_MODE; if the user cannot see it the call fails and the log is
+     * never read. If the Case has an asset the user cannot see, the list is empty and the log is not read either
+     * (signalsVisible). The log rows are then read in system mode and only seven non-technical values are returned.
+     * @param caseId Case Id
+     * @param limite max rows; clamped to 1..50, null means 20
+     */
+    @AuraEnabled(cacheable=true)
+    public static SenalesIntervencion getSenalesDeIntervencion(Id caseId, Integer limite) {
+        try {
+            if (caseId == null || caseId.getSobjectType() != Case.SObjectType) {
+                throw safeError(CASE_MESSAGE);
+            }
+            List<Case> visible = [
+                SELECT Id, AssetId, Identidad_Senal__c FROM Case WHERE Id = :caseId WITH USER_MODE LIMIT 1
+            ];
+            if (visible.isEmpty()) {
+                throw safeError(CASE_MESSAGE);
+            }
+            if (!signalsVisible(visible[0].AssetId)) {
+                return new SenalesIntervencion(new List<SenalIntervencion>(), false);
+            }
+            String opener = visible[0].Identidad_Senal__c;
+            Integer cap = limite == null ? HISTORY_DEFAULT_LIMIT : Math.min(Math.max(limite, 1), HISTORY_MAX_LIMIT);
+            List<Log_Senial__c> rows = new CaseSignalReader().read(caseId, cap + 1);
+            Boolean truncated = rows.size() > cap;
+            List<SenalIntervencion> signals = new List<SenalIntervencion>();
+            for (Integer i = 0; i < Math.min(rows.size(), cap); i++) {
+                signals.add(new SenalIntervencion(rows[i], opener));
+            }
+            return new SenalesIntervencion(signals, truncated);
+        } catch (AuraHandledException e) {
+            throw e;
+        } catch (Exception e) {
+            throw failure(e);
+        }
+    }
+
+    // D024: the log is shown only for assets the user already sees. Case and Asset have their own sharing, so a visible
+    // Case can point to an asset the user cannot see; its signals then stay hidden (empty list, count 0).
+    private static Boolean signalsVisible(Id assetId) {
+        return assetId == null || [SELECT COUNT() FROM Asset WHERE Id = :assetId WITH USER_MODE] > 0;
+    }
+
+    // Whether this Case is the newest open telemetry Case of its asset, the one ingestion links new criticals to (D039).
+    // WITH USER_MODE: a newer open telemetry Case the user cannot see is not taken into account.
+    private static Boolean isNewestOpenTelemetryCase(Id caseId, Id assetId) {
+        List<Case> newest = [
+            SELECT Id FROM Case
+            WHERE AssetId = :assetId AND Origin = :ORIGIN_TELEMETRY AND IsClosed = false
+            WITH USER_MODE
+            ORDER BY CreatedDate DESC, Id DESC
+            LIMIT 1
+        ];
+        return !newest.isEmpty() && newest[0].Id == caseId;
+    }
+
+    // The reading behind the asset level: highest level (no level ranks lowest), then the most recent occurredAt,
+    // then the record Id so the choice never depends on map order. Null when there is none.
+    private static Lectura_Vigente__c headlineReading(Map<String, Lectura_Vigente__c> byType) {
+        Lectura_Vigente__c best = null;
+        if (byType == null) {
+            return best;
+        }
+        for (Lectura_Vigente__c r : byType.values()) {
+            if (best == null || rank(r) > rank(best)) {
+                best = r;
+            } else if (rank(r) == rank(best)) {
+                if (r.Occurred_At__c != best.Occurred_At__c) {
+                    if (r.Occurred_At__c != null && (best.Occurred_At__c == null || r.Occurred_At__c > best.Occurred_At__c)) {
+                        best = r;
+                    }
+                } else if (String.valueOf(r.Id).compareTo(String.valueOf(best.Id)) > 0) {
+                    best = r;
+                }
+            }
+        }
+        return best;
+    }
+
+    // Last line of the Description that matches the follow-up format; null when none does. In a manual Case everything up
+    // to and including the "Abierta por:" line is the reason, so only the lines after it count: a reason never passes
+    // for a follow-up. Ingestion's first line ("Signal <identity>: ...") never matches the format.
+    private static Seguimiento lastFollowUp(String description, Boolean manual) {
+        if (String.isBlank(description)) {
+            return null;
+        }
+        Seguimiento last = null;
+        Boolean counting = !manual;
+        for (String line : description.replace('\r\n', '\n').split('\n')) {
+            if (!counting) {
+                counting = line.startsWith(OPENED_BY_PREFIX);
+                continue;
+            }
+            Matcher m = FOLLOW_UP_LINE.matcher(line);
+            if (m.matches()) {
+                last = new Seguimiento(m.group(1), m.group(2).trim(), m.group(3).trim());
+            }
+        }
+        return last;
+    }
+
+    // The reason crearIntervencion wrote before "Abierta por:"; null when the separator is not there.
+    private static String manualReason(String description) {
+        if (String.isBlank(description)) {
+            return null;
+        }
+        String normalized = description.replace('\r\n', '\n');
+        if (!normalized.contains(OPENED_BY_MARKER)) {
+            return null;
+        }
+        String reason = normalized.substringBefore(OPENED_BY_MARKER).trim();
+        return String.isBlank(reason) ? null : reason;
     }
 
     // One reading per asset + measurement type; the newest occurredAt wins, ties go to the higher severity (D003).

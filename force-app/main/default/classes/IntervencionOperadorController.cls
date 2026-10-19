@@ -85,6 +85,8 @@ public with sharing class IntervencionOperadorController {
         if (reason.length() > MOTIVO_MAX) {
             throw safeError(REASON_TOO_LONG);
         }
+        // One line: a typed line break could pass for a follow-up line or for the "Abierta por" marker.
+        reason = reason.replaceAll('[\\r\\n]+', ' ');
         if (assetId == null) {
             throw safeError(ASSET_NOT_FOUND);
         }
@@ -170,6 +172,8 @@ public with sharing class IntervencionOperadorController {
         if (note.length() > COMMENT_MAX) {
             throw safeError(COMMENT_TOO_LONG);
         }
+        // One line per comment: a typed line break could pass for another person's follow-up line.
+        note = note.replaceAll('[\\r\\n]+', ' ');
         if (caseId == null) {
             throw safeError(CASE_NOT_FOUND);
         }
