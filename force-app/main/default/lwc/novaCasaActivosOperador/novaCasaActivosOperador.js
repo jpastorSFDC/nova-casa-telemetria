@@ -612,11 +612,27 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     }
 
     async handleRefresh() {
+        await this.refreshList(false);
+    }
+
+    // After a save or an ingestion run: a background refresh in flight may have started before the write, so its
+    // answer is awaited and then the list is read again.
+    async refreshAfterWrite() {
+        await this.refreshList(true);
+    }
+
+    async refreshList(afterWrite) {
         this.isRefreshing = true;
         this._lastRefreshMs = Date.now();
         try {
-            // A background refresh already in flight is awaited instead of starting a second call.
-            await (this._silentRefresh || refreshApex(this._assetsResult));
+            if (this._silentRefresh) {
+                await this._silentRefresh;
+                if (afterWrite) {
+                    await refreshApex(this._assetsResult);
+                }
+            } else {
+                await refreshApex(this._assetsResult);
+            }
         } catch (e) {
             // The wire re-emits the error; nothing else to do here.
         }
@@ -642,6 +658,7 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             this.formMode ||
             this.isSaving ||
             !this.assetsLoaded ||
+            this.assetsError ||
             !this._assetsResult
         ) {
             return;
@@ -1397,11 +1414,11 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
                 this.toast('Seguimiento actualizado', '', 'success');
             }
             this.formMode = null;
-            await this.handleRefresh();
+            await this.refreshAfterWrite();
         } catch (e) {
             this.actionError = reduceError(e);
             // The state may have changed under us (another person opened one first): show the real state.
-            await this.handleRefresh();
+            await this.refreshAfterWrite();
         }
         this.isSaving = false;
     }
@@ -1636,7 +1653,7 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
                 clearInterval(this._ingestTimer);
                 this.toast('Ingesta terminada', this.ingestSummary, 'success');
                 this.loadProgramacion(); // the next scheduled run time moved on while this one ran
-                await this.handleRefresh();
+                await this.refreshAfterWrite();
             }
         } catch (e) {
             clearInterval(this._ingestTimer);
