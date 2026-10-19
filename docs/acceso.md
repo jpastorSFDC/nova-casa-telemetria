@@ -8,20 +8,20 @@ T8.1. Who sees and does what, and where each access comes from (BR-208). Effecti
 
 | Persona | Demo user | Role | Permission sets | How it reaches the records |
 |---|---|---|---|---|
-| Operator | `novacasa.operador@…` | Operador de Edificios | `Nova_Casa_Operator`, `Nova_Casa_Lightning` | Owns (`OwnerId`) the `Account` of their building (BLD-BOG-001) |
-| Operator 2 | `novacasa.operador2@…` | Operador de Edificios | `Nova_Casa_Operator`, `Nova_Casa_Lightning` | Owns BLD-BAQ-001 (T8.4, two operators with different buildings) |
-| Coordinator | `novacasa.coordinador@…` | Coordinador de Mantenimiento | `Nova_Casa_Coordinator`, `Nova_Casa_Lightning` | Role hierarchy: sees the operators' buildings and what Integration owns |
-| Regional manager | `novacasa.gerente@…` | Gerente Regional de Operaciones | `Nova_Casa_Gerente`, `Nova_Casa_Lightning` | Role hierarchy (everything the coordinator, operators and integration own) read-only, plus Run Reports |
-| Administrator (persona) | `novacasa.admin@…` | none | `Nova_Casa_Admin`, `Nova_Casa_Operator`, `Nova_Casa_Lightning` | View All / Modify All on the Nova Casa objects |
-| Integration | `novacasa.integracion@…` | Integración Telemetría | `Nova_Casa_Simulator_Integration` + ingestion permission (T2.10) | Owns the `Case` and `Log_Senial__c` records it creates |
+| Operator | `<operator-username>` | Operador de Edificios | `Nova_Casa_Operator`, `Nova_Casa_Lightning` | Owns (`OwnerId`) the `Account` of their building (BLD-BOG-001) |
+| Operator 2 | `<operator-2-username>` | Operador de Edificios | `Nova_Casa_Operator`, `Nova_Casa_Lightning` | Owns BLD-BAQ-001 (T8.4, two operators with different buildings) |
+| Coordinator | `<coordinator-username>` | Coordinador de Mantenimiento | `Nova_Casa_Coordinator`, `Nova_Casa_Lightning` | Role hierarchy: sees the operators' buildings and what Integration owns |
+| Regional manager | `<manager-username>` | Gerente Regional de Operaciones | `Nova_Casa_Gerente`, `Nova_Casa_Lightning` | Role hierarchy (everything the coordinator, operators and integration own) read-only, plus Run Reports |
+| Administrator (persona) | `<admin-username>` | none | `Nova_Casa_Admin`, `Nova_Casa_Operator`, `Nova_Casa_Lightning` | View All / Modify All on the Nova Casa objects |
+| Integration | `<integration-username>` | Integración Telemetría | `Nova_Casa_Simulator_Integration` + ingestion permission (T2.10) | Owns the `Case` and `Log_Senial__c` records it creates |
 
 The persona admin has no role: View All / Modify All already gives them every record, and a role would put them in the operating hierarchy for no reason.
 
-`novacasa.operador2@novacasa-telemetria.demo` is org data, not in the repo. It was created on 2026-10-06 with the Minimum Access - Salesforce profile, role `Operador_Edificios`, alias `ncoper2`, locale `es_CO`, time zone `America/Bogota`, and the permission sets `Nova_Casa_Operator` and `Nova_Casa_Lightning`; then it was given the `OwnerId` of BLD-BAQ-001 (previously John's). The BAQ `Asset` and `Case` records didn't change owner (`Asset` is Controlled by Parent). To reproduce it:
+The second operator is org data, not metadata in the repo. It was created on 2026-10-06 with the Minimum Access - Salesforce profile, role `Operador_Edificios`, alias `ncoper2`, locale `es_CO`, time zone `America/Bogota`, and the permission sets `Nova_Casa_Operator` and `Nova_Casa_Lightning`; then it was given the `OwnerId` of BLD-BAQ-001 (previously John's). The BAQ `Asset` and `Case` records didn't change owner (`Asset` is Controlled by Parent). To reproduce it without publishing the org username:
 
 ```bash
-sf data create record -o nova-cdo -s User -v "Username='novacasa.operador2@novacasa-telemetria.demo' FirstName='Operador 2' LastName='Nova Casa' Alias='ncoper2' Email='<email>' TimeZoneSidKey='America/Bogota' LocaleSidKey='es_CO' LanguageLocaleKey='es' EmailEncodingKey='UTF-8' ProfileId='<Id de Minimum Access - Salesforce>' UserRoleId='<Id de Operador_Edificios>'"
-sf org assign permset -o nova-cdo -n Nova_Casa_Operator -n Nova_Casa_Lightning -b novacasa.operador2@novacasa-telemetria.demo
+sf data create record -o nova-cdo -s User -v "Username='<operator-2-username>' FirstName='Operador 2' LastName='Nova Casa' Alias='ncoper2' Email='<email>' TimeZoneSidKey='America/Bogota' LocaleSidKey='es_CO' LanguageLocaleKey='es' EmailEncodingKey='UTF-8' ProfileId='<Id de Minimum Access - Salesforce>' UserRoleId='<Id de Operador_Edificios>'"
+sf org assign permset -o nova-cdo -n Nova_Casa_Operator -n Nova_Casa_Lightning -b <operator-2-username>
 sf data update record -o nova-cdo -s Account -w "External_Id__c='BLD-BAQ-001'" -v "OwnerId='<Id de operador2>'"
 ```
 
@@ -95,25 +95,25 @@ Everyone sees the same "Activos del operador" screen and the same data from the 
 | Change thresholds ("Ver límites") | no | yes (create and edit) | no | yes (everything) | CRUD on `Umbral__c` in the permission set; requires the Public Read/Write OWD from the matrix by object |
 | Fetch signals from the simulator | no | no | no | yes (also needs `Nova_Casa_Simulator_Integration`) | Custom permission `Nova_Casa_Traer_Senales` |
 | See technical errors and rejection reason | no | no | no | yes | `Log_Senial__c` only in `Nova_Casa_Admin`; the "Registros de Señal" tab of the Nova Casa Telemetry app is declared visible only in that permission set (`tabSettings`); without Read on the object nobody else gets to the data even if they see the tab. Measured in the org on 2026-10-07 (`ObjectPermissions`): Read on `Log_Senial__c` only in `Nova_Casa_Admin`, `Nova_Casa_Procesamiento` and Salesforce's administration and integration profiles or permission sets; no Operator, Coordinator or Manager permission set has it. Whether the Minimum Access profile hides the tab is checked in the org after the deploy |
-| Know whether a signal can be retried, and retry it | no | no | no | yes | The `Accion_Reintento__c` column of `Log_Senial__c` (read-only formula, read-only FLS in `Nova_Casa_Admin`, D014) says whether the retry is safe or what to fix first. Retrying means running ingestion again ("Traer señales"), which requires the custom permission `Nova_Casa_Traer_Senales` plus `Nova_Casa_Simulator_Integration` and Create on `Senial_Sensor__e` (header of `IngestaController`). `Reintento_Seguro__c` was replaced by that formula, but the field is still in the repo, editable in `Nova_Casa_Admin` and in `Nova_Casa_Procesamiento`, until someone decides to delete it in its own PR (D014) |
+| Know whether a signal can be retried, and retry it | no | no | no | yes | The `Accion_Reintento__c` column of `Log_Senial__c` (read-only formula, read-only FLS in `Nova_Casa_Admin`, D014) says whether the retry is safe or what to fix first. Retrying means running ingestion again ("Traer señales"), which requires the custom permission `Nova_Casa_Traer_Senales` plus `Nova_Casa_Simulator_Integration` and Create on `Senial_Sensor__e` (header of `IngestaController`). The cleanup PR removes the unused `Reintento_Seguro__c` checkbox after the 2026-10-19 production preflight found no record with it set to `true`. |
 
 Ingestion doesn't use any of these permissions: it's run by the integration user with `Nova_Casa_Simulator_Integration` and its own ingestion permission (T2.10), separate from the operator.
 
 ## Order of steps
 
-1. **T2.10** (done): create the integration user with the Integración Telemetría role and its ingestion permission set. Verified on 2026-10-06: `novacasa.integracion@novacasa-telemetria.demo`, active, role `Integracion_Telemetria`, profile Minimum Access - Salesforce, with `Nova_Casa_Simulator_Integration` and `Nova_Casa_Procesamiento`.
+1. **T2.10** (done): create the integration user with the Integración Telemetría role and its ingestion permission set. Verified on 2026-10-06: the active Nova Casa integration user has role `Integracion_Telemetria`, profile Minimum Access - Salesforce, `Nova_Casa_Simulator_Integration` and `Nova_Casa_Procesamiento`.
 2. **T2.2** (done): `PlatformEventSubscriberConfig` so the trigger runs as that user. `Nova_Casa_Procesamiento` (PR #28) runs `SenialSensorTrigger` as that user, with batch size 200. The last Automated Process Case is from 2026-10-05 18:07Z; since 18:14Z the new `Case` and `Lectura_Vigente__c` records are created by the integration user (65 Cases up to 21:48Z, counting the ones deleted in the cleanup). With OWD Private, coordinator and manager see those `Case` records through the hierarchy because the integration user is below the coordinator. The `Lectura_Vigente__c` records don't: they're Controlled by Parent and visible through the building, so they depend on who owns the `Account` (D022), not on who creates them.
 3. **T8.2** (done, PR #38): in a single deploy, `sharingModel` of `Account` Private, `Contact` ControlledByParent, `Opportunity` Private, `Case` Private, `Asset` ControlledByParent and `Umbral__c` ReadWrite. Then, a redeploy of the roles with the levels from the table above.
 4. **Profile** (done 2026-10-06): the four persona users on Minimum Access - Salesforce with `Nova_Casa_Lightning` (see below).
 5. **T8.6** (done 2026-10-06): queries repeated before and after the profile change, see "Result (T8.6)".
-6. **Second operator and owners** (done 2026-10-06, D022): `novacasa.operador2@` created and made owner of BLD-BAQ-001; BLD-TEST-NOAUT created as a building outside the hierarchy.
+6. **Second operator and owners** (done 2026-10-06, D022): the second operator was created and made owner of BLD-BAQ-001; BLD-TEST-NOAUT was created as a building outside the hierarchy.
 7. **Manager without View All** (permissions done, verified 2026-10-07): `Nova_Casa_Gerente` deployed with the rest of `main`; a query on `ObjectPermissions` in `nova-cdo` returned read-only (`PermissionsViewAllRecords`, `ModifyAll`, `Edit`, `Create` and `Delete` false) on `Account`, `Asset`, `Case`, `Contact` and `Lectura_Vigente__c`. Pending: repeat the visibility queries from "Hierarchy instead of View All (D022)" (the manager should see None on BLD-TEST-NOAUT).
 
 ## Minimum Access profile
 
 The persona users had the Standard User profile, which gives CRED on `Account`, `Asset`, `Contact` and `Opportunity`, and CRE on `Case`. Permission sets only add, so the operator could edit or delete buildings even though `Nova_Casa_Operator` is read-only. Now they're on Minimum Access - Salesforce, which gives neither object access nor Lightning Experience; `Nova_Casa_Lightning` adds only `LightningExperienceUser`. The standard `Account`, `Asset`, `Case` and Reports tabs already come as DefaultOn in that profile. `Nova_Casa_Gerente` still declares `standard-Account`, `standard-Asset` and `standard-Case` as Visible, so it doesn't depend on the profile; the other permission sets don't declare them and depend on Minimum Access.
 
-The profile and the assignments are org data, not metadata. To reproduce them (2026-10-06, on `novacasa.operador@`, `novacasa.coordinador@`, `novacasa.gerente@` and `novacasa.admin@`, all `@novacasa-telemetria.demo`; `novacasa.integracion@` was already on Minimum Access):
+The profile and the assignments are org data, not metadata. To reproduce them, use the operator, coordinator, manager and admin usernames from Setup; the integration user was already on Minimum Access:
 
 ```bash
 sf data update record -o nova-cdo -s User -w "Username='<username>'" -v "ProfileId=<Id de Minimum Access - Salesforce>"
@@ -122,11 +122,11 @@ sf org assign permset -o nova-cdo -n Nova_Casa_Lightning -b <username>
 
 To revert, run the same `sf data update record` with the Standard User `ProfileId`.
 
-**Layouts by profile (D026).** Minimum Access came with no page layout assignment, and the persona users saw "One or more profiles have no page layout assigned" when opening a `Case` or an `Asset` (the admin didn't, because their profile has them). The assignment is by profile, not by role or permission set. Now the versioned profile `Minimum Access - Salesforce.profile-meta.xml` assigns `Asset-Asset Layout`, `Case-Case Layout`, `Lectura_Vigente__c-Lectura Vigente Layout`, `Log_Senial__c-Registro de Señal Layout` and `Umbral__c-Umbral Layout`. `Account` isn't in the profile and the building opens fine with the standard layout (verified with `novacasa.operador@`, 2026-10-07). Having the layout assigned doesn't grant access: access still comes from permission sets, FLS and sharing (BR-208).
+**Layouts by profile (D026).** Minimum Access came with no page layout assignment, and the persona users saw "One or more profiles have no page layout assigned" when opening a `Case` or an `Asset` (the admin didn't, because their profile has them). The assignment is by profile, not by role or permission set. Now the versioned profile `Minimum Access - Salesforce.profile-meta.xml` assigns `Asset-Asset Layout`, `Case-Case Layout`, `Lectura_Vigente__c-Lectura Vigente Layout`, `Log_Senial__c-Registro de Señal Layout` and `Umbral__c-Umbral Layout`. `Account` isn't in the profile and the building opens fine with the standard layout (verified with the operator persona, 2026-10-07). Having the layout assigned doesn't grant access: access still comes from permission sets, FLS and sharing (BR-208).
 
 ## Baseline (2026-10-05, public OWD)
 
-`MaxAccessLevel` from `UserRecordAccess` per user. "Expected" is the target with D022 (BLD-BAQ-001 owned by `novacasa.operador2@`); "read-only" means no effective Edit or Delete, even if `MaxAccessLevel` says All because of the hierarchy. What was verified is in "Result (T8.6)" and "Hierarchy instead of View All (D022)".
+`MaxAccessLevel` from `UserRecordAccess` per user. "Expected" is the target with D022 (BLD-BAQ-001 owned by the second operator); "read-only" means no effective Edit or Delete, even if `MaxAccessLevel` says All because of the hierarchy. What was verified is in "Result (T8.6)" and "Hierarchy instead of View All (D022)".
 
 | Record | Operator | Coordinator | Manager | Admin | Expected |
 |---|---|---|---|---|---|
@@ -139,7 +139,7 @@ To revert, run the same `sf data update record` with the Standard User `ProfileI
 | `Umbral__c` | None | Read | None | All | Coordinator Edit |
 | `Log_Senial__c` | None | None | None | All | Same |
 
-In the baseline BLD-BAQ-001 belonged to John (System Administrator, no role). Since 2026-10-06 it belongs to `novacasa.operador2@` (D022) and the "unauthorized building" of T8.6 is BLD-TEST-NOAUT.
+In the baseline BLD-BAQ-001 belonged to John (System Administrator, no role). Since 2026-10-06 it belongs to the second operator (D022) and the "unauthorized building" of T8.6 is BLD-TEST-NOAUT.
 
 ## How to verify (T8.6)
 
@@ -154,7 +154,7 @@ After the two T8.2 deploys (objects, then roles), from `main`.
 2. Ids of the personas and of one record from each building:
 
    ```bash
-   sf data query -o nova-cdo -q "SELECT Id, Username FROM User WHERE Username LIKE 'novacasa.%'"
+   sf data query -o nova-cdo -q "SELECT Id, Username FROM User WHERE Username IN ('<operator-username>','<operator-2-username>','<coordinator-username>','<manager-username>','<admin-username>')"
    sf data query -o nova-cdo -q "SELECT Id, External_Id__c, Owner.Username FROM Account WHERE External_Id__c IN ('BLD-BOG-001','BLD-BAQ-001','BLD-TEST-NOAUT')"
    sf data query -o nova-cdo -q "SELECT Id, Account.External_Id__c FROM Asset WHERE Account.External_Id__c IN ('BLD-BOG-001','BLD-BAQ-001') ORDER BY Account.External_Id__c"
    sf data query -o nova-cdo -q "SELECT Id, Asset__r.Account.External_Id__c FROM Lectura_Vigente__c WHERE Asset__r.Account.External_Id__c IN ('BLD-BOG-001','BLD-BAQ-001') ORDER BY Asset__r.Account.External_Id__c"
@@ -193,25 +193,25 @@ Pending: open "Activos del operador" as the operator in the browser (only BLD-BO
 
 ## Hierarchy instead of View All (D022)
 
-2026-10-06, after creating `novacasa.operador2@` and giving it BLD-BAQ-001, and before the deploy of `Nova_Casa_Gerente` without View All. "Today" is what was measured (the manager still with View All); "Expected" is after the deploy. Value = `MaxAccessLevel`; in every row `HasEditAccess` and `HasDeleteAccess` are false. "All" is the sharing level the hierarchy or ownership gives; the object permission keeps it at read.
+2026-10-06, after creating the second operator and giving it BLD-BAQ-001, and before the deploy of `Nova_Casa_Gerente` without View All. "Today" is what was measured (the manager still with View All); "Expected" is after the deploy. Value = `MaxAccessLevel`; in every row `HasEditAccess` and `HasDeleteAccess` are false. "All" is the sharing level the hierarchy or ownership gives; the object permission keeps it at read.
 
 Buildings:
 
 | Building (owner) | Operator | Operator 2 | Coordinator | Manager today | Manager expected |
 |---|---|---|---|---|---|
-| BLD-BOG-001 (`novacasa.operador@`) | All | None | All | All | All (read-only) |
-| BLD-BAQ-001 (`novacasa.operador2@`) | None | All | All | All | All (read-only) |
+| BLD-BOG-001 (operator) | All | None | All | All | All (read-only) |
+| BLD-BAQ-001 (operator 2) | None | All | All | All | All (read-only) |
 | BLD-TEST-NOAUT (Juan Diego, no role) | None | None | None | **Read** (View All) | **None** |
 
 The manager's read-only access to records owned by someone else:
 
 | Record (owner) | Manager today | Manager expected |
 |---|---|---|
-| BLD-BAQ-001, `Account` (`novacasa.operador2@`) | All, no Edit/Delete | All, no Edit/Delete |
+| BLD-BAQ-001, `Account` (operator 2) | All, no Edit/Delete | All, no Edit/Delete |
 | AST-BAQ-TEMP-001, `Asset` (John) | Read | Read |
 | BAQ `Lectura_Vigente__c` (via asset) | Read | Read |
-| BAQ `Case` 00003260 (`novacasa.integracion@`) | All, no Edit/Delete | All, no Edit/Delete |
-| BOG `Case` 00002946 (John) | Read | Read |
+| BAQ telemetry `Case` (integration owner) | All, no Edit/Delete | All, no Edit/Delete |
+| BOG telemetry `Case` (system administrator owner) | Read | Read |
 | `salesforce.com`, CDO demo `Account` (John) | **Read** (View All) | **None** |
 
 - Operator 2 sees the BAQ asset, current reading and Case read-only, and nothing from BOG; the operator, the other way around.

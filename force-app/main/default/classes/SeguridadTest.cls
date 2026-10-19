@@ -38,20 +38,20 @@ private class SeguridadTest {
     @IsTest
     static void soloAdminTieneAccesoALogSenial() {
         Map<String, String> acceso = new Map<String, String>();
-        Map<String, String> reintento = new Map<String, String>();
+        Map<String, String> accionReintento = new Map<String, String>();
         for (String conjunto : new List<String>{ OPERADOR, COORDINADOR, GERENTE, ADMIN }) {
             System.runAs(usuario(conjunto)) {
                 acceso.put(conjunto, accesoAObjeto('Log_Senial__c'));
-                reintento.put(conjunto, accesoACampo('Log_Senial__c', 'Reintento_Seguro__c'));
+                accionReintento.put(conjunto, accesoACampo('Log_Senial__c', 'Accion_Reintento__c'));
             }
         }
 
         for (String conjunto : new List<String>{ OPERADOR, COORDINADOR, GERENTE }) {
             Assert.areEqual('----', acceso.get(conjunto), conjunto + ' no debe tener ningun acceso a Log_Senial__c');
-            Assert.areEqual('--', reintento.get(conjunto), conjunto + ' no debe leer ni editar Reintento_Seguro__c');
+            Assert.areEqual('--', accionReintento.get(conjunto), conjunto + ' no debe leer Accion_Reintento__c');
         }
         Assert.areEqual('ACUD', acceso.get(ADMIN), 'Admin conserva CRUD sobre Log_Senial__c');
-        Assert.areEqual('AU', reintento.get(ADMIN), 'Solo Admin lee y edita Reintento_Seguro__c');
+        Assert.areEqual('A-', accionReintento.get(ADMIN), 'Solo Admin lee la formula Accion_Reintento__c');
     }
 
     @IsTest
@@ -65,12 +65,13 @@ private class SeguridadTest {
                 conjunto + ' no debe declarar FLS sobre Log_Senial__c');
         }
         Id adminId = conjuntoPorNombre(ADMIN).Id;
-        List<FieldPermissions> reintento = [
+        List<FieldPermissions> accionReintento = [
             SELECT PermissionsRead, PermissionsEdit FROM FieldPermissions
-            WHERE ParentId = :adminId AND Field = 'Log_Senial__c.Reintento_Seguro__c'
+            WHERE ParentId = :adminId AND Field = 'Log_Senial__c.Accion_Reintento__c'
         ];
-        Assert.areEqual(1, reintento.size(), 'Admin debe declarar FLS sobre Reintento_Seguro__c');
-        Assert.isTrue(reintento[0].PermissionsRead && reintento[0].PermissionsEdit, 'Admin edita Reintento_Seguro__c');
+        Assert.areEqual(1, accionReintento.size(), 'Admin debe declarar FLS sobre Accion_Reintento__c');
+        Assert.isTrue(accionReintento[0].PermissionsRead, 'Admin lee Accion_Reintento__c');
+        Assert.isFalse(accionReintento[0].PermissionsEdit, 'La formula Accion_Reintento__c es de solo lectura');
     }
 
     // ─── (b) CRUD matrix of the persona sets ───────────────────────────────

@@ -168,11 +168,6 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
-        <field>Log_Senial__c.Reintento_Seguro__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
         <field>Log_Senial__c.Ultimo_Reenvio__c</field>
         <readable>true</readable>
     </fieldPermissions>

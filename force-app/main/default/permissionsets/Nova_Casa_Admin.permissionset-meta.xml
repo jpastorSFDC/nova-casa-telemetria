@@ -263,11 +263,6 @@
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
-        <editable>true</editable>
-        <field>Log_Senial__c.Reintento_Seguro__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
         <editable>false</editable>
         <field>Log_Senial__c.Retraso_Publicacion_Seg__c</field>
         <readable>true</readable>

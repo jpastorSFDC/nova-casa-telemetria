@@ -76,12 +76,12 @@ Entre bloques: `clean`. El simulador no promete el mismo volumen por escenario e
    sf data query -o nova-cdo -q "SELECT External_Id__c, Severidad_Actual__c FROM Asset ORDER BY External_Id__c"
    ```
 
-2. Entrar como `novacasa.operador` a la pantalla "Activos del operador" y capturar un activo en Advertencia, uno en Crítica y uno Estable. **Pasa si** se distinguen sin depender del color (glifo y texto) y solo el crítico tiene intervención abierta.
+2. Entrar como la persona operadora a la pantalla "Activos del operador" y capturar un activo en Advertencia, uno en Crítica y uno Estable. **Pasa si** se distinguen sin depender del color (glifo y texto) y solo el crítico tiene intervención abierta.
 3. Si ningún activo sale en Advertencia en esa corrida, no inventar: anotarlo y usar el que tenga esa severidad en otro bloque.
 
 ### US-207 · pantalla del operador
 
-Como `novacasa.operador`, con fecha y resultado (pasa / falla) por cada punto. Lista manual de D012:
+Como la persona operadora, con fecha y resultado (pasa / falla) por cada punto. Lista manual de D012:
 
 1. Filtrar por edificio: los chips y el titular cuentan solo las filas visibles.
 2. Un activo con `severityLevel` nulo muestra "Sin dato", nunca "Estable".
@@ -109,10 +109,10 @@ Guardar: capturas de la lista, el detalle y los estados de carga, vacío y error
 
 | Persona | Qué debe ver en "Activos del operador" |
 |---|---|
-| `novacasa.operador` | Solo BLD-BOG-001; ni rastro de BLD-BAQ-001 |
-| `novacasa.operador2` | Solo BLD-BAQ-001 |
-| `novacasa.coordinador` | Los dos edificios; puede cambiar estados |
-| `novacasa.gerente` | Los dos edificios, solo lectura (sin botones de acción) |
+| Operador 1 | Solo BLD-BOG-001; ni rastro de BLD-BAQ-001 |
+| Operador 2 | Solo BLD-BAQ-001 |
+| Coordinador | Los dos edificios; puede cambiar estados |
+| Gerente | Los dos edificios, solo lectura (sin botones de acción) |
 
 Ocultar un botón en la pantalla no prueba que el servidor niegue. El brief pide «solicitándolos directamente a Apex» y una autorización de ingesta «explícita y separada del contexto del operador»; en el org eso lo prueban las clases de prueba, no el login as. Correr `scripts/org-check.sh tests` y citar, con su resultado: `ActivosOperadorControllerTest.operatorDoesNotSeeAnotherOperatorsBuildingButGerenteSeesBoth`, `IntervencionOperadorControllerTest` (gerente y operador rechazados por permiso), `SeguridadTest` (T8.5), y para la ingesta `PermisosProcesamientoTest`, `SenialSensorHandlerTest.laIngestaPersisteConUnUsuarioSinPermisosDeOperador` y D017.
 
@@ -120,7 +120,7 @@ Además, con los Ids del paso 2 de "Cómo verificar (T8.6)" en `acceso.md`, la c
 
 ### US-209 · inspección como admin
 
-Como `novacasa.admin` (o con un usuario con `Nova_Casa_Admin`), en la pestaña **Registros de Señal**:
+Como la persona administradora (o con un usuario con `Nova_Casa_Admin`), en la pestaña **Registros de Señal**:
 
 1. **Sin secretos, antes de capturar nada:** revisar a ojo todos los motivos distintos y confirmar que ninguno trae un token, un cursor ni un dato de personas. Si alguno lo trae, no se pega en ninguna tarjeta y se avisa:
 
@@ -159,7 +159,7 @@ Capturar una fila con `Reenvios__c > 0` y una `Conflicto`, con su acción de rei
 ### US-204 · cambiar un límite sin desplegar
 
 1. `run BOUNDARIES 5 42 200` y, con `wait`/`evidence`, anotar la severidad de una medición cuyo valor esté entre el límite de Advertencia y el de Crítica (`Lectura_Vigente__c` o el historial del activo).
-2. Como `novacasa.coordinador`, en la pestaña **Umbrales**, bajar el límite de Crítica de esa medición por debajo de ese valor. No se despliega nada.
+2. Como la persona coordinadora, en la pestaña **Umbrales**, bajar el límite de Crítica de esa medición por debajo de ese valor. No se despliega nada.
 3. `clean`, y otra vez `run BOUNDARIES 5 42 200` con la misma semilla.
 4. **Pasa si** la misma medición (mismo `Identidad__c`) sale ahora `Crítica` y abre su intervención. Compararla con lo anotado en el paso 1: las filas de la primera corrida ya no existen después de `clean`. Si el simulador no repite el flujo con la misma semilla (caveat de reproducibilidad), anotarlo y comparar solo la clasificación de otro valor de la misma medición.
 5. **Restaurar el límite** al valor original y confirmarlo. Los umbrales son de todos.
