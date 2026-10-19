@@ -144,6 +144,16 @@ export default class NovaCasaActivoEstado extends NavigationMixin(LightningEleme
     get assetSevClass() {
         return `sev sev-${this.assetSeverity.key}`;
     }
+    // With a cut, a reading left out could be more severe: below critical the level is qualified, never an all-clear.
+    get levelMayBeIncomplete() {
+        return this.isTruncated && this.assetLevel !== 2;
+    }
+    get incompleteText() {
+        return '(lecturas incompletas)';
+    }
+    get incompleteSuffix() {
+        return this.levelMayBeIncomplete ? this.incompleteText : '';
+    }
 
     get intervention() {
         return this.estado ? this.estado.openIntervention : null;

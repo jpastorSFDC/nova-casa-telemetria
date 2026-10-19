@@ -20,6 +20,8 @@ export default class NovaCasaSemaforo extends LightningElement {
     @api compacto = false;
     /** Label of the no-level state, so it matches the pill next to it ("Sin dato" or "Sin lecturas"). */
     @api etiquetaSinDato;
+    /** Added to the accessible label when the level may be incomplete, e.g. "(lecturas incompletas)". */
+    @api sufijo;
 
     get level() {
         return toLevel(this.nivel);
@@ -59,6 +61,6 @@ export default class NovaCasaSemaforo extends LightningElement {
 
     get ariaLabel() {
         const label = this.isUnknown && this.etiquetaSinDato ? this.etiquetaSinDato : severityUi(this.level).label;
-        return `Semáforo: ${label}`;
+        return this.sufijo ? `Semáforo: ${label} ${this.sufijo}` : `Semáforo: ${label}`;
     }
 }

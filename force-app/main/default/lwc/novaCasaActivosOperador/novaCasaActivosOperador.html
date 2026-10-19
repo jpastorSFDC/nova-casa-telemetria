@@ -43,6 +43,12 @@
                                 <span class="kpi-texto"><span class="micro">Vista actualizada</span><span class="kpi-valor">{updatedClock} ({updatedText})</span></span>
                             </li>
                         </template>
+                        <template if:true={hasAutoRefreshFailure}>
+                            <li class="kpi kpi-ambar" role="status">
+                                <span class="kpi-glifo" aria-hidden="true">&#9888;</span>
+                                <span class="kpi-texto"><span class="micro">Refresco automático</span><span class="kpi-valor">No se pudo actualizar; datos de las {updatedClock}</span></span>
+                            </li>
+                        </template>
                         <template if:true={hasStale}>
                             <li class="kpi kpi-ambar">
                                 <span class="kpi-glifo" aria-hidden="true">&#9201;</span>
@@ -206,7 +212,7 @@
                                             </span>
                                         </td>
                                         <td class="centro">
-                                            <c-nova-casa-semaforo nivel={b.worstLevel} orientacion="horizontal" compacto></c-nova-casa-semaforo>
+                                            <c-nova-casa-semaforo nivel={b.worstLevel} orientacion="horizontal" compacto sufijo={buildingLightSuffix}></c-nova-casa-semaforo>
                                         </td>
                                         <td class="centro num fuerte">{b.total}</td>
                                         <td class="centro">

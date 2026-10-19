@@ -19,6 +19,9 @@
             </template>
 
             <template if:true={hasData}>
+                <template if:true={isTruncated}>
+                    <p class="nota aviso-truncado">{truncatedText}</p>
+                </template>
                 <div class="cabecera-activo">
                     <div class="cab-ident">
                         <c-nova-casa-ilustracion tipo={assetType} nivel={assetLevel} tamano="md"></c-nova-casa-ilustracion>
@@ -33,13 +36,13 @@
                         <div>
                             <span class="micro">Severidad del activo</span>
                             <span class={assetSevClass}><span aria-hidden="true">{assetSeverity.glyph}</span> {assetSeverity.label}</span>
+                            <template if:true={levelMayBeIncomplete}>
+                                <span class="cab-incompleto">{incompleteText}</span>
+                            </template>
                         </div>
-                        <c-nova-casa-semaforo nivel={assetLevel} etiqueta-sin-dato={assetSeverity.label}></c-nova-casa-semaforo>
+                        <c-nova-casa-semaforo nivel={assetLevel} etiqueta-sin-dato={assetSeverity.label} sufijo={incompleteSuffix}></c-nova-casa-semaforo>
                     </div>
                 </div>
-                <template if:true={isTruncated}>
-                    <p class="nota aviso-truncado">{truncatedText}</p>
-                </template>
                 <section class="bloque" aria-label="Lecturas actuales">
                     <h3 class="titulo">Lecturas actuales</h3>
                     <template if:true={hasReadings}>

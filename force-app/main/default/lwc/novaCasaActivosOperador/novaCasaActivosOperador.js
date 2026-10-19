@@ -193,11 +193,12 @@ function plural(count, one, many) {
     return `${count} ${count === 1 ? one : many}`;
 }
 
-// Severity change of one asset between two results of the same filters, or null. No level -> Estable is not an alert.
-// The texts never mention interventions: a level change says nothing about whether a case exists.
-function changeMark(fromRank, asset) {
+// Severity change of one asset since its last known level, or null. No level -> Estable is not an alert, and losing the
+// level is not a drop (the state became unknown, not better). With a cut result a drop may only mean that readings
+// were left out, so it is not marked. The texts never mention interventions.
+function changeMark(fromRank, asset, truncated) {
     const toRank = rankOf(asset);
-    if (toRank === fromRank || (fromRank === -1 && toRank === 0)) {
+    if (toRank === fromRank || toRank === -1 || (fromRank === -1 && toRank === 0)) {
         return null;
     }
     if (toRank > fromRank) {
@@ -207,11 +208,14 @@ function changeMark(fromRank, asset) {
             toRank,
             tone: ui.key,
             glyph: ui.glyph,
-            text: toRank === 2 ? 'Nuevo crítico' : 'Subió a precaución',
+            text: toRank === 2 ? 'Subió a crítico' : 'Subió a precaución',
             spoken: `${asset.name || 'Un activo'} pasó a ${ui.label}.`
         };
     }
-    const ui = severityUiFor(asset.severityLevel, (asset.readings || []).length > 0);
+    if (truncated) {
+        return null;
+    }
+    const ui = severityUi(asset.severityLevel);
     return { up: false, toRank, tone: 'baja', glyph: '↓', text: `Bajó a ${ui.label.toLowerCase()}` };
 }
 
@@ -303,9 +307,11 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
     changeMarks = {};
     // Polite live region: the assets that went up in the last result (downs are not announced).
     changeAnnouncement = '';
-    // Ranks of the previous successful result and the filters it was read with; only results of the same filters compare.
-    _baselineRanks = null;
-    _baselineKey;
+    // Last level seen for each asset in any result of this session, whatever the filters, so an asset that enters a
+    // severity-filtered view after changing level is still marked.
+    _knownRanks = new Map();
+    // When the last background refresh failed (the list on screen is older); null after a successful read.
+    autoRefreshFailedAtMs = null;
 
     _assetsResult;
     _timer;
@@ -364,7 +370,8 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             const page = parseAssetsResponse(data);
             this.updatedAtMs = Date.now();
             this.nowMs = this.updatedAtMs;
-            this.trackSeverityChanges(page.assets, this.updatedAtMs);
+            this.autoRefreshFailedAtMs = null;
+            this.trackSeverityChanges(page.assets, this.updatedAtMs, page.truncated || this.truncated);
             this.assets = page.assets;
             this.truncated = page.truncated;
             this.assetLimit = page.assetLimit;
@@ -376,9 +383,10 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
                 this.selectedAssetId = null;
             }
         } else if (error) {
-            // A failed background refresh keeps the last list; its "Vista actualizada" time keeps aging. A manual or
+            // A failed background refresh keeps the last list and says so next to "Vista actualizada". A manual or
             // filter refresh (isRefreshing) still shows the error.
             if (this._silentRefresh && !this.isRefreshing && this.assets) {
+                this.autoRefreshFailedAtMs = this.autoRefreshFailedAtMs || Date.now();
                 return;
             }
             this.assets = undefined;
@@ -392,38 +400,36 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         }
     }
 
-    // Compares a result with the previous one of the same filters (D042). The first load, a filter change, assets that
-    // appear or disappear and an unchanged level mark nothing. A mark outlives later results (up to CHANGE_MARK_TTL_MS)
-    // while the asset stays at the level it changed to, so a background refresh does not erase it; only new marks are
-    // announced and animated.
-    trackSeverityChanges(assets, atMs) {
-        const key = `${this.accountIdParam}|${this.severityParam}|${this.assetTypeParam}`;
-        const sameFilters = this._baselineKey === key;
-        const previous = sameFilters ? this._baselineRanks : null;
-        const previousMarks = sameFilters ? this.changeMarks : {};
-        this._baselineRanks = new Map(assets.map((a) => [a.assetId, rankOf(a)]));
-        this._baselineKey = key;
+    // Compares each asset of a result with the last level this session saw for it, in any earlier result and with any
+    // filters (D042). An asset seen for the first time and an unchanged level mark nothing. A mark outlives later results
+    // (up to CHANGE_MARK_TTL_MS) while the asset stays at the level it changed to; only new marks are announced and
+    // animated. With a cut result a lower level is not remembered, so readings left out by the cut cannot later look
+    // like a rise.
+    trackSeverityChanges(assets, atMs, truncated) {
+        const known = this._knownRanks;
         const marks = {};
         const spoken = [];
-        if (previous) {
-            assets.forEach((a) => {
-                if (!previous.has(a.assetId)) {
-                    return;
-                }
-                const mark = changeMark(previous.get(a.assetId), a);
+        assets.forEach((a) => {
+            const rank = rankOf(a);
+            const before = known.get(a.assetId);
+            if (before !== undefined) {
+                const mark = changeMark(before, a, truncated);
                 if (mark) {
                     marks[a.assetId] = { ...mark, atMs, ringDone: false };
                     if (mark.up) {
                         spoken.push(mark.spoken);
                     }
-                    return;
+                } else {
+                    const kept = this.changeMarks[a.assetId];
+                    if (kept && atMs - kept.atMs < CHANGE_MARK_TTL_MS && kept.toRank === rank) {
+                        marks[a.assetId] = kept;
+                    }
                 }
-                const kept = previousMarks[a.assetId];
-                if (kept && atMs - kept.atMs < CHANGE_MARK_TTL_MS && kept.toRank === rankOf(a)) {
-                    marks[a.assetId] = kept;
-                }
-            });
-        }
+            }
+            if (before === undefined || !truncated || rank >= before) {
+                known.set(a.assetId, rank);
+            }
+        });
         this.changeMarks = marks;
         this.changeAnnouncement = changeAnnouncement(spoken);
     }
@@ -637,6 +643,27 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             // The wire re-emits the error; nothing else to do here.
         }
         this.isRefreshing = false;
+        this.noteRefreshOutcome();
+    }
+
+    // A refresh whose data did not change does not re-run the wire handler, so a successful read is recorded here too;
+    // otherwise "Vista actualizada" could not tell "nothing changed" from "failed".
+    noteRefreshOutcome() {
+        if (this._assetsResult && this._assetsResult.error) {
+            return;
+        }
+        this.autoRefreshFailedAtMs = null;
+        this.updatedAtMs = Date.now();
+        this.nowMs = this.updatedAtMs;
+    }
+
+    // A cut summary may leave out a building's worse assets: its light says so instead of reading as an all-clear.
+    get buildingLightSuffix() {
+        return this.truncated ? '(resumen parcial)' : '';
+    }
+
+    get hasAutoRefreshFailure() {
+        return Boolean(this.autoRefreshFailedAtMs) && Boolean(this.assets);
     }
 
     get autoRefreshMs() {
@@ -675,6 +702,7 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         this._silentRefresh = Promise.resolve(refreshApex(this._assetsResult)).catch(() => undefined);
         await this._silentRefresh;
         this._silentRefresh = null;
+        this.noteRefreshOutcome();
     }
 
     // ---- state ----
