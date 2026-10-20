@@ -100,6 +100,9 @@ Y las comprobaciones manuales de las decisiones posteriores (sus criterios está
 | D035 | Cerrar en bloque las intervenciones abiertas de un activo: pide confirmar el número, cierra solo las de ese activo | coordinador |
 | D036 | El desplegable "Estado" ofrece los mismos valores que la página del `Case` | coordinador |
 | D037 | "Lectura vigente por tipo" muestra "Antigüedad"; una hora futura sale como "hora del simulador" | operador |
+| D038 | Un activo con casos cerrados y ninguno abierto muestra "Última intervención: Caso N" y el botón "Abrir nueva intervención" | operador |
+| D041 | Tarjetas en cuadrícula, dona "Salud de la flota", tabla por edificio con "Filtrar" y "Ver edificio", panel "Traer señales" con tiles | operador y admin |
+| D042 | Banda de color por estado (rojo, amarillo, verde, gris), pulso de 3 veces en los críticos, "Subió a crítico" al cambiar de nivel, refresco cada 60 s | operador |
 
 Guardar: capturas de la lista, el detalle y los estados de carga, vacío y error, con varias severidades.
 
@@ -131,7 +134,7 @@ Como la persona administradora (o con un usuario con `Nova_Casa_Admin`), en la p
 2. Encontrar y capturar, con identidad, resultado, motivo y acción de reintento: una señal **normal** (`Procesada`), una **inválida** (`Rechazada`), una **atrasada** (`Atrasada`). La duplicada y la conflictiva salen del bloque B.
 
 3. **Solo admin:** entrar como operador, coordinador y gerente y comprobar que la pestaña **Registros de Señal** no aparece y que `/lightning/o/Log_Senial__c/list` no los deja ver filas. La pantalla del operador sí les muestra el historial por activo (D024); no es la misma cosa.
-4. Si la pestaña no aparece ni para el admin, no se desplegó: [evidencia-escenarios.md](evidencia-escenarios.md) la da por no desplegada (dry-run del 2026-10-07) y Slack dice que el deploy completo de ese día la incluyó. Avisar antes de desplegar nada.
+4. Si la pestaña no aparece ni para el admin, avisar antes de desplegar nada: según [evidencia-escenarios.md](evidencia-escenarios.md) (US-209) está en `main` desde el PR #62 y el retrieve de `Nova_Casa_Admin` del 2026-10-09 coincidió con `main`.
 
 ## Bloque B — `DUPLICATES`
 
