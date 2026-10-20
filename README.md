@@ -27,11 +27,8 @@ Each fact has one home. Other files link to it instead of repeating it.
 | `AGENTS.md` | Instructions for AI agents: rules they can't contradict, the formative frontier, branch flow. | Yes |
 | `CONTRIBUTING.md` | How to contribute: branches, commits, PRs, deploys to the shared org and the Apex test rules. | Yes |
 | `docs/decisiones.md` | Deliverable 6, kept alive: every decision the pair made (ADR-lite), with the alternative we dropped, the trade-off and the risks. The only place that explains *why*. | Yes |
-| `docs/entendimiento.md` | What happened to the open questions and assumptions of deliverable 1 (the PDF in `entregables/`). | Yes |
-| `docs/contrato-mensaje.md` | Deliverable 5: the message contract as the simulator really sends it, and how each field lands in Salesforce. | Yes |
+| `docs/entrega.md` | Everything for closing the sprint: status and evidence by story, open questions for the facilitator, the message contract (deliverable 5), the scenario runs, the remaining evidence checks and the demo script. | Yes |
 | `docs/acceso.md` | Access matrix (US-208): who sees and does what, and where each access comes from. | Yes |
-| `docs/demo.md` | The demo script (T9.2). | Yes |
-| `docs/evidencia-escenarios.md` | Evidence: recorded simulator runs and what proves each story (T9.3). | Yes |
 | `docs/muestras/` | Real simulator responses captured on Sep 30 (`telemetry.json`, `catalog.json`). | No |
 | `docs/best-practices.html` | General Git/GitHub primer for the team. Not project-specific. | Rarely |
 | `scripts/org-check.sh` | Read-only org checks, plus the scenario runs and the org cleanup used for the evidence. Its header lists the commands. | Yes |
@@ -104,7 +101,7 @@ Both go in the `POST /session` body (`seed`, `batchSize`) and the batch size is 
 
 Admins can also start it from the operator screen: **Traer señales** (needs the `Nova_Casa_Traer_Senales` custom permission and `Nova_Casa_Simulator_Integration`). It refuses to start while another run is queued or running, and shows the log rows written by result.
 
-Follow it in Setup > Apex Jobs. The run ends on `hasMore = false`, an empty page or the page cap. Processing is the subscriber's job; a row stays `Publicada` until it has handled the event. The simulator token lives only in Setup; the session cursor is never logged or stored (see D013). What the simulator sends and how it maps to `Senial_Sensor__e` is in [docs/contrato-mensaje.md](docs/contrato-mensaje.md).
+Follow it in Setup > Apex Jobs. The run ends on `hasMore = false`, an empty page or the page cap. Processing is the subscriber's job; a row stays `Publicada` until it has handled the event. The simulator token lives only in Setup; the session cursor is never logged or stored (see D013). What the simulator sends and how it maps to `Senial_Sensor__e` is in [docs/entrega.md](docs/entrega.md#message-contract), "Message contract".
 
 ### Automatic ingestion every 5 minutes
 
