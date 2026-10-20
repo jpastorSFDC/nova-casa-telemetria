@@ -1348,6 +1348,10 @@
 .curva-punto.critico {
     fill: var(--nc-critico);
 }
+.curva-punto.neutro {
+    fill: var(--nc-papel);
+    stroke: var(--nc-tinta-media);
+}
 .curva-ejes {
     display: flex;
     justify-content: space-between;
