@@ -175,6 +175,14 @@ function formatCurveTime(ms, withDay) {
     return withDay ? `${iso.slice(8, 10)}/${iso.slice(5, 7)} ${time}` : time;
 }
 
+// Log_Senial__c.Value__c keeps 4 decimals and Lectura_Vigente__c.Valor__c 2, so one reading can differ by rounding.
+function sameReadingValue(logValue, readingValue) {
+    if (readingValue === null || readingValue === undefined) {
+        return false;
+    }
+    return Math.abs(Number(logValue) - Number(readingValue)) <= 0.005 + 1e-9;
+}
+
 function formatValue(value, unit) {
     const number = value === null || value === undefined ? '—' : NUMBER_FORMAT.format(value);
     return unit ? `${number} ${unit}` : number;
@@ -1016,6 +1024,8 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             key: `${a.assetId}-${r.measurementType}`,
             measurementType: r.measurementType,
             measurementLabel: MEASUREMENT_LABELS[r.measurementType] || r.measurementType,
+            value: r.value,
+            unit: r.unit,
             valueText: formatValue(r.value, r.unit),
             ageText: readingAge(r.occurredAt, this.nowMs),
             timeText: formatUtcTime(r.occurredAt),
@@ -1122,6 +1132,9 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             headValue: headline ? headline.valueText : '',
             headLabel: headline ? headline.measurementLabel : '',
             headMeasurementType: headline ? headline.measurementType : null,
+            headOccurredMs: headline ? headline.occurredMs : null,
+            headNumber: headline ? headline.value : null,
+            headUnit: headline ? headline.unit : null,
             headAge,
             noReadingsText: unreadable ? 'Sin lecturas todavía' : '',
             hasMoreReadings: readings.length > 1,
@@ -1201,7 +1214,8 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         return asset ? this.buildRow(asset) : null;
     }
 
-    // Recent values of the headline measurement: only Procesada signals with a value (the rest never changed the state).
+    // Recent values of the headline measurement: Procesada signals with a value, plus a Conflicto one only when it is the
+    // current reading: a Conflicto row keeps its original's value, and that original may have been rejected.
     // null below 2 points; the intervention card then takes the whole row.
     get curve() {
         const row = this.selectedRow;
@@ -1209,17 +1223,18 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         if (!row || !row.headMeasurementType || !data || data.assetId !== row.assetId) {
             return null;
         }
+        const isHeadline = (p) => p.ms === row.headOccurredMs && p.unit === row.headUnit && sameReadingValue(p.value, row.headNumber);
         const points = data.signals
             .filter(
                 (s) =>
-                    s.resultado === 'Procesada' &&
                     s.measurementType === row.headMeasurementType &&
                     s.value !== null &&
                     s.value !== undefined &&
                     !Number.isNaN(Number(s.value)) &&
                     toMillis(s.occurredAt) !== null
             )
-            .map((s) => ({ ms: toMillis(s.occurredAt), value: Number(s.value), unit: s.unit }))
+            .map((s) => ({ resultado: s.resultado, ms: toMillis(s.occurredAt), value: Number(s.value), unit: s.unit }))
+            .filter((p) => p.resultado === 'Procesada' || (p.resultado === 'Conflicto' && isHeadline(p)))
             .sort((x, y) => x.ms - y.ms);
         if (points.length < 2) {
             return null;
@@ -1241,6 +1256,12 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         const withDay = new Date(first.ms).toISOString().slice(0, 10) !== new Date(last.ms).toISOString().slice(0, 10);
         const unit = UNIT_LABELS[last.unit] || last.unit;
         const label = row.headLabel;
+        // The history can lag the card (it refreshes separately), so its newest point is not always the current reading.
+        const endIsCurrent = isHeadline(last);
+        let dotClass = 'curva-punto neutro';
+        if (endIsCurrent) {
+            dotClass = row.level === 2 ? 'curva-punto critico' : 'curva-punto';
+        }
         return {
             title: `${label} · señales procesadas recientes`,
             countText: plural(points.length, 'señal', 'señales'),
@@ -1248,10 +1269,11 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             fillPoints: `${line} ${end.x},${CURVE_H} ${coords[0].x},${CURVE_H}`,
             dotX: end.x,
             dotY: end.y,
-            dotClass: row.level === 2 ? 'curva-punto critico' : 'curva-punto',
+            dotClass,
             labelFirst: `${formatCurveTime(first.ms, withDay)} UTC`,
             labelMid: formatCurveTime(first.ms + span / 2, withDay),
-            labelLast: `${formatCurveTime(last.ms, withDay)} (última)`,
+            labelLast: endIsCurrent ? `${formatCurveTime(last.ms, withDay)} (última)` : formatCurveTime(last.ms, withDay),
+            lastLabelClass: endIsCurrent ? 'curva-ultima' : '',
             summary: `Valores recientes de ${label.toLowerCase()}: de ${formatValue(first.value, UNIT_LABELS[first.unit] || first.unit)} a ${formatValue(last.value, unit)}.`
         };
     }

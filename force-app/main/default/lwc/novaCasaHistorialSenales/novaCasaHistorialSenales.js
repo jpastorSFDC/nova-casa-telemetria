@@ -3,13 +3,15 @@ import getHistorial from '@salesforce/apex/ActivosOperadorController.getHistoria
 import { SIGNAL_TYPE_LABELS, MEASUREMENT_LABELS, UNIT_LABELS, reduceError } from 'c/novaCasaEtiquetas';
 
 const HISTORY_LIMIT = 20;
-const EVIDENCE_RESULTS = ['Atrasada', 'Superada', 'Conflicto'];
+const EVIDENCE_RESULTS = ['Atrasada', 'Superada'];
 const REJECTED = 'Rechazada';
+// The original's row: it keeps the original's value and may have changed the state before the conflict arrived.
+const CONFLICT = 'Conflicto';
 const ALL = 'Todas';
 // Shown after the bold result name ("Conflicto: …").
 const RESULT_HELP = {
     Conflicto:
-        'llegó un mensaje con la misma identidad que otro ya recibido, pero con contenido distinto. Se guarda como evidencia; no cambia el estado del activo ni abre una intervención.',
+        'llegó otro mensaje con la misma identidad (source y messageId) pero con contenido distinto. El valor que se ve es el del mensaje original, que pudo aceptarse o no: el registro no lo dice. El contenido distinto no se guardó, no cambió el estado del activo ni abrió una intervención.',
     Duplicada: 'llegó el mismo mensaje otra vez. No cambia el estado del activo ni abre una intervención.'
 };
 // Log_Senial__c.Resultado__c: a symbol always goes with the color. Unknown values use RESULT_UI_OTHER with the raw text.
@@ -96,6 +98,8 @@ export default class NovaCasaHistorialSenales extends LightningElement {
                 tagText = 'solo evidencia';
             } else if (isRejected) {
                 tagText = 'no aceptada';
+            } else if (s.resultado === CONFLICT) {
+                tagText = 'valor original';
             }
             return {
                 key: `${i}-${s.occurredAt}`,
