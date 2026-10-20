@@ -10,8 +10,8 @@
 #     org-check.sh drift                         retrieve into a throwaway worktree and show what differs from origin/main
 #     org-check.sh clean                         preview of what a clean deletes and what stays
 #     org-check.sh wait <since>                  wait until the run started at <since> is fully processed
-#     org-check.sh evidence [SCENARIO] [since]   markdown for docs/evidencia-escenarios.md
-#   Writes org data (announce it, one person at a time, see docs/demo.md):
+#     org-check.sh evidence [SCENARIO] [since]   markdown for docs/entrega.md ("Scenario runs")
+#   Writes org data (announce it, one person at a time, see docs/entrega.md, "Collecting the remaining evidence"):
 #     org-check.sh clean confirm=<org>:<n>       delete the telemetry rows; <n> = Log_Senial__c rows in the preview
 #     org-check.sh run <SCENARIO> [pages=10] [seed=42] [batch=200]
 #                                                start one ingestion, on a clean org, with a fresh simulator session
@@ -223,7 +223,7 @@ mode_clean() {
     echo "## Preview of clean on $ORG (nothing was changed)"
     echo "To delete: Log_Senial__c=$LOGS Lectura_Vigente__c=$READS Case(Origin = 'Telemetria')=$CASES"
     echo "Stays:     $STAYS"
-    [ "$CATALOG_OK" = "yes" ] || echo "WARN: the catalog looks empty (buildings, assets or active thresholds = 0). Load it first (docs/demo.md, step 3)."
+    [ "$CATALOG_OK" = "yes" ] || echo "WARN: the catalog looks empty (buildings, assets or active thresholds = 0). Load it first (README, \"Loading the building/asset catalog\")."
     echo "Jobs in flight: $(inflight || echo '?')   Trigger subscriber: $(subscriber_state)"
     echo
     echo "To delete these rows, John and Juan Diego both agree first, then: scripts/org-check.sh clean confirm=$ORG:<the Log_Senial__c number above>"
@@ -280,7 +280,7 @@ mode_run() {
   if [ "$LOGS/$READS/$CASES" != "0/0/0" ]; then
     die "the org is not clean (Log_Senial__c=$LOGS Lectura_Vigente__c=$READS Case=$CASES). The simulator repeats messageId across sessions, so old rows would turn into Conflicto. Run: clean"
   fi
-  [ "$CATALOG_OK" = "yes" ] || die "the catalog looks empty ($STAYS). Load it first (docs/demo.md, step 3)."
+  [ "$CATALOG_OK" = "yes" ] || die "the catalog looks empty ($STAYS). Load it first (README, \"Loading the building/asset catalog\")."
   require_idle
   echo "Starting $SCEN on $ORG: pages=$PAGES seed=$SEED batch=$BATCH, new simulator session."
   out=$(src_run | apex) || die "the run did not start"
