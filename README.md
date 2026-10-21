@@ -33,7 +33,6 @@ Each fact has one home. Other files link to it instead of repeating it.
 | `docs/demo.md` | The demo script (T9.2). | Yes |
 | `docs/evidencia-escenarios.md` | Evidence: recorded simulator runs and what proves each story (T9.3). | Yes |
 | `docs/muestras/` | Real simulator responses captured on Sep 30 (`telemetry.json`, `catalog.json`). | No |
-| `docs/best-practices.html` | General Git/GitHub primer for the team. Not project-specific. | Rarely |
 | `scripts/org-check.sh` | Read-only org checks, plus the scenario runs and the org cleanup used for the evidence. Its header lists the commands. | Yes |
 | `force-app/` | Salesforce code and metadata: objects, Apex, LWC, permission sets. | Yes |
 | `sfdx-project.json` · `.forceignore` · `config/` | Salesforce DX project configuration. | Rarely |
