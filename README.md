@@ -30,7 +30,6 @@ Each fact has one home. Other files link to it instead of repeating it.
 | `docs/entrega.md` | Everything for closing the sprint: status and evidence by story, open questions for the facilitator, the message contract (deliverable 5), the scenario runs, the remaining evidence checks and the demo script. | Yes |
 | `docs/acceso.md` | Access matrix (US-208): who sees and does what, and where each access comes from. | Yes |
 | `docs/muestras/` | Real simulator responses captured on Sep 30 (`telemetry.json`, `catalog.json`). | No |
-| `docs/best-practices.html` | General Git/GitHub primer for the team. Not project-specific. | Rarely |
 | `scripts/org-check.sh` | Read-only org checks, plus the scenario runs and the org cleanup used for the evidence. Its header lists the commands. | Yes |
 | `force-app/` | Salesforce code and metadata: objects, Apex, LWC, permission sets. | Yes |
 | `sfdx-project.json` · `.forceignore` · `config/` | Salesforce DX project configuration. | Rarely |
