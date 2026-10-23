@@ -1,23 +1,56 @@
 import { LightningElement, api, wire } from 'lwc';
+import { NavigationMixin } from 'lightning/navigation';
 import { refreshApex } from '@salesforce/apex';
 import getResumenEdificio from '@salesforce/apex/ActivosOperadorController.getResumenEdificio';
-import { reduceError, relativeAge } from 'c/novaCasaEtiquetas';
+import getAssets from '@salesforce/apex/ActivosOperadorController.getAssets';
+import { MEASUREMENT_LABELS, UNIT_LABELS, severityUi, reduceError, relativeAge } from 'c/novaCasaEtiquetas';
 
 const GENERIC_ERROR = 'No se pudo cargar la información. Intenta de nuevo o contacta a tu administrador.';
 const TICK_MS = 60000;
+const MAX_ATTENTION_CARDS = 4;
+const RECORD_ID_PATTERN = /^[a-zA-Z0-9]{15}(?:[a-zA-Z0-9]{3})?$/;
+const NUMBER_FORMAT = new Intl.NumberFormat('es', { maximumFractionDigits: 3 });
 
 function activos(n) {
     return n === 1 ? '1 activo' : `${n} activos`;
 }
 
+function levelOf(reading) {
+    return reading.severityLevel === null || reading.severityLevel === undefined ? -1 : reading.severityLevel;
+}
+
+function timeOf(reading) {
+    const ms = reading.occurredAt ? new Date(reading.occurredAt).getTime() : NaN;
+    return Number.isNaN(ms) ? -Infinity : ms;
+}
+
+// The reading that sets the asset's severity; among equals, the most recent.
+function worstReading(readings) {
+    let worst = null;
+    for (const r of readings || []) {
+        if (!worst || levelOf(r) > levelOf(worst) || (levelOf(r) === levelOf(worst) && timeOf(r) > timeOf(worst))) {
+            worst = r;
+        }
+    }
+    return worst;
+}
+
+function formatValue(value, unit) {
+    const number = value === null || value === undefined ? '—' : NUMBER_FORMAT.format(value);
+    return unit ? `${number} ${unit}` : number;
+}
+
 // Read-only summary of a building (Account record page). Counts come from the server with the user's own access.
-export default class NovaCasaEdificioResumen extends LightningElement {
+export default class NovaCasaEdificioResumen extends NavigationMixin(LightningElement) {
     @api recordId;
 
     resumen;
     errorMessage;
     loaded = false;
     wiredResult;
+    assetPage;
+    assetsError;
+    wiredAssetsResult;
     nowMs = Date.now();
     _timer;
 
@@ -49,10 +82,45 @@ export default class NovaCasaEdificioResumen extends LightningElement {
         }
     }
 
+    // Current readings and open case per asset, most severe first (same source as the operator console).
+    @wire(getAssets, { accountId: '$recordId', severityLevel: null, assetType: null })
+    wiredAssets(result) {
+        this.wiredAssetsResult = result;
+        const { data, error } = result;
+        if (data) {
+            this.assetPage = data;
+            this.assetsError = undefined;
+        } else if (error) {
+            this.assetPage = undefined;
+            this.assetsError = reduceError(error) || GENERIC_ERROR;
+        }
+    }
+
     handleRefresh() {
         this.loaded = false;
         this.nowMs = Date.now();
         refreshApex(this.wiredResult);
+        if (this.wiredAssetsResult) {
+            refreshApex(this.wiredAssetsResult);
+        }
+    }
+
+    navigateToRecord(event, objectApiName) {
+        event.preventDefault();
+        const recordId = event.currentTarget.dataset.id;
+        if (!recordId || !RECORD_ID_PATTERN.test(recordId)) {
+            return;
+        }
+        this[NavigationMixin.Navigate]({
+            type: 'standard__recordPage',
+            attributes: { recordId, objectApiName, actionName: 'view' }
+        });
+    }
+    handleOpenAsset(event) {
+        this.navigateToRecord(event, 'Asset');
+    }
+    handleOpenCase(event) {
+        this.navigateToRecord(event, 'Case');
     }
 
     get isLoading() {
@@ -197,5 +265,74 @@ export default class NovaCasaEdificioResumen extends LightningElement {
     }
     get sinNivel() {
         return this.resumen ? this.resumen.activosSinNivel : 0;
+    }
+
+    // ---- cards: what needs attention and the last signal (current readings only, never a late one) ----
+
+    get assetsList() {
+        return this.assetPage && this.assetPage.assets ? this.assetPage.assets : [];
+    }
+    get showCards() {
+        return this.showSummary && !!this.assetPage;
+    }
+    get showAssetsError() {
+        return this.showSummary && !!this.assetsError;
+    }
+    get assetsTruncated() {
+        return !!this.assetPage && this.assetPage.truncated === true;
+    }
+
+    toCard(asset, reading, kind) {
+        const ui = severityUi(reading.severityLevel);
+        const intervention = asset.openIntervention;
+        return {
+            key: `${kind}-${asset.assetId}`,
+            assetId: asset.assetId,
+            assetName: asset.name,
+            measurement: MEASUREMENT_LABELS[reading.measurementType] || reading.measurementType || '',
+            valueText: formatValue(reading.value, UNIT_LABELS[reading.unit] || reading.unit),
+            occurredAt: reading.occurredAt,
+            simulatorTime: relativeAge(timeOf(reading), this.nowMs).isFuture,
+            cardCls: `ficha ficha-${ui.key}`,
+            sevCls: `sev sev-${ui.key}`,
+            sevLabel: ui.label,
+            sevGlyph: ui.glyph,
+            hasCase: !!intervention,
+            caseId: intervention ? intervention.caseId : null,
+            caseLabel: intervention ? `Caso ${intervention.caseNumber}` : ''
+        };
+    }
+
+    // The server already sorts most severe first, then by name.
+    get attentionAssets() {
+        return this.assetsList.filter((a) => a.severityLevel >= 1 && worstReading(a.readings));
+    }
+    get attentionCards() {
+        return this.attentionAssets.slice(0, MAX_ATTENTION_CARDS).map((a) => this.toCard(a, worstReading(a.readings), 'atencion'));
+    }
+    get hasAttention() {
+        return this.attentionCards.length > 0;
+    }
+    get attentionOverflowText() {
+        const extra = this.attentionAssets.length - MAX_ATTENTION_CARDS;
+        if (extra <= 0) {
+            return '';
+        }
+        return extra === 1 ? 'Y 1 activo más necesita atención.' : `Y ${extra} activos más necesitan atención.`;
+    }
+
+    get lastCard() {
+        let best = null;
+        for (const a of this.assetsList) {
+            for (const r of a.readings || []) {
+                if (r.occurredAt && (!best || timeOf(r) > timeOf(best.reading))) {
+                    best = { asset: a, reading: r };
+                }
+            }
+        }
+        return best ? this.toCard(best.asset, best.reading, 'ultima') : null;
+    }
+    get lastCardCls() {
+        return this.lastCard ? this.lastCard.cardCls : 'ficha ficha-nivel';
     }
 }

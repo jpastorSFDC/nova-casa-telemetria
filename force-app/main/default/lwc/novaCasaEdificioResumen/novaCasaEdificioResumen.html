@@ -67,6 +67,72 @@
                         </li>
                     </template>
                 </ul>
+                <template if:true={showAssetsError}>
+                    <p class="slds-text-color_error aviso" role="alert">No pudimos cargar las lecturas actuales. {assetsError}</p>
+                </template>
+                <template if:true={showCards}>
+                    <ul class="fichas" aria-label="Lo que necesita atención y la última señal recibida">
+                        <template for:each={attentionCards} for:item="c">
+                            <li key={c.key} class={c.cardCls}>
+                                <div class="ficha-cab">
+                                    <span class="rot">Necesita atención</span>
+                                    <span class={c.sevCls}><span aria-hidden="true">{c.sevGlyph}</span> {c.sevLabel}</span>
+                                </div>
+                                <a href="#" class="ficha-nombre" data-id={c.assetId} onclick={handleOpenAsset}>{c.assetName}</a>
+                                <span class="ficha-medicion">{c.measurement}</span>
+                                <span class="ficha-valor">{c.valueText}</span>
+                                <div class="ficha-pie">
+                                    <span>
+                                        <lightning-formatted-date-time value={c.occurredAt} month="short" day="2-digit" hour="2-digit" minute="2-digit"></lightning-formatted-date-time>
+                                        <template if:true={c.simulatorTime}><span class="sim">hora del simulador</span></template>
+                                    </span>
+                                    <template if:true={c.hasCase}>
+                                        <lightning-button label={c.caseLabel} size="small" data-id={c.caseId} onclick={handleOpenCase}></lightning-button>
+                                    </template>
+                                    <template if:false={c.hasCase}>
+                                        <span>Sin intervención abierta</span>
+                                    </template>
+                                </div>
+                            </li>
+                        </template>
+                        <template if:false={hasAttention}>
+                            <li class="ficha ficha-normal">
+                                <div class="ficha-cab">
+                                    <span class="rot">Necesita atención</span>
+                                    <span class="sev sev-normal"><span aria-hidden="true">○</span> Nada</span>
+                                </div>
+                                <span class="ficha-nombre-texto">Ningún activo en precaución ni crítico</span>
+                                <template if:true={assetsTruncated}>
+                                    <span class="ficha-medicion">Solo entre los activos que se pudieron revisar.</span>
+                                </template>
+                            </li>
+                        </template>
+                        <li class={lastCardCls}>
+                            <template if:true={lastCard}>
+                                <div class="ficha-cab">
+                                    <span class="rot">Última señal recibida</span>
+                                    <span class={lastCard.sevCls}><span aria-hidden="true">{lastCard.sevGlyph}</span> {lastCard.sevLabel}</span>
+                                </div>
+                                <a href="#" class="ficha-nombre" data-id={lastCard.assetId} onclick={handleOpenAsset}>{lastCard.assetName}</a>
+                                <span class="ficha-medicion">{lastCard.measurement}</span>
+                                <span class="ficha-valor">{lastCard.valueText}</span>
+                                <div class="ficha-pie">
+                                    <span>
+                                        <lightning-formatted-date-time value={lastCard.occurredAt} month="short" day="2-digit" hour="2-digit" minute="2-digit"></lightning-formatted-date-time>
+                                        <template if:true={lastCard.simulatorTime}><span class="sim">hora del simulador</span></template>
+                                    </span>
+                                </div>
+                            </template>
+                            <template if:false={lastCard}>
+                                <div class="ficha-cab"><span class="rot">Última señal recibida</span></div>
+                                <span class="ficha-nombre-texto">Sin señales todavía</span>
+                            </template>
+                        </li>
+                    </ul>
+                    <template if:true={attentionOverflowText}>
+                        <p class="mas">{attentionOverflowText}</p>
+                    </template>
+                </template>
                 <div class="calidad">
                     <span class="rot">Calidad de datos</span>
                     <span><b>{sinLectura}</b> sin lecturas</span>
