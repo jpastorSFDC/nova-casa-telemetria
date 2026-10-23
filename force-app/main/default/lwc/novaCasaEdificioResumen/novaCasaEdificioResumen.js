@@ -319,7 +319,9 @@ export default class NovaCasaEdificioResumen extends NavigationMixin(LightningEl
         const opening = openingText(intervention ? this.aperturas[intervention.caseId] : null);
         return {
             hasOrigen: opening.known,
-            origenTexto: opening.text,
+            origenManual: opening.manual,
+            origenMedicion: opening.measurement,
+            origenValor: opening.valueText,
             origenAt: opening.occurredAt,
             hasOrigenAt: Boolean(opening.occurredAt)
         };

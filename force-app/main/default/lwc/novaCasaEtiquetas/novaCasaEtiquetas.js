@@ -56,26 +56,31 @@ export function reduceError(error) {
 
 const OPENING_NUMBER_FORMAT = new Intl.NumberFormat('es', { maximumFractionDigits: 3 });
 
-// How an intervention started, from ActivosOperadorController.getAperturasDeIntervencion. Returns { known, text, occurredAt }:
-// not known while the answer has not arrived; a telemetry one without its signal still says it came from a signal.
+// How an intervention started, from ActivosOperadorController.getAperturasDeIntervencion. Returns
+// { known, manual, text, measurement, valueText, occurredAt }: not known while the answer has not arrived; a telemetry
+// one without its signal still says it came from a signal.
 export function openingText(apertura) {
     if (!apertura) {
-        return { known: false, text: '', occurredAt: null };
+        return { known: false, manual: false, text: '', measurement: '', valueText: '', occurredAt: null };
     }
     if (!apertura.esTelemetria) {
-        return { known: true, text: 'Abierta a mano, sin señal', occurredAt: null };
+        return { known: true, manual: true, text: 'Abierta a mano, sin señal', measurement: '', valueText: '', occurredAt: null };
     }
     const senal = apertura.senal;
     if (!senal) {
-        return { known: true, text: 'Generada por una señal crítica', occurredAt: null };
+        return {
+            known: true, manual: false, text: 'Generada por una señal crítica', measurement: 'Señal crítica', valueText: '', occurredAt: null
+        };
     }
-    const label = MEASUREMENT_LABELS[senal.measurementType] || senal.measurementType || 'señal crítica';
+    const label = MEASUREMENT_LABELS[senal.measurementType] || senal.measurementType || 'Señal crítica';
+    const occurredAt = senal.occurredAt || null;
     if (senal.value === null || senal.value === undefined) {
-        return { known: true, text: `Generada por: ${label}`, occurredAt: senal.occurredAt || null };
+        return { known: true, manual: false, text: `Generada por: ${label}`, measurement: label, valueText: '', occurredAt };
     }
     const unit = UNIT_LABELS[senal.unit] || senal.unit || '';
-    const value = OPENING_NUMBER_FORMAT.format(senal.value);
-    return { known: true, text: `Generada por: ${label} ${unit ? `${value} ${unit}` : value}`, occurredAt: senal.occurredAt || null };
+    const number = OPENING_NUMBER_FORMAT.format(senal.value);
+    const valueText = unit ? `${number} ${unit}` : number;
+    return { known: true, manual: false, text: `Generada por: ${label} ${valueText}`, measurement: label, valueText, occurredAt };
 }
 
 export const STALE_AFTER_MINUTES = 60;

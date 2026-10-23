@@ -94,12 +94,18 @@
                                     </template>
                                 </div>
                                 <template if:true={c.hasOrigen}>
-                                    <span class="ficha-origen">
-                                        {c.origenTexto}
-                                        <template if:true={c.hasOrigenAt}>
-                                            <span class="sep-punto"><lightning-formatted-date-time value={c.origenAt} month="short" day="2-digit" hour="2-digit" minute="2-digit"></lightning-formatted-date-time></span>
+                                    <div class="apertura">
+                                        <span class="apertura-rot">Señal que abrió la intervención</span>
+                                        <template if:true={c.origenManual}>
+                                            <span class="apertura-texto">Ninguna: la abrió una persona a mano</span>
                                         </template>
-                                    </span>
+                                        <template if:false={c.origenManual}>
+                                            <span class="apertura-texto">{c.origenMedicion}<template if:true={c.origenValor}><b class="apertura-valor">{c.origenValor}</b></template></span>
+                                            <template if:true={c.hasOrigenAt}>
+                                                <span class="apertura-hora"><lightning-formatted-date-time value={c.origenAt} month="short" day="2-digit" hour="2-digit" minute="2-digit"></lightning-formatted-date-time></span>
+                                            </template>
+                                        </template>
+                                    </div>
                                 </template>
                             </li>
                         </template>
@@ -121,12 +127,18 @@
                                 <a href="#" class="ficha-nombre" data-id={k.assetId} onclick={handleOpenAsset}>{k.assetName}</a>
                                 <span class="ficha-medicion">{k.statusText}</span>
                                 <template if:true={k.hasOrigen}>
-                                    <span class="ficha-origen">
-                                        {k.origenTexto}
-                                        <template if:true={k.hasOrigenAt}>
-                                            <span class="sep-punto"><lightning-formatted-date-time value={k.origenAt} month="short" day="2-digit" hour="2-digit" minute="2-digit"></lightning-formatted-date-time></span>
+                                    <div class="apertura">
+                                        <span class="apertura-rot">Señal que abrió la intervención</span>
+                                        <template if:true={k.origenManual}>
+                                            <span class="apertura-texto">Ninguna: la abrió una persona a mano</span>
                                         </template>
-                                    </span>
+                                        <template if:false={k.origenManual}>
+                                            <span class="apertura-texto">{k.origenMedicion}<template if:true={k.origenValor}><b class="apertura-valor">{k.origenValor}</b></template></span>
+                                            <template if:true={k.hasOrigenAt}>
+                                                <span class="apertura-hora"><lightning-formatted-date-time value={k.origenAt} month="short" day="2-digit" hour="2-digit" minute="2-digit"></lightning-formatted-date-time></span>
+                                            </template>
+                                        </template>
+                                    </div>
                                 </template>
                                 <div class="ficha-pie">
                                     <span></span>

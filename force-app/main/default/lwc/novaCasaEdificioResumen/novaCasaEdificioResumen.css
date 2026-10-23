@@ -299,15 +299,38 @@
     font-size: 0.84rem;
     color: var(--nc-tinta-media);
 }
-.sim::before,
-.sep-punto::before {
+.sim::before {
     content: ' · ';
 }
-.ficha-origen {
-    margin-top: 0.45rem;
-    padding-top: 0.4rem;
-    border-top: 1px dashed var(--nc-linea);
-    font-size: 0.84rem;
+/* Signal that opened the intervention: history, kept apart from the current reading */
+.apertura {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    margin-top: 0.55rem;
+    padding: 0.5rem 0.65rem;
+    border-radius: 6px;
+    background: #f8fafc;
+    border: 1px solid var(--nc-linea);
+}
+.apertura-rot {
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 800;
+    color: var(--nc-tinta-media);
+}
+.apertura-texto {
+    font-size: 0.9rem;
+    color: var(--nc-tinta);
+}
+.apertura-valor {
+    margin-left: 0.35em;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+.apertura-hora {
+    font-size: 0.8rem;
     color: var(--nc-tinta-media);
 }
 .mas,
