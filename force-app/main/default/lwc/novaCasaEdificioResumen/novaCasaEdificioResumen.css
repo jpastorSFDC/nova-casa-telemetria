@@ -299,8 +299,16 @@
     font-size: 0.84rem;
     color: var(--nc-tinta-media);
 }
-.sim::before {
+.sim::before,
+.sep-punto::before {
     content: ' · ';
+}
+.ficha-origen {
+    margin-top: 0.45rem;
+    padding-top: 0.4rem;
+    border-top: 1px dashed var(--nc-linea);
+    font-size: 0.84rem;
+    color: var(--nc-tinta-media);
 }
 .mas,
 .aviso {

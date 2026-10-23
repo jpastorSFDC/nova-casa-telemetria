@@ -93,6 +93,14 @@
                                         <span>Sin intervención abierta</span>
                                     </template>
                                 </div>
+                                <template if:true={c.hasOrigen}>
+                                    <span class="ficha-origen">
+                                        {c.origenTexto}
+                                        <template if:true={c.hasOrigenAt}>
+                                            <span class="sep-punto"><lightning-formatted-date-time value={c.origenAt} month="short" day="2-digit" hour="2-digit" minute="2-digit"></lightning-formatted-date-time></span>
+                                        </template>
+                                    </span>
+                                </template>
                             </li>
                         </template>
                         <template if:false={hasAttention}>
@@ -102,9 +110,28 @@
                                     <span class="sev sev-normal"><span aria-hidden="true">○</span> Nada</span>
                                 </div>
                                 <span class="ficha-nombre-texto">Ningún activo en precaución ni crítico</span>
-                                <template if:true={assetsTruncated}>
-                                    <span class="ficha-medicion">Solo entre los activos que se pudieron revisar.</span>
+                            </li>
+                        </template>
+                        <template for:each={caseCards} for:item="k">
+                            <li key={k.key} class={k.cardCls}>
+                                <div class="ficha-cab">
+                                    <span class="rot">Intervención abierta</span>
+                                    <span class={k.sevCls}><span aria-hidden="true">{k.sevGlyph}</span> {k.sevLabel}</span>
+                                </div>
+                                <a href="#" class="ficha-nombre" data-id={k.assetId} onclick={handleOpenAsset}>{k.assetName}</a>
+                                <span class="ficha-medicion">{k.statusText}</span>
+                                <template if:true={k.hasOrigen}>
+                                    <span class="ficha-origen">
+                                        {k.origenTexto}
+                                        <template if:true={k.hasOrigenAt}>
+                                            <span class="sep-punto"><lightning-formatted-date-time value={k.origenAt} month="short" day="2-digit" hour="2-digit" minute="2-digit"></lightning-formatted-date-time></span>
+                                        </template>
+                                    </span>
                                 </template>
+                                <div class="ficha-pie">
+                                    <span></span>
+                                    <lightning-button label={k.caseLabel} size="small" data-id={k.caseId} onclick={handleOpenCase}></lightning-button>
+                                </div>
                             </li>
                         </template>
                         <li class={lastCardCls}>
@@ -131,6 +158,15 @@
                     </ul>
                     <template if:true={attentionOverflowText}>
                         <p class="mas">{attentionOverflowText}</p>
+                    </template>
+                    <template if:true={caseOverflowText}>
+                        <p class="mas">{caseOverflowText}</p>
+                    </template>
+                    <template if:true={aperturasFailed}>
+                        <p class="mas" role="status">No se pudo cargar qué señal generó cada intervención.</p>
+                    </template>
+                    <template if:true={assetsTruncated}>
+                        <p class="mas" role="status"><span aria-hidden="true">&#9650;</span> Vista parcial: el edificio tiene más activos de los revisados; puede haber más que necesiten atención o con intervención.</p>
                     </template>
                 </template>
                 <div class="calidad">

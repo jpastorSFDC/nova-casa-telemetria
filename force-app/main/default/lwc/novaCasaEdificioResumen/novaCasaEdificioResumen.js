@@ -3,11 +3,15 @@ import { NavigationMixin } from 'lightning/navigation';
 import { refreshApex } from '@salesforce/apex';
 import getResumenEdificio from '@salesforce/apex/ActivosOperadorController.getResumenEdificio';
 import getAssets from '@salesforce/apex/ActivosOperadorController.getAssets';
-import { MEASUREMENT_LABELS, UNIT_LABELS, severityUi, reduceError, relativeAge } from 'c/novaCasaEtiquetas';
+import getAperturasDeIntervencion from '@salesforce/apex/ActivosOperadorController.getAperturasDeIntervencion';
+import { MEASUREMENT_LABELS, UNIT_LABELS, severityUi, reduceError, relativeAge, openingText } from 'c/novaCasaEtiquetas';
 
 const GENERIC_ERROR = 'No se pudo cargar la información. Intenta de nuevo o contacta a tu administrador.';
 const TICK_MS = 60000;
 const MAX_ATTENTION_CARDS = 4;
+const MAX_CASE_CARDS = 4;
+// ActivosOperadorController.MAX_APERTURAS
+const MAX_OPENING_LOOKUP = 50;
 const RECORD_ID_PATTERN = /^[a-zA-Z0-9]{15}(?:[a-zA-Z0-9]{3})?$/;
 const NUMBER_FORMAT = new Intl.NumberFormat('es', { maximumFractionDigits: 3 });
 
@@ -51,6 +55,9 @@ export default class NovaCasaEdificioResumen extends NavigationMixin(LightningEl
     assetPage;
     assetsError;
     wiredAssetsResult;
+    // Case Id -> how it started (getAperturasDeIntervencion). Empty until it arrives or when it fails.
+    aperturas = {};
+    aperturasFailed = false;
     nowMs = Date.now();
     _timer;
 
@@ -90,9 +97,35 @@ export default class NovaCasaEdificioResumen extends NavigationMixin(LightningEl
         if (data) {
             this.assetPage = data;
             this.assetsError = undefined;
+            this.loadAperturas();
         } else if (error) {
             this.assetPage = undefined;
             this.assetsError = reduceError(error) || GENERIC_ERROR;
+            this.aperturas = {};
+        }
+    }
+
+    // Only the Cases of the cards on screen.
+    async loadAperturas() {
+        const caseIds = [...this.attentionAssets.slice(0, MAX_ATTENTION_CARDS), ...this.caseAssets.slice(0, MAX_CASE_CARDS)]
+            .filter((a) => a.openIntervention)
+            .map((a) => a.openIntervention.caseId)
+            .slice(0, MAX_OPENING_LOOKUP);
+        this.aperturasFailed = false;
+        if (!caseIds.length) {
+            this.aperturas = {};
+            return;
+        }
+        try {
+            const list = await getAperturasDeIntervencion({ caseIds });
+            const byCase = {};
+            for (const apertura of list || []) {
+                byCase[apertura.caseId] = apertura;
+            }
+            this.aperturas = byCase;
+        } catch (e) {
+            this.aperturas = {};
+            this.aperturasFailed = true;
         }
     }
 
@@ -282,10 +315,21 @@ export default class NovaCasaEdificioResumen extends NavigationMixin(LightningEl
         return !!this.assetPage && this.assetPage.truncated === true;
     }
 
+    openingFor(intervention) {
+        const opening = openingText(intervention ? this.aperturas[intervention.caseId] : null);
+        return {
+            hasOrigen: opening.known,
+            origenTexto: opening.text,
+            origenAt: opening.occurredAt,
+            hasOrigenAt: Boolean(opening.occurredAt)
+        };
+    }
+
     toCard(asset, reading, kind) {
         const ui = severityUi(reading.severityLevel);
         const intervention = asset.openIntervention;
         return {
+            ...this.openingFor(intervention),
             key: `${kind}-${asset.assetId}`,
             assetId: asset.assetId,
             assetName: asset.name,
@@ -319,6 +363,38 @@ export default class NovaCasaEdificioResumen extends NavigationMixin(LightningEl
             return '';
         }
         return extra === 1 ? 'Y 1 activo más necesita atención.' : `Y ${extra} activos más necesitan atención.`;
+    }
+
+    // Open interventions of assets that are not in "Necesita atención" (those already carry their case).
+    get caseAssets() {
+        return this.assetsList.filter((a) => a.openIntervention && !(a.severityLevel >= 1 && worstReading(a.readings)));
+    }
+    get caseCards() {
+        return this.caseAssets.slice(0, MAX_CASE_CARDS).map((a) => {
+            const hasReadings = (a.readings || []).length > 0;
+            const ui = hasReadings ? severityUi(a.severityLevel) : { key: 'nivel', label: 'Sin lecturas', glyph: '?' };
+            const intervention = a.openIntervention;
+            return {
+                ...this.openingFor(intervention),
+                key: `caso-${a.assetId}`,
+                assetId: a.assetId,
+                assetName: a.name,
+                cardCls: `ficha ficha-${ui.key}`,
+                sevCls: `sev sev-${ui.key}`,
+                sevLabel: `${ui.label} ahora`,
+                sevGlyph: ui.glyph,
+                statusText: intervention.status ? `Estado: ${intervention.status}` : '',
+                caseId: intervention.caseId,
+                caseLabel: `Caso ${intervention.caseNumber}`
+            };
+        });
+    }
+    get caseOverflowText() {
+        const extra = this.caseAssets.length - MAX_CASE_CARDS;
+        if (extra <= 0) {
+            return '';
+        }
+        return extra === 1 ? 'Y 1 intervención abierta más.' : `Y ${extra} intervenciones abiertas más.`;
     }
 
     get lastCard() {

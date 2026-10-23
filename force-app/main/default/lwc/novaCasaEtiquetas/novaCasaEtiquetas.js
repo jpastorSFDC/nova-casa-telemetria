@@ -1,4 +1,4 @@
-// Labels shared by the Asset record page components. Values mirror novaCasaActivosOperador (same wording, same glyphs);
+// Labels shared by the record page components. Values mirror novaCasaActivosOperador (same wording, same glyphs);
 // that component keeps its own copy for now, so change both together.
 
 // Lectura_Vigente__c.Tipo_Medicion__c. Unknown values fall back to the raw value.
@@ -52,6 +52,30 @@ export function reduceError(error) {
         return body.message;
     }
     return GENERIC_ERROR;
+}
+
+const OPENING_NUMBER_FORMAT = new Intl.NumberFormat('es', { maximumFractionDigits: 3 });
+
+// How an intervention started, from ActivosOperadorController.getAperturasDeIntervencion. Returns { known, text, occurredAt }:
+// not known while the answer has not arrived; a telemetry one without its signal still says it came from a signal.
+export function openingText(apertura) {
+    if (!apertura) {
+        return { known: false, text: '', occurredAt: null };
+    }
+    if (!apertura.esTelemetria) {
+        return { known: true, text: 'Abierta a mano, sin señal', occurredAt: null };
+    }
+    const senal = apertura.senal;
+    if (!senal) {
+        return { known: true, text: 'Generada por una señal crítica', occurredAt: null };
+    }
+    const label = MEASUREMENT_LABELS[senal.measurementType] || senal.measurementType || 'señal crítica';
+    if (senal.value === null || senal.value === undefined) {
+        return { known: true, text: `Generada por: ${label}`, occurredAt: senal.occurredAt || null };
+    }
+    const unit = UNIT_LABELS[senal.unit] || senal.unit || '';
+    const value = OPENING_NUMBER_FORMAT.format(senal.value);
+    return { known: true, text: `Generada por: ${label} ${unit ? `${value} ${unit}` : value}`, occurredAt: senal.occurredAt || null };
 }
 
 export const STALE_AFTER_MINUTES = 60;

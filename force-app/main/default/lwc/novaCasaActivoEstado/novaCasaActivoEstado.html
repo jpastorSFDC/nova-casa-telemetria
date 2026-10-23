@@ -100,6 +100,14 @@
                             <div class="caso-cuerpo">
                                 <a class="caso-enlace" href="#" onclick={handleCaseClick}>{caseTitle} <span aria-hidden="true">&#8599;</span></a>
                                 <p class="caso-asunto">{caseSubject}</p>
+                                <template if:true={opening.known}>
+                                    <p class="caso-origen">
+                                        {opening.text}
+                                        <template if:true={opening.occurredAt}>
+                                            <span class="sep-punto"><lightning-formatted-date-time value={opening.occurredAt} year="numeric" month="short" day="2-digit" hour="2-digit" minute="2-digit" time-zone="UTC"></lightning-formatted-date-time> UTC</span>
+                                        </template>
+                                    </p>
+                                </template>
                                 <template if:true={hasMoreInterventions}>
                                     <p class="caso-mas"><button type="button" class="enlace-boton" onclick={handleMoreClick}>{moreInterventionsText}</button></p>
                                 </template>
@@ -109,6 +117,21 @@
                     <template if:false={hasIntervention}>
                         <h3 class="titulo">Intervención abierta</h3>
                         <p class="nota">Este activo no tiene intervenciones abiertas.</p>
+                        <template if:true={showCreateButton}>
+                            <lightning-button class="crear" label="Crear intervención" variant="brand" onclick={handleStartCreate}></lightning-button>
+                        </template>
+                        <template if:true={creating}>
+                            <div class="form-crear" role="group" aria-label="Crear intervención">
+                                <lightning-textarea label="Motivo (obligatorio)" max-length={motivoMax} value={motivo} onchange={handleMotivo} required></lightning-textarea>
+                                <template if:true={createError}>
+                                    <p class="slds-text-color_error" role="alert">{createError}</p>
+                                </template>
+                                <div class="form-acciones">
+                                    <lightning-button label="Cancelar" onclick={handleCancelCreate} disabled={saving}></lightning-button>
+                                    <lightning-button label="Guardar" variant="brand" onclick={handleSaveCreate} disabled={saveDisabled}></lightning-button>
+                                </div>
+                            </div>
+                        </template>
                     </template>
                 </section>
 
