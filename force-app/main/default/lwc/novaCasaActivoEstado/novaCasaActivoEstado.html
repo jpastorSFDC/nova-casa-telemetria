@@ -117,20 +117,8 @@
                     <template if:false={hasIntervention}>
                         <h3 class="titulo">Intervención abierta</h3>
                         <p class="nota">Este activo no tiene intervenciones abiertas.</p>
-                        <template if:true={showCreateButton}>
-                            <lightning-button class="crear" label="Crear intervención" variant="brand" onclick={handleStartCreate}></lightning-button>
-                        </template>
-                        <template if:true={creating}>
-                            <div class="form-crear" role="group" aria-label="Crear intervención">
-                                <lightning-textarea label="Motivo (obligatorio)" max-length={motivoMax} value={motivo} onchange={handleMotivo} required></lightning-textarea>
-                                <template if:true={createError}>
-                                    <p class="slds-text-color_error" role="alert">{createError}</p>
-                                </template>
-                                <div class="form-acciones">
-                                    <lightning-button label="Cancelar" onclick={handleCancelCreate} disabled={saving}></lightning-button>
-                                    <lightning-button label="Guardar" variant="brand" onclick={handleSaveCreate} disabled={saveDisabled}></lightning-button>
-                                </div>
-                            </div>
+                        <template if:true={canCreate}>
+                            <lightning-button class="crear" label="Crear intervención" variant="brand" icon-name="utility:add" onclick={handleStartCreate}></lightning-button>
                         </template>
                     </template>
                 </section>

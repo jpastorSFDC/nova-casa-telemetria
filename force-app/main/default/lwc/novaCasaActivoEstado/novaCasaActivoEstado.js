@@ -4,15 +4,18 @@ import { refreshApex } from '@salesforce/apex';
 import { getRecord, getFieldValue, getFieldDisplayValue, notifyRecordUpdateAvailable } from 'lightning/uiRecordApi';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import TIPO_ACTIVO_FIELD from '@salesforce/schema/Asset.Tipo_Activo__c';
+import ASSET_NAME_FIELD from '@salesforce/schema/Asset.Name';
+import BUILDING_NAME_FIELD from '@salesforce/schema/Asset.Account.Name';
 import getEstadoActivo from '@salesforce/apex/ActivosOperadorController.getEstadoActivo';
 import getCapacidades from '@salesforce/apex/ActivosOperadorController.getCapacidades';
 import getAperturasDeIntervencion from '@salesforce/apex/ActivosOperadorController.getAperturasDeIntervencion';
-import crearIntervencion from '@salesforce/apex/IntervencionOperadorController.crearIntervencion';
+import NovaCasaCrearIntervencion from 'c/novaCasaCrearIntervencion';
 import { MEASUREMENT_LABELS, severityUi, reduceError, relativeAge, openingText } from 'c/novaCasaEtiquetas';
 
 const NUMBER_FORMAT = new Intl.NumberFormat('es', { maximumFractionDigits: 3 });
-// IntervencionOperadorController.MOTIVO_MAX
-const MOTIVO_MAX = 1000;
+// IntervencionOperadorController.priorityFor: the priority the server sets from the current level.
+const PRIORITY_BY_LEVEL = { 2: 'Crítica', 1: 'Alta' };
+const PRIORITY_DEFAULT = 'Media';
 // Same wording as the operator screen for an asset without readings; c/novaCasaEtiquetas only has "Sin dato".
 const SEVERITY_NO_READING_UI = { key: 'nivel', label: 'Sin lecturas', glyph: '?' };
 
@@ -38,11 +41,6 @@ export default class NovaCasaActivoEstado extends NavigationMixin(LightningEleme
     // How the open intervention started (getAperturasDeIntervencion); null until it arrives or when it fails.
     apertura = null;
     caps = {};
-    creating = false;
-    saving = false;
-    motivo = '';
-    createError = '';
-    motivoMax = MOTIVO_MAX;
 
     // Only drives which buttons are shown: crearIntervencion re-checks the permission on the server (BR-208).
     @wire(getCapacidades)
@@ -52,9 +50,9 @@ export default class NovaCasaActivoEstado extends NavigationMixin(LightningEleme
         }
     }
 
-    // Only for the illustration and its label. Optional: without FLS on the field the card still loads, with the
-    // neutral illustration and no type text.
-    @wire(getRecord, { recordId: '$recordId', optionalFields: [TIPO_ACTIVO_FIELD] })
+    // For the illustration, its label and the names in the "Nueva intervención" form. Optional: without FLS on a field
+    // the card still loads, without that text.
+    @wire(getRecord, { recordId: '$recordId', optionalFields: [TIPO_ACTIVO_FIELD, ASSET_NAME_FIELD, BUILDING_NAME_FIELD] })
     assetRecord;
 
     @wire(getEstadoActivo, { assetId: '$recordId' })
@@ -98,45 +96,46 @@ export default class NovaCasaActivoEstado extends NavigationMixin(LightningEleme
     get canCreate() {
         return Boolean(this.caps.puedeCrearIntervencion) && this.hasReadings && !this.hasIntervention;
     }
-    get showCreateButton() {
-        return this.canCreate && !this.creating;
+    // The reading behind the asset level (highest level; on a tie the most recent), for the form.
+    get headlineReadingText() {
+        const list = this.estado ? this.estado.readings || [] : [];
+        let best = null;
+        for (const r of list) {
+            const level = r.severityLevel === null || r.severityLevel === undefined ? -1 : r.severityLevel;
+            const bestLevel = best ? (best.severityLevel === null || best.severityLevel === undefined ? -1 : best.severityLevel) : -2;
+            if (!best || level > bestLevel || (level === bestLevel && new Date(r.occurredAt) > new Date(best.occurredAt))) {
+                best = r;
+            }
+        }
+        return best ? `${MEASUREMENT_LABELS[best.measurementType] || best.measurementType} · ${formatValue(best.value, best.unit)}` : '';
     }
-    get saveDisabled() {
-        return this.saving || !this.motivo.trim();
-    }
-    handleStartCreate() {
-        this.creating = true;
-        this.motivo = '';
-        this.createError = '';
-    }
-    handleCancelCreate() {
-        this.creating = false;
-        this.motivo = '';
-        this.createError = '';
-    }
-    handleMotivo(event) {
-        this.motivo = event.target.value || '';
-    }
-    async handleSaveCreate() {
-        if (this.saveDisabled) {
+
+    // Opens the form; on save, like a native New, it goes to the new record.
+    async handleStartCreate() {
+        const record = this.assetRecord && this.assetRecord.data;
+        const severity = this.assetSeverity;
+        const result = await NovaCasaCrearIntervencion.open({
+            size: 'small',
+            label: 'Nueva intervención',
+            assetId: this.recordId,
+            assetName: (record && getFieldValue(record, ASSET_NAME_FIELD)) || '',
+            buildingName: (record && getFieldValue(record, BUILDING_NAME_FIELD)) || '',
+            severityKey: severity.key,
+            severityLabel: severity.label,
+            severityGlyph: severity.glyph,
+            readingText: this.headlineReadingText,
+            priorityLabel: PRIORITY_BY_LEVEL[this.assetLevel] || PRIORITY_DEFAULT
+        });
+        if (!result || !result.caseId) {
             return;
         }
-        this.saving = true;
-        this.createError = '';
-        try {
-            const result = await crearIntervencion({ assetId: this.recordId, motivo: this.motivo });
-            this.dispatchEvent(new ShowToastEvent({ title: 'Intervención creada', message: `Caso ${result.caseNumber}`, variant: 'success' }));
-            this.creating = false;
-            this.motivo = '';
-            this.loaded = false;
-            await refreshApex(this.wiredResult);
-            notifyRecordUpdateAvailable([{ recordId: this.recordId }]);
-        } catch (error) {
-            this.createError = reduceError(error);
-        } finally {
-            this.saving = false;
-            this.loaded = true;
-        }
+        this.dispatchEvent(new ShowToastEvent({ title: 'Intervención creada', message: `Caso ${result.caseNumber}`, variant: 'success' }));
+        notifyRecordUpdateAvailable([{ recordId: this.recordId }]);
+        refreshApex(this.wiredResult);
+        this[NavigationMixin.Navigate]({
+            type: 'standard__recordPage',
+            attributes: { recordId: result.caseId, objectApiName: 'Case', actionName: 'view' }
+        });
     }
 
     handleCaseClick(event) {
