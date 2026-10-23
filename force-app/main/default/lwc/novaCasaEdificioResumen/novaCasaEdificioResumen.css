@@ -313,6 +313,11 @@
     background: #f8fafc;
     border: 1px solid var(--nc-linea);
 }
+.apertura-misma {
+    margin-top: 0.4rem;
+    font-size: 0.84rem;
+    color: var(--nc-tinta-media);
+}
 .apertura-rot {
     font-size: 0.72rem;
     letter-spacing: 0.08em;

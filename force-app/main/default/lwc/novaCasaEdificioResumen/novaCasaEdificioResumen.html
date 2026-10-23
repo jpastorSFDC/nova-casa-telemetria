@@ -93,6 +93,9 @@
                                         <span>Sin intervención abierta</span>
                                     </template>
                                 </div>
+                                <template if:true={c.origenEsLaMostrada}>
+                                    <span class="apertura-misma">Esta lectura es la que abrió la intervención.</span>
+                                </template>
                                 <template if:true={c.hasOrigen}>
                                     <div class="apertura">
                                         <span class="apertura-rot">Señal que abrió la intervención</span>

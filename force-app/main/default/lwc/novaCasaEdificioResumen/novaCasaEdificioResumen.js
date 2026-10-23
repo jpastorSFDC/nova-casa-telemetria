@@ -315,10 +315,17 @@ export default class NovaCasaEdificioResumen extends NavigationMixin(LightningEl
         return !!this.assetPage && this.assetPage.truncated === true;
     }
 
-    openingFor(intervention) {
+    // With the reading shown on the card, an opener that is that same reading gets one line instead of the block.
+    openingFor(intervention, reading) {
         const opening = openingText(intervention ? this.aperturas[intervention.caseId] : null);
+        const sameAsShown = Boolean(
+            reading && opening.known && !opening.manual && opening.occurredAt &&
+                new Date(opening.occurredAt).getTime() === timeOf(reading) &&
+                opening.valueText === formatValue(reading.value, UNIT_LABELS[reading.unit] || reading.unit)
+        );
         return {
-            hasOrigen: opening.known,
+            hasOrigen: opening.known && !sameAsShown,
+            origenEsLaMostrada: sameAsShown,
             origenManual: opening.manual,
             origenMedicion: opening.measurement,
             origenValor: opening.valueText,
@@ -331,7 +338,7 @@ export default class NovaCasaEdificioResumen extends NavigationMixin(LightningEl
         const ui = severityUi(reading.severityLevel);
         const intervention = asset.openIntervention;
         return {
-            ...this.openingFor(intervention),
+            ...this.openingFor(intervention, reading),
             key: `${kind}-${asset.assetId}`,
             assetId: asset.assetId,
             assetName: asset.name,
