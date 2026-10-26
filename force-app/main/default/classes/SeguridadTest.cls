@@ -54,6 +54,25 @@ private class SeguridadTest {
         Assert.areEqual('A-', accionReintento.get(ADMIN), 'Solo Admin lee la formula Accion_Reintento__c');
     }
 
+    // D048: la persona Admin administra la telemetría, no el org. Si alguien vuelve a marcar "Manage Users" (o alguno de los
+    // permisos que Salesforce activa con él) en Nova_Casa_Admin, este test falla.
+    @IsTest
+    static void elConjuntoAdminNoAdministraUsuariosRolesNiSeguridadDelOrg() {
+        PermissionSet admin = [
+            SELECT PermissionsManageUsers, PermissionsManageInternalUsers, PermissionsAssignPermissionSets,
+                PermissionsManageProfilesPermissionsets, PermissionsManageRoles, PermissionsManageSharing,
+                PermissionsResetPasswords, PermissionsFreezeUsers, PermissionsManagePasswordPolicies,
+                PermissionsManageIpAddresses, PermissionsManageLoginAccessPolicies, PermissionsViewSetup
+            FROM PermissionSet WHERE Name = :ADMIN
+        ];
+        Map<String, Object> permisos = admin.getPopulatedFieldsAsMap();
+        for (String permiso : permisos.keySet()) {
+            if (permiso.startsWith('Permissions')) {
+                Assert.areEqual(false, permisos.get(permiso), ADMIN + ' no debe tener ' + permiso + ' (D048, D040)');
+            }
+        }
+    }
+
     // D047: la evidencia de conflictos la lee el Admin y nadie más; nadie de pantalla la edita.
     @IsTest
     static void soloAdminLeeLaEvidenciaDeConflictosYNadieLaEdita() {
