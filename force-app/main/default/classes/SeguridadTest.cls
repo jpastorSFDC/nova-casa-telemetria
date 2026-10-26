@@ -54,7 +54,7 @@ private class SeguridadTest {
         Assert.areEqual('A-', accionReintento.get(ADMIN), 'Solo Admin lee la formula Accion_Reintento__c');
     }
 
-    // D048: la persona Admin administra la telemetría, no el org. Si alguien vuelve a marcar "Manage Users" (o alguno de los
+    // D050: la persona Admin administra la telemetría, no el org. Si alguien vuelve a marcar "Manage Users" (o alguno de los
     // permisos que Salesforce activa con él) en Nova_Casa_Admin, este test falla.
     @IsTest
     static void elConjuntoAdminNoAdministraUsuariosRolesNiSeguridadDelOrg() {
@@ -68,7 +68,7 @@ private class SeguridadTest {
         Map<String, Object> permisos = admin.getPopulatedFieldsAsMap();
         for (String permiso : permisos.keySet()) {
             if (permiso.startsWith('Permissions')) {
-                Assert.areEqual(false, permisos.get(permiso), ADMIN + ' no debe tener ' + permiso + ' (D048, D040)');
+                Assert.areEqual(false, permisos.get(permiso), ADMIN + ' no debe tener ' + permiso + ' (D050, D040)');
             }
         }
     }
