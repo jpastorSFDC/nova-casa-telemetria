@@ -232,6 +232,18 @@ tbody tr:last-child td {
     font-size: 14px;
     color: #334155;
 }
+.caso-origen {
+    margin: 6px 0 0;
+    font-size: 13px;
+    color: var(--nc-tinta-media);
+}
+.sep-punto::before {
+    content: ' · ';
+}
+.crear {
+    display: inline-block;
+    margin-top: 10px;
+}
 .caso-mas {
     margin: 8px 0 0;
     padding-top: 6px;

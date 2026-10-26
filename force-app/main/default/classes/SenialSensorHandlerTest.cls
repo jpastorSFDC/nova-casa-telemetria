@@ -218,9 +218,16 @@ private class SenialSensorHandlerTest {
         Test.stopTest();
 
         Log_Senial__c log = filaLog(identidad('msg_x1'));
-        Assert.areEqual('Conflicto', log.Resultado__c, 'Contenido distinto con la misma identidad es Conflicto');
-        Assert.isNotNull(log.Motivo__c, 'El conflicto explica el motivo');
+        // D047: la fila del original ya procesado conserva su resultado, motivo y hora; el conflicto se cuenta aparte.
+        Assert.areEqual('Procesada', log.Resultado__c, 'El conflicto no le quita al original su resultado');
+        Assert.areEqual(original.Motivo__c, log.Motivo__c, 'El motivo del original se conserva');
+        Assert.areEqual(original.Procesado_At__c, log.Procesado_At__c, 'La hora de procesamiento del original se conserva');
+        Assert.areEqual(1, log.Conflictos__c.intValue(), 'El conflicto se cuenta');
+        Assert.isNotNull(log.Ultimo_Conflicto__c, 'Se registra cuándo llegó el conflicto');
+        Assert.isTrue(log.Ultimo_Conflicto_Detalle__c.contains('TEMPERATURE 36 CELSIUS'),
+            'El detalle guarda lo que trajo la entrega en conflicto: ' + log.Ultimo_Conflicto_Detalle__c);
         Assert.areEqual(original.Huella__c, log.Huella__c, 'La huella original no se reemplaza');
+        Assert.areEqual(25, log.Value__c, 'El valor del original no se reemplaza');
         Lectura_Vigente__c lectura = lectura(SALA + '|TEMPERATURE');
         Assert.areEqual(25, lectura.Valor__c, 'La lectura no cambia');
         Assert.areEqual(0, lectura.Severidad_Nivel__c.intValue(), 'La severidad no cambia');
@@ -237,10 +244,52 @@ private class SenialSensorHandlerTest {
         Test.stopTest();
 
         Log_Senial__c log = filaLog(identidad('msg_x2'));
-        Assert.areEqual('Conflicto', log.Resultado__c, 'Resultado del log');
+        Assert.areEqual('Procesada', log.Resultado__c, 'La crítica que abrió el Case sigue Procesada (D047)');
+        Assert.areEqual(1, log.Conflictos__c.intValue(), 'El conflicto se cuenta aparte');
         Assert.areEqual(casoId, log.Caso__c, 'El conflicto conserva el Case original (D011)');
         Assert.areEqual(36, lectura(SALA + '|TEMPERATURE').Valor__c, 'La lectura sigue siendo la original');
         Assert.areEqual(1, [SELECT COUNT() FROM Case], 'Sin Case nuevo');
+    }
+
+    // D047: cada entrega en conflicto suma uno y el detalle es el de la última; el original nunca cambia.
+    @IsTest
+    static void dosConflictosSeguidosSumanYElDetalleEsElDelUltimo() {
+        Test.startTest();
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_c2', SALA, 'TEMPERATURE', '25', 'CELSIUS', OCURRIDO) });
+        Log_Senial__c original = filaLog(identidad('msg_c2'));
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_c2', SALA, 'TEMPERATURE', '30', 'CELSIUS', OCURRIDO) });
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_c2', SALA, 'TEMPERATURE', '40', 'CELSIUS', OCURRIDO) });
+        Test.stopTest();
+
+        Log_Senial__c log = filaLog(identidad('msg_c2'));
+        Assert.areEqual(2, log.Conflictos__c.intValue(), 'Dos entregas en conflicto');
+        Assert.isTrue(log.Ultimo_Conflicto_Detalle__c.contains('TEMPERATURE 40 CELSIUS'),
+            'El detalle es el de la última entrega: ' + log.Ultimo_Conflicto_Detalle__c);
+        Assert.areEqual('Procesada', log.Resultado__c, 'El original sigue Procesada');
+        Assert.areEqual(original.Procesado_At__c, log.Procesado_At__c, 'La hora de procesamiento del original no cambia');
+        Assert.areEqual(25, lectura(SALA + '|TEMPERATURE').Valor__c, 'La lectura vigente sigue siendo la original');
+        Assert.areEqual(0, [SELECT COUNT() FROM Case], 'Ningún conflicto abre intervención (40 °C sería crítica)');
+        Assert.areEqual(1, [SELECT COUNT() FROM Log_Senial__c], 'Una fila por identidad');
+    }
+
+    // D047: un conflicto sobre una señal que quedó Atrasada no la convierte en Conflicto ni la vuelve lectura vigente.
+    @IsTest
+    static void unConflictoSobreUnaAtrasadaLaDejaAtrasadaYSinTocarLaLectura() {
+        Test.startTest();
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_nueva_c', SALA, 'TEMPERATURE', '24', 'CELSIUS', POSTERIOR) });
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_vieja_c', SALA, 'TEMPERATURE', '23', 'CELSIUS', ANTERIOR) });
+        Log_Senial__c atrasada = filaLog(identidad('msg_vieja_c'));
+        // Más nueva que la lectura vigente (POSTERIOR): si se procesara como señal nueva, ganaría la lectura y abriría Case.
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_vieja_c', SALA, 'TEMPERATURE', '38', 'CELSIUS', '2026-09-30T17:00:00.000Z') });
+        Test.stopTest();
+
+        Log_Senial__c log = filaLog(identidad('msg_vieja_c'));
+        Assert.areEqual('Atrasada', atrasada.Resultado__c, 'Precondición: la segunda señal quedó Atrasada');
+        Assert.areEqual('Atrasada', log.Resultado__c, 'El conflicto no le quita su resultado');
+        Assert.areEqual(atrasada.Motivo__c, log.Motivo__c, 'Ni su motivo');
+        Assert.areEqual(1, log.Conflictos__c.intValue(), 'El conflicto se cuenta');
+        Assert.areEqual(identidad('msg_nueva_c'), lectura(SALA + '|TEMPERATURE').Identidad_Senal__c, 'La lectura vigente no cambia');
+        Assert.areEqual(0, [SELECT COUNT() FROM Case], 'El conflicto no abre intervención (38 °C sería crítica)');
     }
 
     @IsTest
@@ -435,6 +484,9 @@ private class SenialSensorHandlerTest {
 
         Log_Senial__c conflicto = filaLog(identidad('msg_dup'));
         Assert.areEqual('Conflicto', conflicto.Resultado__c, 'La identidad queda en conflicto');
+        Assert.areEqual(1, conflicto.Conflictos__c.intValue(), 'El conflicto del mismo lote también se cuenta (D047)');
+        Assert.isTrue(conflicto.Ultimo_Conflicto_Detalle__c.contains('TEMPERATURE 25 CELSIUS'),
+            'Y guarda lo que trajo la otra entrega: ' + conflicto.Ultimo_Conflicto_Detalle__c);
         Assert.isNull(conflicto.Caso__c, 'El original en conflicto no abre Case');
         Assert.areEqual(0, [SELECT COUNT() FROM Case], 'Ningún Case');
         Lectura_Vigente__c lectura = lectura(SALA + '|TEMPERATURE');
@@ -551,8 +603,9 @@ private class SenialSensorHandlerTest {
         Log_Senial__c logVieja = filaLog(identidad('msg_vieja'));
         Assert.areEqual('Procesada', logNueva.Resultado__c, 'La crítica más nueva gana el lote: ' + logNueva.Motivo__c);
         Assert.areEqual('Atrasada', logVieja.Resultado__c, 'La crítica más vieja del lote queda como evidencia: ' + logVieja.Motivo__c);
-        Assert.isTrue(logVieja.Motivo__c.contains('(el lote)'),
+        Assert.isTrue(logVieja.Motivo__c.contains('otra lectura de la misma colección'),
             'El motivo dice que perdió contra la ganadora del lote, no contra la lectura vigente: ' + logVieja.Motivo__c);
+        Assert.isTrue(logVieja.Motivo__c.contains(identidad('msg_nueva')), 'El motivo nombra a la ganadora: ' + logVieja.Motivo__c);
         Assert.areEqual('Atrasada', SenialSensorHandler.resultadoPorIdentidad.get(identidad('msg_vieja')), 'Resultado reportado por el handler');
         Assert.isNull(logVieja.Caso__c, 'La atrasada no enlaza Case');
 
@@ -1002,7 +1055,12 @@ private class SenialSensorHandlerTest {
         Test.stopTest();
 
         Log_Senial__c log = filaLog(identidad('msg_edif_conf'));
-        Assert.areEqual('Conflicto', log.Resultado__c, 'Mismo identificador con otro contenido es conflicto');
+        Assert.areEqual('Conflicto', SenialSensorHandler.resultadoPorIdentidad.get(identidad('msg_edif_conf')),
+            'Mismo identificador con otro contenido es conflicto');
+        Assert.areEqual('Rechazada', log.Resultado__c, 'La fila conserva el rechazo del original (D047)');
+        Assert.areEqual(1, log.Conflictos__c.intValue(), 'El conflicto se cuenta aparte');
+        Assert.isTrue(log.Ultimo_Conflicto_Detalle__c.contains('edificio BLD-HDL-001'),
+            'El detalle muestra el edificio corregido: ' + log.Ultimo_Conflicto_Detalle__c);
         Assert.areEqual(0, [SELECT COUNT() FROM Lectura_Vigente__c], 'El conflicto no escribe lectura');
         Assert.areEqual(0, [SELECT COUNT() FROM Case], 'El conflicto no abre intervención (40 °C sería crítica)');
     }
@@ -1707,7 +1765,8 @@ private class SenialSensorHandlerTest {
         Test.stopTest();
 
         Log_Senial__c log = filaLog(identidad('msg_h5'));
-        Assert.areEqual('Conflicto', log.Resultado__c, 'Contenido distinto es conflicto');
+        Assert.areEqual('Procesada', log.Resultado__c, 'El original conserva su resultado (D047)');
+        Assert.areEqual(1, log.Conflictos__c.intValue(), 'Contenido distinto es conflicto y se cuenta');
         Assert.areEqual('TEMPERATURE', log.Measurement_Type__c, 'El conflicto conserva el tipo original');
         Assert.areEqual('CELSIUS', log.Unit__c, 'El conflicto conserva la unidad original');
         Assert.areEqual(25, log.Value__c, 'El conflicto conserva el valor original');
@@ -1766,7 +1825,8 @@ private class SenialSensorHandlerTest {
     private static Log_Senial__c filaLog(String identidad) {
         List<Log_Senial__c> filas = [
             SELECT Id, Identidad__c, Resultado__c, Motivo__c, Procesado_At__c, Asset__c, Caso__c, Occurred_At__c, Delivery_Id__c,
-                Message_Type__c, Huella__c, Reenvios__c, Ultimo_Reenvio__c, Measurement_Type__c, Unit__c, Value__c
+                Message_Type__c, Huella__c, Reenvios__c, Ultimo_Reenvio__c, Measurement_Type__c, Unit__c, Value__c,
+                Conflictos__c, Ultimo_Conflicto__c, Ultimo_Conflicto_Detalle__c
             FROM Log_Senial__c WHERE Identidad__c = :identidad
         ];
         Assert.areEqual(1, filas.size(), 'Debe existir exactamente una fila de log para ' + identidad);

@@ -67,11 +67,134 @@
                         </li>
                     </template>
                 </ul>
-                <div class="calidad">
-                    <span class="rot">Calidad de datos</span>
-                    <span><b>{sinLectura}</b> sin lecturas</span>
-                    <span><b>{sinNivel}</b> con señal sin nivel</span>
-                </div>
+                <template if:true={showAssetsError}>
+                    <p class="slds-text-color_error aviso" role="alert">No pudimos cargar las lecturas actuales. {assetsError}</p>
+                </template>
+                <template if:true={showCards}>
+                    <ul class="fichas" aria-label="Lo que necesita atención y la última señal recibida">
+                        <template for:each={attentionCards} for:item="c">
+                            <li key={c.key} class={c.cardCls}>
+                                <div class="ficha-cab">
+                                    <span class="rot">Necesita atención</span>
+                                    <span class={c.sevCls}><span aria-hidden="true">{c.sevGlyph}</span> {c.sevLabel}</span>
+                                </div>
+                                <a href="#" class="ficha-nombre" data-id={c.assetId} onclick={handleOpenAsset}>{c.assetName}</a>
+                                <span class="ficha-medicion">{c.measurement}</span>
+                                <span class="ficha-valor">{c.valueText}</span>
+                                <div class="ficha-pie">
+                                    <span>
+                                        <lightning-formatted-date-time value={c.occurredAt} month="short" day="2-digit" hour="2-digit" minute="2-digit"></lightning-formatted-date-time>
+                                        <template if:true={c.simulatorTime}><span class="sim">hora del simulador</span></template>
+                                    </span>
+                                    <template if:true={c.hasCase}>
+                                        <lightning-button label={c.caseLabel} size="small" data-id={c.caseId} onclick={handleOpenCase}></lightning-button>
+                                    </template>
+                                    <template if:false={c.hasCase}>
+                                        <span>Sin intervención abierta</span>
+                                    </template>
+                                </div>
+                                <template if:true={c.origenEsLaMostrada}>
+                                    <span class="apertura-misma">Esta lectura es la que abrió la intervención.</span>
+                                </template>
+                                <template if:true={c.hasOrigen}>
+                                    <div class="apertura">
+                                        <span class="apertura-rot">Señal que abrió la intervención</span>
+                                        <template if:true={c.origenManual}>
+                                            <span class="apertura-texto">Ninguna: la abrió una persona a mano</span>
+                                        </template>
+                                        <template if:false={c.origenManual}>
+                                            <span class="apertura-texto">{c.origenMedicion}<template if:true={c.origenValor}><b class="apertura-valor">{c.origenValor}</b></template></span>
+                                            <template if:true={c.hasOrigenAt}>
+                                                <span class="apertura-hora"><lightning-formatted-date-time value={c.origenAt} month="short" day="2-digit" hour="2-digit" minute="2-digit"></lightning-formatted-date-time></span>
+                                            </template>
+                                        </template>
+                                    </div>
+                                </template>
+                            </li>
+                        </template>
+                        <template if:false={hasAttention}>
+                            <li class="ficha ficha-normal">
+                                <div class="ficha-cab">
+                                    <span class="rot">Necesita atención</span>
+                                    <span class="sev sev-normal"><span aria-hidden="true">○</span> Nada</span>
+                                </div>
+                                <span class="ficha-nombre-texto">Ningún activo en precaución ni crítico</span>
+                            </li>
+                        </template>
+                        <template for:each={caseCards} for:item="k">
+                            <li key={k.key} class={k.cardCls}>
+                                <div class="ficha-cab">
+                                    <span class="rot">Intervención abierta</span>
+                                    <span class={k.sevCls}><span aria-hidden="true">{k.sevGlyph}</span> {k.sevLabel}</span>
+                                </div>
+                                <a href="#" class="ficha-nombre" data-id={k.assetId} onclick={handleOpenAsset}>{k.assetName}</a>
+                                <span class="ficha-medicion">{k.statusText}</span>
+                                <template if:true={k.hasOrigen}>
+                                    <div class="apertura">
+                                        <span class="apertura-rot">Señal que abrió la intervención</span>
+                                        <template if:true={k.origenManual}>
+                                            <span class="apertura-texto">Ninguna: la abrió una persona a mano</span>
+                                        </template>
+                                        <template if:false={k.origenManual}>
+                                            <span class="apertura-texto">{k.origenMedicion}<template if:true={k.origenValor}><b class="apertura-valor">{k.origenValor}</b></template></span>
+                                            <template if:true={k.hasOrigenAt}>
+                                                <span class="apertura-hora"><lightning-formatted-date-time value={k.origenAt} month="short" day="2-digit" hour="2-digit" minute="2-digit"></lightning-formatted-date-time></span>
+                                            </template>
+                                        </template>
+                                    </div>
+                                </template>
+                                <div class="ficha-pie">
+                                    <span></span>
+                                    <lightning-button label={k.caseLabel} size="small" data-id={k.caseId} onclick={handleOpenCase}></lightning-button>
+                                </div>
+                            </li>
+                        </template>
+                        <li class={lastCardCls}>
+                            <template if:true={lastCard}>
+                                <div class="ficha-cab">
+                                    <span class="rot">Última señal recibida</span>
+                                    <span class={lastCard.sevCls}><span aria-hidden="true">{lastCard.sevGlyph}</span> {lastCard.sevLabel}</span>
+                                </div>
+                                <a href="#" class="ficha-nombre" data-id={lastCard.assetId} onclick={handleOpenAsset}>{lastCard.assetName}</a>
+                                <span class="ficha-medicion">{lastCard.measurement}</span>
+                                <span class="ficha-valor">{lastCard.valueText}</span>
+                                <div class="ficha-pie">
+                                    <span>
+                                        <lightning-formatted-date-time value={lastCard.occurredAt} month="short" day="2-digit" hour="2-digit" minute="2-digit"></lightning-formatted-date-time>
+                                        <template if:true={lastCard.simulatorTime}><span class="sim">hora del simulador</span></template>
+                                    </span>
+                                </div>
+                            </template>
+                            <template if:false={lastCard}>
+                                <div class="ficha-cab"><span class="rot">Última señal recibida</span></div>
+                                <span class="ficha-nombre-texto">Sin señales todavía</span>
+                            </template>
+                        </li>
+                    </ul>
+                    <template if:true={attentionOverflowText}>
+                        <p class="mas">{attentionOverflowText}</p>
+                    </template>
+                    <template if:true={caseOverflowText}>
+                        <p class="mas">{caseOverflowText}</p>
+                    </template>
+                    <template if:true={aperturasFailed}>
+                        <p class="mas" role="status">No se pudo cargar qué señal generó cada intervención.</p>
+                    </template>
+                    <template if:true={assetsTruncated}>
+                        <p class="mas" role="status"><span aria-hidden="true">&#9650;</span> Vista parcial: el edificio tiene más activos de los revisados; puede haber más que necesiten atención o con intervención.</p>
+                    </template>
+                </template>
+                <template if:true={showCalidad}>
+                    <div class="calidad" role="status">
+                        <span class="rot">Calidad de datos</span>
+                        <template if:true={hasSinLectura}>
+                            <span>{sinLecturaText}</span>
+                        </template>
+                        <template if:true={hasSinNivel}>
+                            <span>{sinNivelText}</span>
+                        </template>
+                    </div>
+                </template>
             </template>
         </div>
     </lightning-card>

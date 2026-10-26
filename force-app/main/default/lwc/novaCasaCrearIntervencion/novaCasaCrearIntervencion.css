@@ -1,0 +1,67 @@
+/* Same severity colors as novaCasaActivoEstado (D041, D042): glyph + text, never color alone. */
+:host {
+    --nc-critico: #e11d48;
+    --nc-advertencia-fondo: #fef9c3;
+    --nc-advertencia-texto: #854d0e;
+    --nc-advertencia-borde: #fde047;
+    --nc-normal-fondo: #ecfdf5;
+    --nc-normal-texto: #15803d;
+    --nc-normal-borde: #a7f3d0;
+    --nc-nivel-fondo: #f1f5f9;
+    --nc-tinta-media: #475569;
+    --nc-linea: #cbd5e1;
+}
+
+.seccion {
+    margin: 0.75rem 0 0.5rem;
+}
+.aviso-error {
+    margin-bottom: 0.75rem;
+}
+.motivo {
+    flex-direction: column;
+}
+.contador,
+.nota {
+    margin: 0.25rem 0 0;
+    font-size: 0.78rem;
+    color: var(--nc-tinta-media);
+}
+.contador {
+    text-align: right;
+}
+.nota {
+    margin-top: 0.75rem;
+}
+
+.sev {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    border-radius: 999px;
+    padding: 0.15rem 0.55rem;
+    white-space: nowrap;
+}
+.sev-critico {
+    background: var(--nc-critico);
+    color: #fff;
+}
+.sev-advertencia {
+    background: var(--nc-advertencia-fondo);
+    color: var(--nc-advertencia-texto);
+    border: 1px solid var(--nc-advertencia-borde);
+}
+.sev-normal {
+    background: var(--nc-normal-fondo);
+    color: var(--nc-normal-texto);
+    border: 1px solid var(--nc-normal-borde);
+}
+.sev-nivel {
+    background: var(--nc-nivel-fondo);
+    color: var(--nc-tinta-media);
+    border: 1px solid var(--nc-linea);
+}

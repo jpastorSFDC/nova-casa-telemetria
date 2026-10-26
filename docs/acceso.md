@@ -4,6 +4,8 @@ T8.1. Who sees and does what, and where each access comes from (BR-208). Effecti
 
 **Status as of 2026-10-07**: OWD Private applied (T8.2, PR #38), the persona users on Minimum Access - Salesforce, each building owned by an operator, and the manager without View All ([D022](decisiones.md#d022--coordinator-and-manager-see-through-the-role-hierarchy-each-building-belongs-to-one-operator-personas-on-minimum-access-us-208)). What's left is in "Order of steps", step 7.
 
+**Since then**: the personas were walked through by hand on 2026-10-13 ([entrega.md](entrega.md#manual-walkthrough-of-2026-10-13)). The `UserRecordAccess` queries were not repeated after the manager lost View All.
+
 ## Personas
 
 | Persona | Demo user | Role | Permission sets | How it reaches the records |
@@ -12,10 +14,10 @@ T8.1. Who sees and does what, and where each access comes from (BR-208). Effecti
 | Operator 2 | `<operator-2-username>` | Operador de Edificios | `Nova_Casa_Operator`, `Nova_Casa_Lightning` | Owns BLD-BAQ-001 (T8.4, two operators with different buildings) |
 | Coordinator | `<coordinator-username>` | Coordinador de Mantenimiento | `Nova_Casa_Coordinator`, `Nova_Casa_Lightning` | Role hierarchy: sees the operators' buildings and what Integration owns |
 | Regional manager | `<manager-username>` | Gerente Regional de Operaciones | `Nova_Casa_Gerente`, `Nova_Casa_Lightning` | Role hierarchy (everything the coordinator, operators and integration own) read-only, plus Run Reports |
-| Administrator (persona) | `<admin-username>` | none | `Nova_Casa_Admin`, `Nova_Casa_Operator`, `Nova_Casa_Lightning` | View All / Modify All on the Nova Casa objects |
-| Integration | `<integration-username>` | Integración Telemetría | `Nova_Casa_Simulator_Integration` + ingestion permission (T2.10) | Owns the `Case` and `Log_Senial__c` records it creates |
+| Administrator (persona) | `<admin-username>` | none | `Nova_Casa_Admin`, `Nova_Casa_Operator`, `Nova_Casa_Lightning` | Create, Read, Edit, Delete, View All and Modify All on `Account`, `Asset`, `Case`, `Contact`, `Lectura_Vigente__c`, `Log_Senial__c` and `Umbral__c` |
+| Integration | `<integration-username>` | Integración Telemetría | `Nova_Casa_Simulator_Integration`, `Nova_Casa_Procesamiento` ([D017](decisiones.md#d017--nova_casa_procesamiento-permission-set-for-the-integration-user-t210), T2.10) | Owns the `Case` and `Log_Senial__c` records it creates |
 
-The persona admin has no role: View All / Modify All already gives them every record, and a role would put them in the operating hierarchy for no reason.
+The persona admin has no role: View All / Modify All already gives them every record, and a role would put them in the operating hierarchy for no reason. `Account`, `Asset`, `Case` and `Contact` are standard objects, so `Nova_Casa_Admin` reaches every record of those objects in the org, not only the Nova Casa ones.
 
 The second operator is org data, not metadata in the repo. It was created on 2026-10-06 with the Minimum Access - Salesforce profile, role `Operador_Edificios`, alias `ncoper2`, locale `es_CO`, time zone `America/Bogota`, and the permission sets `Nova_Casa_Operator` and `Nova_Casa_Lightning`; then it was given the `OwnerId` of BLD-BAQ-001 (previously John's). The BAQ `Asset` and `Case` records didn't change owner (`Asset` is Controlled by Parent). To reproduce it without publishing the org username:
 
@@ -41,7 +43,7 @@ Gerente Regional de Operaciones
 
 Integración sits under Coordinador so that the Cases and logs the integration user creates are visible to coordinator and manager without opening up the OWD.
 
-Building owner's access to child objects (the role's `caseAccessLevel` / `opportunityAccessLevel` / `contactAccessLevel`), target values:
+Building owner's access to child objects (the role's `caseAccessLevel` / `opportunityAccessLevel` / `contactAccessLevel`), target values. The role files declare only the Case and Opportunity levels; the Contact column is what the role would carry if Contact were Private, and it is not deployed because Contact stays Controlled by Parent (see below):
 
 | Role | Case | Opportunity | Contact |
 |---|---|---|---|
@@ -58,15 +60,16 @@ The role files declare Case and Opportunity since T8.2; Contact isn't declared b
 
 C/R/E/D = Create/Read/Edit/Delete from the permission set; after the dot, where record access comes from.
 
-| Object | OWD today → target | Operator | Coordinator | Manager | Admin (persona) | Integration |
+| Object | OWD before → after T8.2 | Operator | Coordinator | Manager | Admin (persona) | Integration (`Nova_Casa_Procesamiento`) |
 |---|---|---|---|---|---|---|
-| `Account` (building) | Public Read/Write → **Private** | R · owner | R · hierarchy | R · hierarchy | CRED · Modify All | T2.10 |
-| `Asset` | Controlled by Parent (no change; inherits Private from `Account`) | R · via building | R · via building | R · via building | CRED · Modify All | T2.10 |
-| `Lectura_Vigente__c` | Controlled by Parent (no change) | R · via asset | R · via asset | R · via asset | CRED · Modify All | writes |
-| `Case` (intervention, [D001](decisiones.md#d001--intervention-object-case)) | Public Read/Write/Transfer → **Private** | R · Cases of their building (role) | RE · hierarchy | R · hierarchy | CRED · Modify All | creates, owner |
-| `Log_Senial__c` | Private (no change) | — | — | — | CRED · Modify All | creates, owner |
-| `Umbral__c` | Public Read Only → **Public Read/Write** | — | CRE | — | CRED · Modify All | reads |
-| `Contact` / `Opportunity` | Controlled by Parent (no change) / Public Read Only → **Private** | R / — | R / — | R / — | CRED / — | — |
+| `Account` (building) | Public Read/Write → **Private** | R · owner | R · hierarchy | R · hierarchy | CRED · Modify All | R · View All |
+| `Asset` | Controlled by Parent (no change; inherits Private from `Account`) | R · via building | R · via building | R · via building | CRED · Modify All | R · View All |
+| `Lectura_Vigente__c` | Controlled by Parent (no change) | R · via asset | R · via asset | R · via asset | CRED · Modify All | CRE |
+| `Case` (intervention, [D001](decisiones.md#d001--intervention-object-case)) | Public Read/Write/Transfer → **Private** | R · Cases of their building (role) | RE · hierarchy | R · hierarchy | CRED · Modify All | CRE · View All · owner of what it creates |
+| `Log_Senial__c` | Private (no change) | — | — | — | CRED · Modify All | CRE · owner of what it creates |
+| `Umbral__c` | Public Read Only → **Public Read/Write** | — | CRE | — | CRED · Modify All | R |
+| `Contact` / `Opportunity` | Controlled by Parent (no change) / Public Read Only → **Private** | R / — | R / — | R / — | CRED · Modify All / — | R / — |
+| `Senial_Sensor__e` (platform event) | n/a | — | — | — | — (see "Actions") | CR |
 
 `Asset` and `Contact` were already Controlled by Parent in the metadata (and `Organization.DefaultContactAccess`); `EntityDefinition` showed them as Public Read/Write because it reports the effective value they inherit from `Account`. `Opportunity` and `Case` move to Private because they can't stay more open than `Account`.
 
@@ -74,13 +77,14 @@ C/R/E/D = Create/Read/Edit/Delete from the permission set; after the dot, where 
 
 ## Fields (FLS)
 
-- **Todos los que ven `Lectura_Vigente__c`** ven sus campos requeridos (`Asset__c`, `Tipo_Medicion__c`, `Valor__c`, `Unidad__c`, `Occurred_At__c`): la plataforma no permite FLS sobre campos requeridos.
-- **Operador**: lectura en `Asset.AccountId`, `Asset.Tipo_Activo__c`, los resúmenes de `Asset` (`Severidad_Actual__c`, `Severidad_Nivel__c`, `Ultima_Senal__c`), `Case.AssetId`, `Case.Subject`, `Case.ClosedDate`, `Lectura_Vigente__c.Sensor_Id__c`, `Lectura_Vigente__c.Severidad_Nivel__c`, `Lectura_Vigente__c.Severidad__c` y las claves técnicas. `Case.ClosedDate` es solo lectura y la tienen también el coordinador, el gerente y `Nova_Casa_Admin` (D038): la pantalla del operador lo consulta en `USER_MODE` para la línea "Última intervención", así que sin esa FLS la lista muestra el error de acceso en cuanto un activo de la página no tiene intervención abierta.
-- **Página de la intervención (D043)**: operador, coordinador, gerente y `Nova_Casa_Admin` leen `Case.Origin` y `Case.Priority` (solo lectura). `Case.Description` la leen y editan el coordinador y `Nova_Casa_Admin`; los demás no la ven, y la página omite el último seguimiento y el motivo.
-- **Coordinador**: lo del operador, más edición en `Umbral__c.Activo__c` y `Case.Description`, y lectura en `Umbral__c.Severidad_Nivel__c`.
-- **Gerente**: lo del operador. Nada editable.
+- **Everyone who sees `Lectura_Vigente__c`** sees its required fields (`Asset__c`, `Tipo_Medicion__c`, `Valor__c`, `Unidad__c`, `Occurred_At__c`): the platform doesn't allow FLS on required fields.
+- **Operator**: read on `Asset.AccountId`, `Asset.Tipo_Activo__c`, the `Asset` summaries (`Severidad_Actual__c`, `Severidad_Nivel__c`, `Ultima_Senal__c`), `Case.AssetId`, `Case.Subject`, `Case.ClosedDate`, `Lectura_Vigente__c.Sensor_Id__c`, `Lectura_Vigente__c.Severidad_Nivel__c`, `Lectura_Vigente__c.Severidad__c`, the read-only summary fields listed below and the technical keys. `Case.ClosedDate` is read-only and the coordinator, manager and `Nova_Casa_Admin` have it too (D038): the operator screen queries it in `USER_MODE` for the "Última intervención" line, so without that FLS the list shows the access error as soon as an asset on the page has no open intervention.
+- **Read-only summary fields** (D029, D039): operator, coordinator, manager and `Nova_Casa_Admin` read `Asset.Minutos_Sin_Senal__c`, `Case.Edificio__c`, `Case.Tipo_Activo__c`, `Case.Severidad_Activo__c`, `Case.Tiempo_Abierto_Horas__c`, `Lectura_Vigente__c.Edificio__c` and `Lectura_Vigente__c.Antiguedad_Minutos__c` (formulas), and `Case.Ultima_Critica_At__c`, `Ultima_Critica_Medicion__c`, `Ultima_Critica_Unidad__c` and `Ultima_Critica_Valor__c` (the latest critical signal, written by ingestion). `Nova_Casa_Admin` also reads `Case.Ultima_Critica_Identidad__c`. Only `Nova_Casa_Procesamiento` edits the `Ultima_Critica_*` fields.
+- **Intervention page (D043)**: operator, coordinator, manager and `Nova_Casa_Admin` read `Case.Origin` and `Case.Priority` (read-only). `Case.Description` is read and edited by the coordinator and `Nova_Casa_Admin`; the others don't see it, and the page omits the last follow-up and the reason.
+- **Coordinator**: what the operator has, plus edit on `Umbral__c.Activo__c` and `Case.Description`, and read on `Umbral__c.Severidad_Nivel__c` and `Umbral__c.Descripcion__c`.
+- **Manager**: what the operator has. Nothing editable.
 - **Claves técnicas** (`Account.External_Id__c`, `Asset.External_Id__c`, `Lectura_Vigente__c.Clave__c`, `Identidad_Senal__c` en `Case` y `Lectura_Vigente__c`): solo lectura para todas las personas (alineado con PR #26); solo Admin las edita. La pantalla del operador consulta `Asset.External_Id__c` en `USER_MODE`, así que sin esa FLS muestra error de acceso; las otras cuatro son para los layouts de `Case`, `Account` y `Lectura_Vigente__c`.
-- **Solo Admin**: todo `Log_Senial__c`. Excepción (D024): operador, coordinador y gerente ven en el detalle del activo el "Historial de señales" (tipo de señal, fecha de origen, resultado y, desde D034, tipo de medición, valor y unidad) de los activos que ya ven, leído por Apex sin darles permisos sobre el objeto. Lo mismo en la página de la intervención (D043): las señales enlazadas a una intervención que ven, y solo si también ven su activo, con los reenvíos y cuál la abrió.
+- **Solo Admin**: todo `Log_Senial__c`. Excepción (D024): operador, coordinador y gerente ven en el detalle del activo el "Historial de señales" (tipo de señal, fecha de origen, resultado y, desde D034, tipo de medición, valor y unidad) de los activos que ya ven, leído por Apex sin darles permisos sobre el objeto. Lo mismo en la página de la intervención (D043): las señales enlazadas a una intervención que ven, y solo si también ven su activo, con los reenvíos y cuál la abrió. Y en las páginas del edificio y del activo (D045): la señal que abrió cada intervención que ven (tipo de medición, valor, unidad y hora de origen), solo si también ven su activo; para eso se leen en modo sistema `Case.Ultima_Critica_Identidad__c` y la fila del log de ese mismo activo, y la identidad nunca se devuelve.
 
 ## Actions
 
@@ -90,14 +94,17 @@ Everyone sees the same "Activos del operador" screen and the same data from the 
 |---|---|---|---|---|---|
 | See assets, readings, open intervention and summary by building | yes | yes | yes | yes | Tab + `classAccesses` to `ActivosOperadorController`; the controller is `with sharing` and queries in `USER_MODE` |
 | See an asset's signal history (without reason or technical detail) | yes | yes | yes | yes | `ActivosOperadorController.getHistorial`: checks the asset in `USER_MODE` and reads the log in system mode (D024) |
-| Create a manual intervention | yes | yes | no | yes | Custom permission `Nova_Casa_Crear_Intervencion`. Creation runs in system mode because the operator doesn't have Create on `Case`; the custom permission is their only key (D020). Interventions for critical signals are created by ingestion |
+| See which signal opened an intervention (building and asset pages) | yes | yes | yes | yes | `ActivosOperadorController.getAperturasDeIntervencion`: checks the Case and its asset in `USER_MODE`, then reads the opener in system mode (D045) |
+| Create a manual intervention (operator screen detail or asset page) | yes | yes | no | yes | Custom permission `Nova_Casa_Crear_Intervencion`. Creation runs in system mode because the operator doesn't have Create on `Case`; the custom permission is their only key (D020). Interventions for critical signals are created by ingestion |
 | Change an intervention's status, or bulk close an asset's open ones | no | yes (also needs Edit on `Case`) | no | yes | Custom permission `Nova_Casa_Seguir_Intervencion` (D035). The status options are the active values of `Case.Status` (D036); anyone with access to the class (operator, coordinator, admin) can read the list, but only someone with the permission can change the status |
 | Change thresholds ("Ver límites") | no | yes (create and edit) | no | yes (everything) | CRUD on `Umbral__c` in the permission set; requires the Public Read/Write OWD from the matrix by object |
-| Fetch signals from the simulator | no | no | no | yes (also needs `Nova_Casa_Simulator_Integration`) | Custom permission `Nova_Casa_Traer_Senales` |
+| Fetch signals from the simulator | no | no | no | yes (also needs `Nova_Casa_Simulator_Integration` and Create on `Senial_Sensor__e`) | Custom permission `Nova_Casa_Traer_Senales`. `Nova_Casa_Admin` doesn't include Create on `Senial_Sensor__e`: among the Nova Casa permission sets only `Nova_Casa_Procesamiento` has it, so the person pressing the button needs it from somewhere else |
 | See technical errors and rejection reason | no | no | no | yes | `Log_Senial__c` only in `Nova_Casa_Admin`; the "Registros de Señal" tab of the Nova Casa Telemetry app is declared visible only in that permission set (`tabSettings`); without Read on the object nobody else gets to the data even if they see the tab. Measured in the org on 2026-10-07 (`ObjectPermissions`): Read on `Log_Senial__c` only in `Nova_Casa_Admin`, `Nova_Casa_Procesamiento` and Salesforce's administration and integration profiles or permission sets; no Operator, Coordinator or Manager permission set has it. Whether the Minimum Access profile hides the tab is checked in the org after the deploy |
-| Know whether a signal can be retried, and retry it | no | no | no | yes | The `Accion_Reintento__c` column of `Log_Senial__c` (read-only formula, read-only FLS in `Nova_Casa_Admin`, D014) says whether the retry is safe or what to fix first. Retrying means running ingestion again ("Traer señales"), which requires the custom permission `Nova_Casa_Traer_Senales` plus `Nova_Casa_Simulator_Integration` and Create on `Senial_Sensor__e` (header of `IngestaController`). The cleanup PR removes the unused `Reintento_Seguro__c` checkbox after the 2026-10-19 production preflight found no record with it set to `true`. |
+| Know whether a signal can be retried, and retry it | no | no | no | yes | The `Accion_Reintento__c` column of `Log_Senial__c` (read-only formula, read-only FLS in `Nova_Casa_Admin`, D014) says whether the retry is safe or what to fix first. Retrying means running ingestion again ("Traer señales"), which requires the custom permission `Nova_Casa_Traer_Senales` plus `Nova_Casa_Simulator_Integration` and Create on `Senial_Sensor__e` (header of `IngestaController`). The unused `Reintento_Seguro__c` checkbox was removed (#95) after the 2026-10-19 production preflight found no record with it set to `true`. |
 
-Ingestion doesn't use any of these permissions: it's run by the integration user with `Nova_Casa_Simulator_Integration` and its own ingestion permission (T2.10), separate from the operator.
+The status list in the "Change an intervention's status" row reaches more people than that row says. `IntervencionOperadorController.getEstadosSeguimiento` is open to operator, coordinator and admin, but `ActivosOperadorController.getIntervencion` also returns the same active values in the `estados` of the intervention detail, so the manager receives them too. The list is read-only information; the custom permission still gates the change.
+
+Processing doesn't use any of these permissions: `SenialSensorTrigger` runs as the integration user with `Nova_Casa_Procesamiento` (T2.10), separate from the operator. Fetching and publishing the signals runs as whoever starts or schedules it, who needs `Nova_Casa_Simulator_Integration` and Create on `Senial_Sensor__e` (see "Fetch signals from the simulator").
 
 ## Order of steps
 
@@ -107,11 +114,11 @@ Ingestion doesn't use any of these permissions: it's run by the integration user
 4. **Profile** (done 2026-10-06): the four persona users on Minimum Access - Salesforce with `Nova_Casa_Lightning` (see below).
 5. **T8.6** (done 2026-10-06): queries repeated before and after the profile change, see "Result (T8.6)".
 6. **Second operator and owners** (done 2026-10-06, D022): the second operator was created and made owner of BLD-BAQ-001; BLD-TEST-NOAUT was created as a building outside the hierarchy.
-7. **Manager without View All** (permissions done, verified 2026-10-07): `Nova_Casa_Gerente` deployed with the rest of `main`; a query on `ObjectPermissions` in `nova-cdo` returned read-only (`PermissionsViewAllRecords`, `ModifyAll`, `Edit`, `Create` and `Delete` false) on `Account`, `Asset`, `Case`, `Contact` and `Lectura_Vigente__c`. Pending: repeat the visibility queries from "Hierarchy instead of View All (D022)" (the manager should see None on BLD-TEST-NOAUT).
+7. **Manager without View All** (permissions done, verified 2026-10-07): `Nova_Casa_Gerente` deployed with the rest of `main`; a query on `ObjectPermissions` in `nova-cdo` returned read-only (`PermissionsViewAllRecords`, `ModifyAll`, `Edit`, `Create` and `Delete` false) on `Account`, `Asset`, `Case`, `Contact` and `Lectura_Vigente__c`. Checked by hand on 2026-10-13 ([entrega.md](entrega.md#manual-walkthrough-of-2026-10-13)): the manager saw both buildings read-only and not the test building. Pending: repeat the `UserRecordAccess` queries from "Hierarchy instead of View All (D022)", which that walkthrough didn't do.
 
 ## Minimum Access profile
 
-The persona users had the Standard User profile, which gives CRED on `Account`, `Asset`, `Contact` and `Opportunity`, and CRE on `Case`. Permission sets only add, so the operator could edit or delete buildings even though `Nova_Casa_Operator` is read-only. Now they're on Minimum Access - Salesforce, which gives neither object access nor Lightning Experience; `Nova_Casa_Lightning` adds only `LightningExperienceUser`. The standard `Account`, `Asset`, `Case` and Reports tabs already come as DefaultOn in that profile. `Nova_Casa_Gerente` still declares `standard-Account`, `standard-Asset` and `standard-Case` as Visible, so it doesn't depend on the profile; the other permission sets don't declare them and depend on Minimum Access.
+The persona users had the Standard User profile, which gives CRED on `Account`, `Asset`, `Contact` and `Opportunity`, and CRE on `Case`. Permission sets only add, so the operator could edit or delete buildings even though `Nova_Casa_Operator` is read-only. Now they're on Minimum Access - Salesforce, which gives neither object access nor Lightning Experience; `Nova_Casa_Lightning` adds only `LightningExperienceUser`. The standard `Account`, `Asset`, `Case` and Reports tabs already come as DefaultOn in that profile (org state: the versioned profile file carries only layout assignments and a few user permissions, no `tabVisibilities`, so the repo can't confirm it). `Nova_Casa_Gerente` still declares `standard-Account`, `standard-Asset` and `standard-Case` as Visible, so it doesn't depend on the profile; the other permission sets don't declare them and depend on Minimum Access.
 
 The profile and the assignments are org data, not metadata. To reproduce them, use the operator, coordinator, manager and admin usernames from Setup; the integration user was already on Minimum Access:
 
@@ -187,9 +194,9 @@ After the two T8.2 deploys (objects, then roles), from `main`.
 - **Coordinator and manager see BLD-BAQ-001** even though they aren't owners: implicit parent sharing from the integration user's Cases (coordinator) and View All (manager).
 - **Manager's View All**: on `salesforce.com`, an `Account` of John's with no Cases, the manager has Read and operator and coordinator have None.
 - **Effective CRUD**: the Minimum Access profile contributes no `ObjectPermissions` on these objects; only the Nova Casa permission sets count.
-- **Tests**: `ActivosOperadorControllerTest` and `IntervencionOperadorControllerTest`, 34/34 green in a test run in the org (`sf apex run test` in `nova-cdo`).
+- **Tests**: `ActivosOperadorControllerTest` and `IntervencionOperadorControllerTest`, 34/34 green in a test run in the org on that date (`sf apex run test` in `nova-cdo`). `SeguridadTest` (what each persona permission set grants, who reaches `Log_Senial__c`, the custom permissions per persona, no View All or Modify All in the operator, coordinator and manager sets, the manager not reading records outside the hierarchy) and `PermisosProcesamientoTest` ([D017](decisiones.md#d017--nova_casa_procesamiento-permission-set-for-the-integration-user-t210): the integration set gets no delete or Modify All, and processing works without operator or admin permissions) check the permission sets themselves.
 
-Pending: open "Activos del operador" as the operator in the browser (only BLD-BOG-001 should appear). `Umbral__c` and `Log_Senial__c` weren't measured again.
+Operator check in the browser, done by hand on 2026-10-13 ([entrega.md](entrega.md#manual-walkthrough-of-2026-10-13)): operator 1 saw only their own building (Nova Alameda), read-only, and operator 2 only theirs; neither got Registros de Señal or Umbrales. `Umbral__c` and `Log_Senial__c` weren't measured again with `UserRecordAccess`.
 
 ## Hierarchy instead of View All (D022)
 
@@ -231,7 +238,7 @@ The first query should come back empty. The `Asset` records aren't touched: they
 
 ## Risks
 
-- **Ingestion with OWD Private**: a `SYSTEM_MODE` inside a `with sharing` class still applies sharing. The integration user doesn't own the buildings and isn't above the operator in the hierarchy, so it needs View All / Modify All on the objects it reads and writes, in its own permission set (T2.10). That also keeps the ingestion's authorization explicit and separate from the operator, as US-208 asks.
+- **Ingestion with OWD Private**: a `SYSTEM_MODE` inside a `with sharing` class still applies sharing. The integration user doesn't own the buildings and isn't above the operator in the hierarchy, so if the ingestion classes were `with sharing` it would need View All on what it reads and writes. Today it doesn't: `SenialSensorHandler`, `IntervencionService` and `TelemetriaIngesta` are `without sharing` ([D017](decisiones.md#d017--nova_casa_procesamiento-permission-set-for-the-integration-user-t210)). `Nova_Casa_Procesamiento` keeps View All, and no Modify All, on `Account`, `Asset` and `Case` as a margin in case one of them moves to `with sharing`, and so the ingestion's authorization stays explicit and separate from the operator, as US-208 asks.
 - **`Case.AccountId`**: the operator sees a Case because they own its `Account` (role level). If ingestion creates a Case without `AccountId`, the operator doesn't see it. Current Cases do have it.
 - **Tests with `System.runAs`**: `ActivosOperadorControllerTest` and `IntervencionOperadorControllerTest` create the building as the user running the test and query as another user with no role or ownership. With `Account` Private that user doesn't see the building and the count asserts fail. Resolved in PR #39: the test building is owned by the `runAs` user.
 - **Building owner**: a new building from the catalog is invisible to the hierarchy until it's reassigned; the step is in "Building owners".

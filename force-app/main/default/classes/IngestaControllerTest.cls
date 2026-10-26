@@ -188,6 +188,43 @@ private class IngestaControllerTest {
     }
 
     @isTest
+    static void shouldCountConflictsOnProcessedRowsUnderConflictoOnceAndWithoutAddingThemToTheTotal() {
+        // Given, from an earlier run: a row that got a conflicting delivery during this run (D047: it keeps Procesada), one
+        // whose last conflict is older than the run, and an old Conflicto row that got another conflict now. From this run:
+        // a Procesada row that later got a conflict in this same run, and a row registered as Conflicto (same batch)
+        User admin = newUserWithPermissionSet('ncingcon', 'Nova_Casa_Admin');
+        SesionSimulador.memoriaDePrueba = new Map<String, String>();
+        Datetime since = Datetime.now().addMinutes(-5);
+        Datetime now = Datetime.now();
+        Log_Senial__c oldConflictedNow = logRow('old-1', 'Procesada', 1, now);
+        Log_Senial__c oldConflictedBefore = logRow('old-2', 'Procesada', 1, since.addHours(-1));
+        Log_Senial__c oldConflictoAgain = logRow('old-3', 'Conflicto', 2, now);
+        Log_Senial__c newConflictedLater = logRow('new-1', 'Procesada', 1, now);
+        Log_Senial__c newConflicto = logRow('new-2', 'Conflicto', 1, now);
+        insert new List<Log_Senial__c>{ oldConflictedNow, oldConflictedBefore, oldConflictoAgain, newConflictedLater, newConflicto };
+        for (Log_Senial__c old : new List<Log_Senial__c>{ oldConflictedNow, oldConflictedBefore, oldConflictoAgain }) {
+            Test.setCreatedDate(old.Id, since.addDays(-1));
+        }
+
+        // When the admin asks how this run is going
+        IngestaController.Estado state;
+        System.runAs(admin) {
+            state = IngestaController.estadoIngesta(since);
+        }
+
+        // Then each conflict of this run counts once under Conflicto (old-1, old-3, new-1 and new-2), the older one does not,
+        // and the total is the two rows registered by this run
+        Assert.areEqual(4, state.porResultado.get('Conflicto'), 'Every conflict of this run counts, and once');
+        Assert.areEqual(1, state.porResultado.get('Procesada'), 'Only the Procesada row registered by this run counts there');
+        Assert.areEqual(2, state.total, 'The total stays the rows registered by this run');
+    }
+
+    private static Log_Senial__c logRow(String messageId, String resultado, Integer conflictos, Datetime ultimoConflicto) {
+        return new Log_Senial__c(Identidad__c = 'src|' + messageId, Source__c = 'src', Message_Id__c = messageId,
+            Resultado__c = resultado, Conflictos__c = conflictos, Ultimo_Conflicto__c = ultimoConflicto);
+    }
+
+    @isTest
     static void shouldReportFailedLogsAndPublishes_AndThatTheCursorDidNotAdvance() {
         User admin = newUserWithPermissionSet('ncingfal', 'Nova_Casa_Admin');
         SesionSimulador.memoriaDePrueba = new Map<String, String>();

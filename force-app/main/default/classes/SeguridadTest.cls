@@ -54,6 +54,48 @@ private class SeguridadTest {
         Assert.areEqual('A-', accionReintento.get(ADMIN), 'Solo Admin lee la formula Accion_Reintento__c');
     }
 
+    // D048: la persona Admin administra la telemetría, no el org. Si alguien vuelve a marcar "Manage Users" (o alguno de los
+    // permisos que Salesforce activa con él) en Nova_Casa_Admin, este test falla.
+    @IsTest
+    static void elConjuntoAdminNoAdministraUsuariosRolesNiSeguridadDelOrg() {
+        PermissionSet admin = [
+            SELECT PermissionsManageUsers, PermissionsManageInternalUsers, PermissionsAssignPermissionSets,
+                PermissionsManageProfilesPermissionsets, PermissionsManageRoles, PermissionsManageSharing,
+                PermissionsResetPasswords, PermissionsFreezeUsers, PermissionsManagePasswordPolicies,
+                PermissionsManageIpAddresses, PermissionsManageLoginAccessPolicies, PermissionsViewSetup
+            FROM PermissionSet WHERE Name = :ADMIN
+        ];
+        Map<String, Object> permisos = admin.getPopulatedFieldsAsMap();
+        for (String permiso : permisos.keySet()) {
+            if (permiso.startsWith('Permissions')) {
+                Assert.areEqual(false, permisos.get(permiso), ADMIN + ' no debe tener ' + permiso + ' (D048, D040)');
+            }
+        }
+    }
+
+    // D047: la evidencia de conflictos la lee el Admin y nadie más; nadie de pantalla la edita.
+    @IsTest
+    static void soloAdminLeeLaEvidenciaDeConflictosYNadieLaEdita() {
+        List<String> campos = new List<String>{ 'Conflictos__c', 'Ultimo_Conflicto__c', 'Ultimo_Conflicto_Detalle__c' };
+        Map<String, Map<String, String>> accesoPorConjunto = new Map<String, Map<String, String>>();
+        for (String conjunto : new List<String>{ OPERADOR, COORDINADOR, GERENTE, ADMIN }) {
+            Map<String, String> porCampo = new Map<String, String>();
+            System.runAs(usuario(conjunto)) {
+                for (String campo : campos) {
+                    porCampo.put(campo, accesoACampo('Log_Senial__c', campo));
+                }
+            }
+            accesoPorConjunto.put(conjunto, porCampo);
+        }
+
+        for (String campo : campos) {
+            for (String conjunto : new List<String>{ OPERADOR, COORDINADOR, GERENTE }) {
+                Assert.areEqual('--', accesoPorConjunto.get(conjunto).get(campo), conjunto + ' no debe leer ' + campo);
+            }
+            Assert.areEqual('A-', accesoPorConjunto.get(ADMIN).get(campo), 'Admin lee ' + campo + ' sin editarlo');
+        }
+    }
+
     @IsTest
     static void ningunConjuntoDeUsuarioPermiteEditarElLogNiLoMuestraAlGerente() {
         // Misma regla a nivel de metadata (ObjectPermissions / FieldPermissions), sin depender del describe.
