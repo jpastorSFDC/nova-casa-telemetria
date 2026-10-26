@@ -300,6 +300,25 @@ export default class NovaCasaEdificioResumen extends NavigationMixin(LightningEl
         return this.resumen ? this.resumen.activosSinNivel : 0;
     }
 
+    // Only when there is something to report; the bar still counts these assets in gray.
+    get hasSinLectura() {
+        return this.sinLectura > 0;
+    }
+    get hasSinNivel() {
+        return this.sinNivel > 0;
+    }
+    get showCalidad() {
+        return this.hasSinLectura || this.hasSinNivel;
+    }
+    get sinLecturaText() {
+        const n = this.sinLectura;
+        return n === 1 ? '1 activo sin lecturas: nunca ha enviado señales' : `${n} activos sin lecturas: nunca han enviado señales`;
+    }
+    get sinNivelText() {
+        const n = this.sinNivel;
+        return n === 1 ? '1 activo con señal pero sin nivel de severidad' : `${n} activos con señal pero sin nivel de severidad`;
+    }
+
     // ---- cards: what needs attention and the last signal (current readings only, never a late one) ----
 
     get assetsList() {

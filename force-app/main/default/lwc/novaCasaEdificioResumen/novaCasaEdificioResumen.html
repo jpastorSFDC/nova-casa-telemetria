@@ -184,11 +184,17 @@
                         <p class="mas" role="status"><span aria-hidden="true">&#9650;</span> Vista parcial: el edificio tiene más activos de los revisados; puede haber más que necesiten atención o con intervención.</p>
                     </template>
                 </template>
-                <div class="calidad">
-                    <span class="rot">Calidad de datos</span>
-                    <span><b>{sinLectura}</b> sin lecturas</span>
-                    <span><b>{sinNivel}</b> con señal sin nivel</span>
-                </div>
+                <template if:true={showCalidad}>
+                    <div class="calidad" role="status">
+                        <span class="rot">Calidad de datos</span>
+                        <template if:true={hasSinLectura}>
+                            <span>{sinLecturaText}</span>
+                        </template>
+                        <template if:true={hasSinNivel}>
+                            <span>{sinNivelText}</span>
+                        </template>
+                    </div>
+                </template>
             </template>
         </div>
     </lightning-card>
