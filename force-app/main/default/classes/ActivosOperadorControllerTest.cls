@@ -3121,8 +3121,12 @@ private class ActivosOperadorControllerTest {
     }
 
     // Closing is what makes the platform stamp Case.ClosedDate (with the time of that DML statement).
+    // Changing a Case's status needs a comment on the Case (D046): one is appended and the existing text is kept.
     private static void closeCase(Case c) {
-        update new Case(Id = c.Id, Status = 'Closed');
+        Case current = [SELECT Description FROM Case WHERE Id = :c.Id];
+        current.Status = 'Closed';
+        current.Description = (String.isBlank(current.Description) ? '' : current.Description + '\n') + 'Cierre de prueba';
+        update current;
     }
 
     // Apex has no sleep: spin until the clock has moved on, so two closings get different ClosedDate values.

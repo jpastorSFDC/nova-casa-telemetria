@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PathAssistant xmlns="http://soap.sforce.com/2006/04/metadata">
+    <active>true</active>
+    <entityName>Case</entityName>
+    <fieldName>Status</fieldName>
+    <masterLabel>Cases Path</masterLabel>
+    <pathAssistantSteps>
+        <info>&lt;p&gt;&lt;b&gt;New (nueva).&lt;/b&gt; La intervención está registrada y todavía no se marcó como en atención.&lt;/p&gt;&lt;p&gt;Para cambiarlo, ve a la pestaña &lt;b&gt;Detalles&lt;/b&gt;, pulsa el lápiz junto a &lt;b&gt;Estado&lt;/b&gt; y escribe un comentario en la descripción: es obligatorio. Si no ves el lápiz, el cambio lo hace coordinación.&lt;/p&gt;</info>
+        <picklistValueName>New</picklistValueName>
+    </pathAssistantSteps>
+    <pathAssistantSteps>
+        <info>&lt;p&gt;&lt;b&gt;En curso.&lt;/b&gt; Se está atendiendo. Con este estado abren las intervenciones que crea la telemetría y las que crea el operador desde el panel del activo.&lt;/p&gt;&lt;p&gt;Para cambiarlo, ve a la pestaña &lt;b&gt;Detalles&lt;/b&gt;, pulsa el lápiz junto a &lt;b&gt;Estado&lt;/b&gt; y escribe un comentario en la descripción: es obligatorio. Si no ves el lápiz, el cambio lo hace coordinación.&lt;/p&gt;</info>
+        <picklistValueName>En curso</picklistValueName>
+    </pathAssistantSteps>
+    <pathAssistantSteps>
+        <info>&lt;p&gt;&lt;b&gt;On Hold (en espera).&lt;/b&gt; La atención está en pausa; la intervención sigue abierta.&lt;/p&gt;&lt;p&gt;Para cambiarlo, ve a la pestaña &lt;b&gt;Detalles&lt;/b&gt;, pulsa el lápiz junto a &lt;b&gt;Estado&lt;/b&gt; y escribe un comentario en la descripción: es obligatorio. Si no ves el lápiz, el cambio lo hace coordinación.&lt;/p&gt;</info>
+        <picklistValueName>On Hold</picklistValueName>
+    </pathAssistantSteps>
+    <pathAssistantSteps>
+        <info>&lt;p&gt;&lt;b&gt;Escalated (escalada).&lt;/b&gt; Se pasó a un nivel superior de atención; la intervención sigue abierta.&lt;/p&gt;&lt;p&gt;Para cambiarlo, ve a la pestaña &lt;b&gt;Detalles&lt;/b&gt;, pulsa el lápiz junto a &lt;b&gt;Estado&lt;/b&gt; y escribe un comentario en la descripción: es obligatorio. Si no ves el lápiz, el cambio lo hace coordinación.&lt;/p&gt;</info>
+        <picklistValueName>Escalated</picklistValueName>
+    </pathAssistantSteps>
+    <pathAssistantSteps>
+        <info>&lt;p&gt;&lt;b&gt;Closed (cerrada).&lt;/b&gt; La intervención terminó. Si llega una señal crítica nueva del activo, la telemetría abre otra intervención. Una cerrada no se reabre desde el panel del activo.&lt;/p&gt;&lt;p&gt;Para cambiarlo, ve a la pestaña &lt;b&gt;Detalles&lt;/b&gt;, pulsa el lápiz junto a &lt;b&gt;Estado&lt;/b&gt; y escribe un comentario en la descripción: es obligatorio. Si no ves el lápiz, el cambio lo hace coordinación.&lt;/p&gt;</info>
+        <picklistValueName>Closed</picklistValueName>
+    </pathAssistantSteps>
+    <recordTypeName>__MASTER__</recordTypeName>
+</PathAssistant>

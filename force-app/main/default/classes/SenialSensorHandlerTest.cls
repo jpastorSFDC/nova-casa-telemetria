@@ -1329,7 +1329,7 @@ private class SenialSensorHandlerTest {
     static void niUnReenvioNiUnConflictoNiUnaAtrasadaSuperadaORechazadaCambianElCase() {
         new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_a', SALA, 'TEMPERATURE', '36', 'CELSIUS', POSTERIOR) });
         Id cerradoId = casoAbiertoUnico(SALA).Id;
-        update new Case(Id = cerradoId, Status = 'Closed');
+        closeCaseWithComment(cerradoId);
         new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_p', SALA, 'WATER_PRESSURE', '7', 'BAR', ANTERIOR) });
         new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_q', SALA, 'WATER_PRESSURE', '8', 'BAR', INTERMEDIO) });
         Case abierto = casoAbiertoUnico(SALA);
@@ -1369,7 +1369,7 @@ private class SenialSensorHandlerTest {
     static void unaCriticaAtrasadaTrasCerrarElCaseNoAbreOtro() {
         new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_abre', SALA, 'TEMPERATURE', '36', 'CELSIUS', MAS_RECIENTE) });
         Id cerradoId = casoAbiertoUnico(SALA).Id;
-        update new Case(Id = cerradoId, Status = 'Closed');
+        closeCaseWithComment(cerradoId);
 
         Test.startTest();
         new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_tarde', SALA, 'TEMPERATURE', '38', 'CELSIUS', ANTERIOR) });
@@ -1388,7 +1388,7 @@ private class SenialSensorHandlerTest {
     static void unaCriticaNuevaTrasCerrarElCaseAbreOtroYLoEnlaza() {
         new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_primera', SALA, 'TEMPERATURE', '36', 'CELSIUS', ANTERIOR) });
         Id cerradoId = casoAbiertoUnico(SALA).Id;
-        update new Case(Id = cerradoId, Status = 'Closed');
+        closeCaseWithComment(cerradoId);
 
         Test.startTest();
         new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_segunda', SALA, 'TEMPERATURE', '38', 'CELSIUS', MAS_RECIENTE) });
@@ -1822,5 +1822,13 @@ private class SenialSensorHandlerTest {
         SenialSensorHandler.Clasificacion clasificacion = SenialSensorHandler.clasificacionPorMessageId.get(messageId);
         Assert.areEqual(estadoEsperado, clasificacion.estado, messageId + ': ' + clasificacion.motivo);
         Assert.areEqual(nivelEsperado, clasificacion.nivel, messageId + ' debe tener nivel ' + nivelEsperado);
+    }
+
+    // Changing a Case's status needs a comment on the Case (D046): append one and keep what is already there.
+    private static void closeCaseWithComment(Id caseId) {
+        Case current = [SELECT Description FROM Case WHERE Id = :caseId];
+        current.Status = 'Closed';
+        current.Description = (String.isBlank(current.Description) ? '' : current.Description + '\n') + 'Cierre de prueba';
+        update current;
     }
 }
