@@ -16,6 +16,7 @@ public with sharing class IngestaController {
         'DUPLICATES', 'CONFLICT', 'INVALID_DATA', 'CAMERA_OUTAGE'
     };
     @TestVisible private static final Integer MAX_PAGES = 25;
+    private static final String CONFLICTO = 'Conflicto';
 
     @TestVisible private static final String NO_PERMISSION = 'No tienes permiso para traer señales.';
     @TestVisible private static final String INVALID_SCENARIO = 'El escenario no es válido.';
@@ -130,6 +131,16 @@ public with sharing class IngestaController {
                 byResult.put(key == null ? 'Sin resultado' : key, (Integer) ar.get('n'));
             }
             Estado estado = new Estado(TelemetriaIngesta.hayIngestaEnCurso(), byResult);
+            // A conflict on a row from an earlier run keeps that row's result (D047): it counts under Conflicto, not in the
+            // total, which stays the rows registered by this run.
+            Integer conflictosEnExistentes = [
+                SELECT COUNT() FROM Log_Senial__c
+                WHERE CreatedDate < :since AND Ultimo_Conflicto__c >= :since WITH USER_MODE
+            ];
+            if (conflictosEnExistentes > 0) {
+                Integer nuevos = byResult.containsKey(CONFLICTO) ? byResult.get(CONFLICTO) : 0;
+                estado.porResultado.put(CONFLICTO, nuevos + conflictosEnExistentes);
+            }
             estado.detalle = detalleDesde(since);
             return estado;
         } catch (Exception e) {
