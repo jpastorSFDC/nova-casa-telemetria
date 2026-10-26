@@ -297,7 +297,7 @@ private class IntervencionServiceTest {
         IntervencionService.Resultado first = IntervencionService.abrir(
             new List<IntervencionService.Solicitud>{ solicitud(identity, a, 'WATER_PRESSURE', 'original cause') });
         Id caseId = first.casoPorIdentidad.get(identity);
-        update new Case(Id = caseId, Status = 'Closed');
+        closeCaseWithComment(caseId);
 
         Test.startTest();
         IntervencionService.Resultado second = IntervencionService.abrir(
@@ -458,7 +458,7 @@ private class IntervencionServiceTest {
     static void shouldOpenANewCaseAndLeaveTheClosedOneUntouched_WhenTheOpenCaseWasClosed() {
         Asset a = asset('AST-INT-001');
         Id closedId = openOne(critica('SIM|msg-1', a, 'TEMPERATURE', T0, 40, 'CELSIUS')).casoPorIdentidad.get('SIM|msg-1');
-        update new Case(Id = closedId, Status = 'Closed');
+        closeCaseWithComment(closedId);
 
         Test.startTest();
         IntervencionService.Resultado r = openOne(critica('SIM|msg-2', a, 'WATER_PRESSURE', T0.addMinutes(5), 7.5, 'BAR'));
@@ -809,5 +809,13 @@ private class IntervencionServiceTest {
         Case c = caseById(caseId);
         Assert.areEqual('SIM|msg-restricted', c.Identidad_Senal__c);
         assertLatestCritical(c, 'SIM|msg-restricted-2', 'TEMPERATURE', 40, 'CELSIUS', T0.addMinutes(5), 'Refreshed as the restricted user');
+    }
+
+    // Changing a Case's status needs a comment on the Case (D046): append one and keep what is already there.
+    private static void closeCaseWithComment(Id caseId) {
+        Case current = [SELECT Description FROM Case WHERE Id = :caseId];
+        current.Status = 'Closed';
+        current.Description = (String.isBlank(current.Description) ? '' : current.Description + '\n') + 'Cierre de prueba';
+        update current;
     }
 }

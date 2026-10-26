@@ -269,83 +269,6 @@
     color: var(--nc-neutro-oscuro);
 }
 
-/* Path: one arrow per Case.Status value; real buttons when the user can follow up */
-.ruta {
-    display: flex;
-    margin: 0 16px 14px;
-    padding: 0;
-    list-style: none;
-    overflow-x: auto;
-}
-.ruta-item {
-    flex: 1 1 0;
-    min-width: 96px;
-    margin-right: -6px;
-}
-.ruta-item:last-child {
-    margin-right: 0;
-}
-.paso {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 32px;
-    padding: 0 16px;
-    border: 0;
-    background: var(--nc-nivel-fondo);
-    color: var(--nc-tinta-media);
-    font: inherit;
-    font-size: 12.5px;
-    font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%, 12px 50%);
-}
-.paso-primero {
-    border-radius: 16px 0 0 16px;
-    clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%);
-}
-.paso-ultimo {
-    border-radius: 0 16px 16px 0;
-    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 12px 50%);
-}
-.paso-primero.paso-ultimo {
-    border-radius: 16px;
-    clip-path: none;
-}
-.paso.hecho {
-    background: #d9e9f8;
-    color: var(--nc-primario-oscuro);
-}
-.paso.actual {
-    background: var(--nc-primario-oscuro);
-    color: #fff;
-}
-button.paso {
-    cursor: pointer;
-}
-button.paso:hover:not(:disabled) {
-    background: var(--nc-hueco);
-    text-decoration: underline;
-}
-button.paso.hecho:hover:not(:disabled) {
-    background: #c7ddf3;
-}
-button.paso.actual:hover:not(:disabled) {
-    background: #013a73;
-}
-button.paso:disabled {
-    cursor: not-allowed;
-}
-/* The arrow clip would cut a normal outline: draw the focus ring inside the shape instead */
-button.paso:focus-visible {
-    outline: none;
-    box-shadow: inset 0 0 0 2px #fff, inset 0 0 0 4px var(--nc-primario-oscuro);
-    text-decoration: underline;
-}
-
 /* Strip: the 1px gap over the line color draws the separators, also when the cells wrap */
 .franja {
     display: flex;
@@ -387,11 +310,6 @@ button.paso:focus-visible {
 }
 
 /* Buttons and links */
-.acciones {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
 .boton {
     height: 36px;
     padding: 0 14px;
@@ -417,11 +335,6 @@ button.paso:focus-visible {
     cursor: not-allowed;
     opacity: 0.6;
 }
-.boton[aria-expanded="true"] {
-    background: var(--nc-primario-fondo);
-    border-color: var(--nc-primario);
-    color: var(--nc-primario-oscuro);
-}
 .boton.primario {
     background: var(--nc-primario);
     border-color: var(--nc-primario);
@@ -430,19 +343,6 @@ button.paso:focus-visible {
 .boton.primario:hover:not(:disabled) {
     background: var(--nc-primario-oscuro);
     border-color: var(--nc-primario-oscuro);
-}
-.boton-cerrar {
-    border-color: var(--nc-neutro-oscuro);
-    color: var(--nc-neutro-oscuro);
-}
-.boton-peligro {
-    background: var(--nc-neutro-oscuro);
-    border-color: var(--nc-neutro-oscuro);
-    color: #fff;
-}
-.boton-peligro:hover:not(:disabled) {
-    background: #1e293b;
-    border-color: #1e293b;
 }
 .enlace {
     font: inherit;
@@ -459,97 +359,6 @@ button.paso:focus-visible {
     text-decoration: underline;
 }
 
-/* Follow-up form */
-.form {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 12px;
-    border: 1px solid var(--nc-primario-borde);
-    border-radius: var(--nc-radio);
-    background: #fbfdff;
-}
-.grupo {
-    margin: 0;
-    padding: 0;
-    border: 0;
-    min-width: 0;
-}
-.rot-campo {
-    display: block;
-    margin: 0 0 4px;
-    padding: 0;
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--nc-neutro-oscuro);
-}
-.segmento {
-    display: inline-flex;
-    flex-wrap: wrap;
-    max-width: 100%;
-    border: 1px solid var(--nc-linea);
-    border-radius: 6px;
-    overflow: hidden;
-}
-.seg {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    min-height: 32px;
-    padding: 0 12px;
-    border-right: 1px solid var(--nc-linea);
-    background: var(--nc-papel);
-    font-size: 13px;
-    cursor: pointer;
-}
-.seg:last-child {
-    border-right: 0;
-}
-.seg-sel {
-    background: var(--nc-primario);
-    color: #fff;
-    font-weight: 700;
-}
-/* The radio stays focusable; its label shows the focus ring */
-.radio-oculto {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    margin: 0;
-    opacity: 0;
-}
-.seg:focus-within {
-    box-shadow: inset 0 0 0 2px var(--nc-primario-oscuro);
-}
-.seg-sel:focus-within {
-    box-shadow: inset 0 0 0 2px #fff, inset 0 0 0 4px var(--nc-primario-oscuro);
-}
-.campo {
-    min-width: 0;
-    max-width: 100%;
-    border: 1px solid var(--nc-linea);
-    border-radius: 6px;
-    background: var(--nc-papel);
-    color: var(--nc-tinta);
-    font: inherit;
-    font-size: 13.5px;
-}
-.campo:disabled {
-    cursor: not-allowed;
-    opacity: 0.6;
-}
-.campo-texto {
-    display: block;
-    width: 100%;
-    min-height: 64px;
-    padding: 8px 10px;
-    resize: vertical;
-}
-.ayuda {
-    margin: 0;
-    font-size: 12px;
-    color: var(--nc-tinta-media);
-}
 .nota {
     margin: 0;
     font-size: 13px;
@@ -586,42 +395,6 @@ button.paso:focus-visible {
 .aviso-info {
     background: var(--nc-nivel-fondo);
     color: var(--nc-neutro-oscuro);
-}
-.cita {
-    font-style: italic;
-}
-.cita-meta {
-    color: var(--nc-tinta-media);
-}
-
-/* Close confirmation, inline */
-.dialogo {
-    border: 1px solid var(--nc-linea);
-    border-radius: var(--nc-radio);
-    background: var(--nc-papel);
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
-}
-.dialogo-titulo {
-    margin: 0;
-    padding: 12px 14px;
-    border-bottom: 1px solid var(--nc-linea-suave);
-    font-size: 15px;
-    font-weight: 700;
-}
-.dialogo-cuerpo {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 12px 14px;
-}
-.dialogo-botones {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 8px;
-    padding: 10px 14px;
-    border-top: 1px solid var(--nc-linea-suave);
-    background: var(--nc-superficie);
 }
 
 /* Signals table */

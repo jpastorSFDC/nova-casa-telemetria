@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Comentario_Obligatorio_Cambio_Estado</fullName>
+    <active>true</active>
+    <description>D046. Cambiar el estado exige un comentario: la Descripción debe cambiar en la misma edición, en Detalles o en cualquier otra vía. No se evalúa al crear.</description>
+    <errorConditionFormula>AND(ISCHANGED(Status), NOT(ISCHANGED(Description)))</errorConditionFormula>
+    <errorDisplayField>Description</errorDisplayField>
+    <errorMessage>Para cambiar el estado, agrega un comentario en la descripción.</errorMessage>
+</ValidationRule>

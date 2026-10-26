@@ -3,7 +3,7 @@
     <apiVersion>67.0</apiVersion>
     <isExposed>true</isExposed>
     <masterLabel>Nova Casa - Intervención</masterLabel>
-    <description>Intervention (Case) record page: asset state, status path, follow-up and close actions, and the signals linked to the Case (HP-07).</description>
+    <description>Intervention (Case) record page, read-only: asset state, key figures and the signals linked to the Case. The status path is the standard Path component (D044); the status is changed in the Details tab (D046).</description>
     <targets>
         <target>lightning__RecordPage</target>
     </targets>
