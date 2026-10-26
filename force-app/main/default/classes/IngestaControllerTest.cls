@@ -188,21 +188,23 @@ private class IngestaControllerTest {
     }
 
     @isTest
-    static void shouldCountAConflictOnARowOfAnEarlierRunUnderConflictoWithoutAddingItToTheTotal() {
-        // Given two rows from an earlier run: one got a conflicting delivery during this run (D047: it keeps Procesada),
-        // the other's last conflict is older than the run; and one row registered by this run
+    static void shouldCountConflictsOnProcessedRowsUnderConflictoOnceAndWithoutAddingThemToTheTotal() {
+        // Given, from an earlier run: a row that got a conflicting delivery during this run (D047: it keeps Procesada), one
+        // whose last conflict is older than the run, and an old Conflicto row that got another conflict now. From this run:
+        // a Procesada row that later got a conflict in this same run, and a row registered as Conflicto (same batch)
         User admin = newUserWithPermissionSet('ncingcon', 'Nova_Casa_Admin');
         SesionSimulador.memoriaDePrueba = new Map<String, String>();
         Datetime since = Datetime.now().addMinutes(-5);
-        Log_Senial__c conflictedNow = new Log_Senial__c(Identidad__c = 'src|old-1', Source__c = 'src', Message_Id__c = 'old-1',
-            Resultado__c = 'Procesada', Conflictos__c = 1, Ultimo_Conflicto__c = Datetime.now());
-        Log_Senial__c conflictedBefore = new Log_Senial__c(Identidad__c = 'src|old-2', Source__c = 'src', Message_Id__c = 'old-2',
-            Resultado__c = 'Procesada', Conflictos__c = 1, Ultimo_Conflicto__c = since.addHours(-1));
-        Log_Senial__c newRow = new Log_Senial__c(Identidad__c = 'src|new-1', Source__c = 'src', Message_Id__c = 'new-1',
-            Resultado__c = 'Procesada');
-        insert new List<Log_Senial__c>{ conflictedNow, conflictedBefore, newRow };
-        Test.setCreatedDate(conflictedNow.Id, since.addDays(-1));
-        Test.setCreatedDate(conflictedBefore.Id, since.addDays(-1));
+        Datetime now = Datetime.now();
+        Log_Senial__c oldConflictedNow = logRow('old-1', 'Procesada', 1, now);
+        Log_Senial__c oldConflictedBefore = logRow('old-2', 'Procesada', 1, since.addHours(-1));
+        Log_Senial__c oldConflictoAgain = logRow('old-3', 'Conflicto', 2, now);
+        Log_Senial__c newConflictedLater = logRow('new-1', 'Procesada', 1, now);
+        Log_Senial__c newConflicto = logRow('new-2', 'Conflicto', 1, now);
+        insert new List<Log_Senial__c>{ oldConflictedNow, oldConflictedBefore, oldConflictoAgain, newConflictedLater, newConflicto };
+        for (Log_Senial__c old : new List<Log_Senial__c>{ oldConflictedNow, oldConflictedBefore, oldConflictoAgain }) {
+            Test.setCreatedDate(old.Id, since.addDays(-1));
+        }
 
         // When the admin asks how this run is going
         IngestaController.Estado state;
@@ -210,10 +212,16 @@ private class IngestaControllerTest {
             state = IngestaController.estadoIngesta(since);
         }
 
-        // Then the conflict of this run counts under Conflicto, the older one does not, and the total is the new row only
-        Assert.areEqual(1, state.porResultado.get('Conflicto'), 'A conflict on a row of an earlier run counts in this run');
-        Assert.areEqual(1, state.porResultado.get('Procesada'), 'Only the row registered by this run counts as Procesada');
-        Assert.areEqual(1, state.total, 'The total stays the rows registered by this run');
+        // Then each conflict of this run counts once under Conflicto (old-1, old-3, new-1 and new-2), the older one does not,
+        // and the total is the two rows registered by this run
+        Assert.areEqual(4, state.porResultado.get('Conflicto'), 'Every conflict of this run counts, and once');
+        Assert.areEqual(1, state.porResultado.get('Procesada'), 'Only the Procesada row registered by this run counts there');
+        Assert.areEqual(2, state.total, 'The total stays the rows registered by this run');
+    }
+
+    private static Log_Senial__c logRow(String messageId, String resultado, Integer conflictos, Datetime ultimoConflicto) {
+        return new Log_Senial__c(Identidad__c = 'src|' + messageId, Source__c = 'src', Message_Id__c = messageId,
+            Resultado__c = resultado, Conflictos__c = conflictos, Ultimo_Conflicto__c = ultimoConflicto);
     }
 
     @isTest

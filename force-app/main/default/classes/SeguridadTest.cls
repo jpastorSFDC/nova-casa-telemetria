@@ -54,6 +54,29 @@ private class SeguridadTest {
         Assert.areEqual('A-', accionReintento.get(ADMIN), 'Solo Admin lee la formula Accion_Reintento__c');
     }
 
+    // D047: la evidencia de conflictos la lee el Admin y nadie más; nadie de pantalla la edita.
+    @IsTest
+    static void soloAdminLeeLaEvidenciaDeConflictosYNadieLaEdita() {
+        List<String> campos = new List<String>{ 'Conflictos__c', 'Ultimo_Conflicto__c', 'Ultimo_Conflicto_Detalle__c' };
+        Map<String, Map<String, String>> accesoPorConjunto = new Map<String, Map<String, String>>();
+        for (String conjunto : new List<String>{ OPERADOR, COORDINADOR, GERENTE, ADMIN }) {
+            Map<String, String> porCampo = new Map<String, String>();
+            System.runAs(usuario(conjunto)) {
+                for (String campo : campos) {
+                    porCampo.put(campo, accesoACampo('Log_Senial__c', campo));
+                }
+            }
+            accesoPorConjunto.put(conjunto, porCampo);
+        }
+
+        for (String campo : campos) {
+            for (String conjunto : new List<String>{ OPERADOR, COORDINADOR, GERENTE }) {
+                Assert.areEqual('--', accesoPorConjunto.get(conjunto).get(campo), conjunto + ' no debe leer ' + campo);
+            }
+            Assert.areEqual('A-', accesoPorConjunto.get(ADMIN).get(campo), 'Admin lee ' + campo + ' sin editarlo');
+        }
+    }
+
     @IsTest
     static void ningunConjuntoDeUsuarioPermiteEditarElLogNiLoMuestraAlGerente() {
         // Misma regla a nivel de metadata (ObjectPermissions / FieldPermissions), sin depender del describe.

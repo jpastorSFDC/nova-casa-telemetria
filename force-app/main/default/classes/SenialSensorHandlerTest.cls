@@ -279,7 +279,8 @@ private class SenialSensorHandlerTest {
         new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_nueva_c', SALA, 'TEMPERATURE', '24', 'CELSIUS', POSTERIOR) });
         new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_vieja_c', SALA, 'TEMPERATURE', '23', 'CELSIUS', ANTERIOR) });
         Log_Senial__c atrasada = filaLog(identidad('msg_vieja_c'));
-        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_vieja_c', SALA, 'TEMPERATURE', '38', 'CELSIUS', MAS_RECIENTE) });
+        // Más nueva que la lectura vigente (POSTERIOR): si se procesara como señal nueva, ganaría la lectura y abriría Case.
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ medicion('msg_vieja_c', SALA, 'TEMPERATURE', '38', 'CELSIUS', '2026-09-30T17:00:00.000Z') });
         Test.stopTest();
 
         Log_Senial__c log = filaLog(identidad('msg_vieja_c'));
@@ -483,6 +484,9 @@ private class SenialSensorHandlerTest {
 
         Log_Senial__c conflicto = filaLog(identidad('msg_dup'));
         Assert.areEqual('Conflicto', conflicto.Resultado__c, 'La identidad queda en conflicto');
+        Assert.areEqual(1, conflicto.Conflictos__c.intValue(), 'El conflicto del mismo lote también se cuenta (D047)');
+        Assert.isTrue(conflicto.Ultimo_Conflicto_Detalle__c.contains('TEMPERATURE 25 CELSIUS'),
+            'Y guarda lo que trajo la otra entrega: ' + conflicto.Ultimo_Conflicto_Detalle__c);
         Assert.isNull(conflicto.Caso__c, 'El original en conflicto no abre Case');
         Assert.areEqual(0, [SELECT COUNT() FROM Case], 'Ningún Case');
         Lectura_Vigente__c lectura = lectura(SALA + '|TEMPERATURE');

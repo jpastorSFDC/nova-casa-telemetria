@@ -2,7 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Ultimo_Conflicto_Detalle__c</fullName>
     <label>Detalle del último conflicto</label>
-    <description>What the last conflicting delivery carried (measurement, value, unit, origin time, delivery id), so the Admin can compare it with the original (D047).</description>
+    <description>What the last conflicting delivery carried (measurement, value, unit, origin time, asset and building external ids, delivery id and a prefix of its content hash), so the Admin can compare it with the original (D047). Only the last conflict is kept.</description>
     <type>Text</type>
     <length>255</length>
 </CustomField>

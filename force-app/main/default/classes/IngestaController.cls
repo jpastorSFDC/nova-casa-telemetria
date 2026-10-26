@@ -131,11 +131,13 @@ public with sharing class IngestaController {
                 byResult.put(key == null ? 'Sin resultado' : key, (Integer) ar.get('n'));
             }
             Estado estado = new Estado(TelemetriaIngesta.hayIngestaEnCurso(), byResult);
-            // A conflict on a row from an earlier run keeps that row's result (D047): it counts under Conflicto, not in the
-            // total, which stays the rows registered by this run.
+            // A conflict on an already processed row keeps that row's result (D047): it counts under Conflicto but not in the
+            // total, which stays the rows registered by this run, so the tiles can add up to more than the total. Rows this
+            // run registered as Conflicto are already in the tile.
             Integer conflictosEnExistentes = [
                 SELECT COUNT() FROM Log_Senial__c
-                WHERE CreatedDate < :since AND Ultimo_Conflicto__c >= :since WITH USER_MODE
+                WHERE Ultimo_Conflicto__c >= :since AND (Resultado__c != :CONFLICTO OR CreatedDate < :since)
+                WITH USER_MODE
             ];
             if (conflictosEnExistentes > 0) {
                 Integer nuevos = byResult.containsKey(CONFLICTO) ? byResult.get(CONFLICTO) : 0;

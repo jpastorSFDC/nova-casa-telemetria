@@ -320,8 +320,14 @@ public without sharing class SenialSensorHandler {
                         conflictivas.add(llave);
                     } else {
                         // El original no llegó a aplicarse (mismo lote, o fila Publicada/Fallida): la identidad queda en conflicto.
+                        // El conflicto se cuenta igual que en el caso anterior, para que la evidencia no dependa del corte de lotes.
+                        Decimal total = (conflictos.containsKey(llave) ? conflictos.get(llave) : 0) + 1;
+                        conflictos.put(llave, total);
+                        fila.Conflictos__c = total;
+                        fila.Ultimo_Conflicto__c = ahora;
+                        fila.Ultimo_Conflicto_Detalle__c = limpiar(detalleConflicto(c));
                         fila.Resultado__c = CONFLICTO;
-                        fila.Motivo__c = 'Misma identidad con contenido distinto (huella) al ya procesado';
+                        fila.Motivo__c = 'Misma identidad con contenido distinto (huella) antes de aplicar el original';
                         fila.Procesado_At__c = ahora;
                         c.resultado = CONFLICTO;
                         // El original del mismo lote tampoco puede ganar ni abrir Case: la identidad queda en conflicto.
@@ -589,8 +595,9 @@ public without sharing class SenialSensorHandler {
     private static String detalleConflicto(Clasificacion c) {
         String valor = c.valor == null ? 'sin valor' : c.valor.stripTrailingZeros().toPlainString();
         String origen = c.occurredAt == null ? 'sin hora' : c.occurredAt.formatGmt('yyyy-MM-dd\'T\'HH:mm:ss\'Z\'');
+        String huella = String.isBlank(c.huella) ? 'sin huella' : c.huella.left(12);
         return c.medicion + ' ' + valor + ' ' + c.unidad + ', origen ' + origen + ', activo ' + c.assetExterno
-            + ', edificio ' + c.edificioExterno + ', entrega ' + c.deliveryId;
+            + ', edificio ' + c.edificioExterno + ', entrega ' + c.deliveryId + ', huella ' + huella;
     }
 
     private static Log_Senial__c filaPara(String identidad, String llave, Map<String, Log_Senial__c> filaPorIdentidad, List<Log_Senial__c> filas) {
@@ -621,7 +628,8 @@ public without sharing class SenialSensorHandler {
                 : 'Más antigua que ' + referencia + ' (' + contexto + ')';
             registrar(c, fila, ATRASADA, motivo);
         } else {
-            registrar(c, fila, SUPERADA, 'Pierde el desempate D003 (severidad, luego messageId) contra ' + referencia + ' (' + contexto + ') con el mismo occurredAt');
+            String contra = contexto == CONTEXTO_LOTE ? 'otra lectura de la misma colección (' + referencia + ')' : referencia + ' (' + contexto + ')';
+            registrar(c, fila, SUPERADA, 'Pierde el desempate D003 (severidad, luego messageId) contra ' + contra + ' con el mismo occurredAt');
         }
     }
 
