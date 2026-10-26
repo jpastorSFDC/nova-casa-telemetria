@@ -1,12 +1,21 @@
 import { LightningElement, api, wire } from 'lwc';
 import { NavigationMixin } from 'lightning/navigation';
 import { refreshApex } from '@salesforce/apex';
-import { getRecord, getFieldValue, getFieldDisplayValue } from 'lightning/uiRecordApi';
+import { getRecord, getFieldValue, getFieldDisplayValue, notifyRecordUpdateAvailable } from 'lightning/uiRecordApi';
+import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import TIPO_ACTIVO_FIELD from '@salesforce/schema/Asset.Tipo_Activo__c';
+import ASSET_NAME_FIELD from '@salesforce/schema/Asset.Name';
+import BUILDING_NAME_FIELD from '@salesforce/schema/Asset.Account.Name';
 import getEstadoActivo from '@salesforce/apex/ActivosOperadorController.getEstadoActivo';
-import { MEASUREMENT_LABELS, severityUi, reduceError, relativeAge } from 'c/novaCasaEtiquetas';
+import getCapacidades from '@salesforce/apex/ActivosOperadorController.getCapacidades';
+import getAperturasDeIntervencion from '@salesforce/apex/ActivosOperadorController.getAperturasDeIntervencion';
+import NovaCasaCrearIntervencion from 'c/novaCasaCrearIntervencion';
+import { MEASUREMENT_LABELS, severityUi, reduceError, relativeAge, openingText } from 'c/novaCasaEtiquetas';
 
 const NUMBER_FORMAT = new Intl.NumberFormat('es', { maximumFractionDigits: 3 });
+// IntervencionOperadorController.priorityFor: the priority the server sets from the current level.
+const PRIORITY_BY_LEVEL = { 2: 'Crítica', 1: 'Alta' };
+const PRIORITY_DEFAULT = 'Media';
 // Same wording as the operator screen for an asset without readings; c/novaCasaEtiquetas only has "Sin dato".
 const SEVERITY_NO_READING_UI = { key: 'nivel', label: 'Sin lecturas', glyph: '?' };
 
@@ -20,7 +29,8 @@ function isSameLocalDay(ms, nowMs) {
     return new Date(ms).toDateString() === new Date(nowMs).toDateString();
 }
 
-// Read-only state of an asset (Asset record page). Everything comes from the server with the user's own access.
+// State of an asset (Asset record page). Everything comes from the server with the user's own access; the only action is
+// opening a manual intervention, which the server re-checks (permission, readings, no open intervention).
 export default class NovaCasaActivoEstado extends NavigationMixin(LightningElement) {
     @api recordId;
 
@@ -28,10 +38,21 @@ export default class NovaCasaActivoEstado extends NavigationMixin(LightningEleme
     errorMessage;
     loaded = false;
     wiredResult;
+    // How the open intervention started (getAperturasDeIntervencion); null until it arrives or when it fails.
+    apertura = null;
+    caps = {};
 
-    // Only for the illustration and its label. Optional: without FLS on the field the card still loads, with the
-    // neutral illustration and no type text.
-    @wire(getRecord, { recordId: '$recordId', optionalFields: [TIPO_ACTIVO_FIELD] })
+    // Only drives which buttons are shown: crearIntervencion re-checks the permission on the server (BR-208).
+    @wire(getCapacidades)
+    wiredCaps({ data }) {
+        if (data) {
+            this.caps = data;
+        }
+    }
+
+    // For the illustration, its label and the names in the "Nueva intervención" form. Optional: without FLS on a field
+    // the card still loads, without that text.
+    @wire(getRecord, { recordId: '$recordId', optionalFields: [TIPO_ACTIVO_FIELD, ASSET_NAME_FIELD, BUILDING_NAME_FIELD] })
     assetRecord;
 
     @wire(getEstadoActivo, { assetId: '$recordId' })
@@ -42,16 +63,79 @@ export default class NovaCasaActivoEstado extends NavigationMixin(LightningEleme
             this.estado = data;
             this.errorMessage = undefined;
             this.loaded = true;
+            this.loadApertura();
         } else if (error) {
             this.estado = undefined;
             this.errorMessage = reduceError(error);
             this.loaded = true;
+            this.apertura = null;
+        }
+    }
+
+    async loadApertura() {
+        const intervention = this.estado ? this.estado.openIntervention : null;
+        this.apertura = null;
+        if (!intervention) {
+            return;
+        }
+        try {
+            const list = await getAperturasDeIntervencion({ caseIds: [intervention.caseId] });
+            this.apertura = list && list.length ? list[0] : null;
+        } catch (e) {
+            this.apertura = null;
         }
     }
 
     handleRefresh() {
         this.loaded = false;
         refreshApex(this.wiredResult);
+    }
+
+    // ---- manual intervention (same server method and rules as the operator screen, D020) ----
+
+    get canCreate() {
+        return Boolean(this.caps.puedeCrearIntervencion) && this.hasReadings && !this.hasIntervention;
+    }
+    // The reading behind the asset level (highest level; on a tie the most recent), for the form.
+    get headlineReadingText() {
+        const list = this.estado ? this.estado.readings || [] : [];
+        let best = null;
+        for (const r of list) {
+            const level = r.severityLevel === null || r.severityLevel === undefined ? -1 : r.severityLevel;
+            const bestLevel = best ? (best.severityLevel === null || best.severityLevel === undefined ? -1 : best.severityLevel) : -2;
+            if (!best || level > bestLevel || (level === bestLevel && new Date(r.occurredAt) > new Date(best.occurredAt))) {
+                best = r;
+            }
+        }
+        return best ? `${MEASUREMENT_LABELS[best.measurementType] || best.measurementType} · ${formatValue(best.value, best.unit)}` : '';
+    }
+
+    // Opens the form; on save, like a native New, it goes to the new record.
+    async handleStartCreate() {
+        const record = this.assetRecord && this.assetRecord.data;
+        const severity = this.assetSeverity;
+        const result = await NovaCasaCrearIntervencion.open({
+            size: 'small',
+            label: 'Nueva intervención',
+            assetId: this.recordId,
+            assetName: (record && getFieldValue(record, ASSET_NAME_FIELD)) || '',
+            buildingName: (record && getFieldValue(record, BUILDING_NAME_FIELD)) || '',
+            severityKey: severity.key,
+            severityLabel: severity.label,
+            severityGlyph: severity.glyph,
+            readingText: this.headlineReadingText,
+            priorityLabel: PRIORITY_BY_LEVEL[this.assetLevel] || PRIORITY_DEFAULT
+        });
+        if (!result || !result.caseId) {
+            return;
+        }
+        this.dispatchEvent(new ShowToastEvent({ title: 'Intervención creada', message: `Caso ${result.caseNumber}`, variant: 'success' }));
+        notifyRecordUpdateAvailable([{ recordId: this.recordId }]);
+        refreshApex(this.wiredResult);
+        this[NavigationMixin.Navigate]({
+            type: 'standard__recordPage',
+            attributes: { recordId: result.caseId, objectApiName: 'Case', actionName: 'view' }
+        });
     }
 
     handleCaseClick(event) {
@@ -178,5 +262,12 @@ export default class NovaCasaActivoEstado extends NavigationMixin(LightningEleme
     get moreInterventionsText() {
         const n = this.estado ? this.estado.openInterventionCount - 1 : 0;
         return `y ${n} intervención(es) abierta(s) más`;
+    }
+
+    // A late answer for a previous intervention is never shown under the current one.
+    get opening() {
+        const current = this.intervention;
+        const matches = Boolean(current && this.apertura && this.apertura.caseId === current.caseId);
+        return openingText(matches ? this.apertura : null);
     }
 }

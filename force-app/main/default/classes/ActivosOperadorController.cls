@@ -875,6 +875,146 @@ public with sharing class ActivosOperadorController {
         }
     }
 
+    @TestVisible private static final Integer MAX_APERTURAS = 50;
+
+    /** The signal that opened a telemetry intervention. Never its identity. */
+    public class SenalApertura {
+        @AuraEnabled public String measurementType { get; private set; }
+        @AuraEnabled public Decimal value { get; private set; }
+        @AuraEnabled public String unit { get; private set; }
+        @AuraEnabled public Datetime occurredAt { get; private set; }
+
+        SenalApertura(String measurementType, Decimal value, String unit, Datetime occurredAt) {
+            this.measurementType = measurementType;
+            this.value = value;
+            this.unit = unit;
+            this.occurredAt = occurredAt;
+        }
+    }
+
+    /** How an intervention started: opened by the telemetry (with its opening signal when known) or by hand. */
+    public class AperturaIntervencion {
+        @AuraEnabled public Id caseId { get; private set; }
+        @AuraEnabled public Boolean esTelemetria { get; private set; }
+        // Null for a manual intervention, for an asset the user cannot see, or when the opening signal is no longer stored.
+        @AuraEnabled public SenalApertura senal { get; private set; }
+
+        AperturaIntervencion(Case c, SenalApertura senal) {
+            this.caseId = c.Id;
+            this.esTelemetria = c.Origin == ORIGIN_TELEMETRY;
+            this.senal = senal;
+        }
+    }
+
+    // Same reasoning as CaseSignalReader: only for Cases and assets already proved visible WITH USER_MODE. In system mode on
+    // purpose: Ultima_Critica_Identidad__c (screen users have no FLS on it) and the log. Identities only match, never returned.
+    private without sharing class OpeningSignalReader {
+        Map<Id, SenalApertura> forCases(List<Case> cases) {
+            Map<Id, SenalApertura> byCase = new Map<Id, SenalApertura>();
+            Map<Id, String> latestIdentity = new Map<Id, String>();
+            for (Case c : [SELECT Id, Ultima_Critica_Identidad__c FROM Case WHERE Id IN :cases WITH SYSTEM_MODE]) {
+                latestIdentity.put(c.Id, c.Ultima_Critica_Identidad__c);
+            }
+            Map<String, Case> pending = new Map<String, Case>();
+            Set<Id> pendingAssets = new Set<Id>();
+            for (Case c : cases) {
+                // The latest critical recorded on the Case is the opener until a later critical refreshes it (D039). It is
+                // preferred because connectivity rows of the log carry no value.
+                if (c.Identidad_Senal__c.equalsIgnoreCase(latestIdentity.get(c.Id))) {
+                    byCase.put(c.Id, new SenalApertura(
+                        c.Ultima_Critica_Medicion__c, c.Ultima_Critica_Valor__c, c.Ultima_Critica_Unidad__c, c.Ultima_Critica_At__c));
+                } else {
+                    pending.put(c.Identidad_Senal__c.toLowerCase(), c);
+                    pendingAssets.add(c.AssetId);
+                }
+            }
+            if (pending.isEmpty()) {
+                return byCase;
+            }
+            // Scoped to the visible assets, and each row must belong to its own Case's asset (D024).
+            for (Log_Senial__c l : [
+                SELECT Identidad__c, Asset__c, Occurred_At__c, Measurement_Type__c, Value__c, Unit__c
+                FROM Log_Senial__c
+                WHERE Identidad__c IN :pending.keySet() AND Asset__c IN :pendingAssets
+                WITH SYSTEM_MODE
+            ]) {
+                Case c = pending.get(l.Identidad__c.toLowerCase());
+                if (c != null && c.AssetId == l.Asset__c) {
+                    byCase.put(c.Id, new SenalApertura(l.Measurement_Type__c, l.Value__c, l.Unit__c, l.Occurred_At__c));
+                }
+            }
+            return byCase;
+        }
+    }
+
+    /**
+     * How each given intervention started (HP-07), in the order received, for the Cases the running user can see.
+     * Cases are read WITH USER_MODE, opener identity and last critical included (without FLS on them the call fails with
+     * the access message): an unknown or hidden Id is skipped, never reported. Only telemetry Cases whose asset the user also
+     * sees (D024) get their opening signal, completed in system mode after those checks (OpeningSignalReader); only four
+     * non-technical values are returned.
+     * @param caseIds Case Ids; null or empty gives an empty list, more than MAX_APERTURAS is rejected
+     */
+    @AuraEnabled(cacheable=true)
+    public static List<AperturaIntervencion> getAperturasDeIntervencion(List<Id> caseIds) {
+        try {
+            List<AperturaIntervencion> result = new List<AperturaIntervencion>();
+            if (caseIds == null || caseIds.isEmpty()) {
+                return result;
+            }
+            if (caseIds.size() > MAX_APERTURAS) {
+                throw safeError(CASE_MESSAGE);
+            }
+            Set<Id> requested = new Set<Id>();
+            for (Id caseId : caseIds) {
+                if (caseId != null && caseId.getSobjectType() == Case.SObjectType) {
+                    requested.add(caseId);
+                }
+            }
+            if (requested.isEmpty()) {
+                return result;
+            }
+            Map<Id, Case> visible = new Map<Id, Case>([
+                SELECT Id, Origin, AssetId, Identidad_Senal__c, Ultima_Critica_Medicion__c, Ultima_Critica_Valor__c,
+                    Ultima_Critica_Unidad__c, Ultima_Critica_At__c
+                FROM Case
+                WHERE Id IN :requested
+                WITH USER_MODE
+            ]);
+            Set<Id> assetIds = new Set<Id>();
+            for (Case c : visible.values()) {
+                if (c.Origin == ORIGIN_TELEMETRY && c.AssetId != null && String.isNotBlank(c.Identidad_Senal__c)) {
+                    assetIds.add(c.AssetId);
+                }
+            }
+            Map<Id, SenalApertura> openers = new Map<Id, SenalApertura>();
+            if (!assetIds.isEmpty()) {
+                Set<Id> visibleAssets = new Map<Id, Asset>([SELECT Id FROM Asset WHERE Id IN :assetIds WITH USER_MODE]).keySet();
+                List<Case> readable = new List<Case>();
+                for (Case c : visible.values()) {
+                    if (c.Origin == ORIGIN_TELEMETRY && String.isNotBlank(c.Identidad_Senal__c) && visibleAssets.contains(c.AssetId)) {
+                        readable.add(c);
+                    }
+                }
+                if (!readable.isEmpty()) {
+                    openers = new OpeningSignalReader().forCases(readable);
+                }
+            }
+            Set<Id> added = new Set<Id>();
+            for (Id caseId : caseIds) {
+                Case c = caseId == null ? null : visible.get(caseId);
+                if (c != null && added.add(c.Id)) {
+                    result.add(new AperturaIntervencion(c, openers.get(c.Id)));
+                }
+            }
+            return result;
+        } catch (AuraHandledException e) {
+            throw e;
+        } catch (Exception e) {
+            throw failure(e);
+        }
+    }
+
     // D024: the log is shown only for assets the user already sees. Case and Asset have their own sharing, so a visible
     // Case can point to an asset the user cannot see; its signals then stay hidden (empty list, count 0).
     private static Boolean signalsVisible(Id assetId) {
