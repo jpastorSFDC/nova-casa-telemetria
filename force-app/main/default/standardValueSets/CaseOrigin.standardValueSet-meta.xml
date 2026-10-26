@@ -23,7 +23,7 @@
     </standardValue>
     <standardValue>
         <fullName>Operador</fullName>
-        <default>false</default>
+        <default>true</default>
         <label>Operador</label>
     </standardValue>
 </StandardValueSet>
