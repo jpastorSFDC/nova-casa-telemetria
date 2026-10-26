@@ -3,7 +3,7 @@
     <apiVersion>67.0</apiVersion>
     <isExposed>true</isExposed>
     <masterLabel>Nova Casa - Estado del edificio</masterLabel>
-    <description>Read-only building summary: assets by severity, open interventions and last signal (HP-07).</description>
+    <description>Read-only building summary: assets by severity, open interventions, assets needing attention and the last signal (HP-07).</description>
     <targets>
         <target>lightning__RecordPage</target>
     </targets>

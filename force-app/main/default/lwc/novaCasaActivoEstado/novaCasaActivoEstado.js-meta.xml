@@ -3,7 +3,7 @@
     <apiVersion>67.0</apiVersion>
     <isExposed>true</isExposed>
     <masterLabel>Nova Casa - Estado del activo</masterLabel>
-    <description>Read-only asset state: latest readings per type, open intervention and signal history (HP-07).</description>
+    <description>Asset state: latest readings per type, open intervention with the signal that opened it, manual intervention and signal history (HP-07).</description>
     <targets>
         <target>lightning__RecordPage</target>
     </targets>

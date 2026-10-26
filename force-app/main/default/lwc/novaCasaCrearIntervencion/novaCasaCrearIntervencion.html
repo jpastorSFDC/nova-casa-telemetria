@@ -1,0 +1,107 @@
+<template>
+    <lightning-modal-header label="Nueva intervención"></lightning-modal-header>
+    <lightning-modal-body>
+        <template if:true={errorMessage}>
+            <div class="slds-notify slds-notify_alert slds-alert_error aviso-error" role="alert">
+                <h2>No se pudo guardar: {errorMessage}</h2>
+            </div>
+        </template>
+
+        <h3 class="slds-section__title slds-theme_shade seccion">
+            <span class="slds-truncate slds-p-horizontal_small">Activo</span>
+        </h3>
+        <div class="slds-form" role="list">
+            <div class="slds-form__row">
+                <div class="slds-form__item" role="listitem">
+                    <div class="slds-form-element slds-form-element_readonly slds-form-element_stacked">
+                        <span class="slds-form-element__label">Activo</span>
+                        <div class="slds-form-element__control">
+                            <div class="slds-form-element__static">{assetName}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="slds-form__item" role="listitem">
+                    <div class="slds-form-element slds-form-element_readonly slds-form-element_stacked">
+                        <span class="slds-form-element__label">Edificio</span>
+                        <div class="slds-form-element__control">
+                            <div class="slds-form-element__static">{buildingText}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="slds-form__row">
+                <div class="slds-form__item" role="listitem">
+                    <div class="slds-form-element slds-form-element_readonly slds-form-element_stacked">
+                        <span class="slds-form-element__label">Estado actual</span>
+                        <div class="slds-form-element__control">
+                            <div class="slds-form-element__static">
+                                <span class={sevClass}><span aria-hidden="true">{severityGlyph}</span> {severityLabel}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="slds-form__item" role="listitem">
+                    <div class="slds-form-element slds-form-element_readonly slds-form-element_stacked">
+                        <span class="slds-form-element__label">Lectura que lo fija</span>
+                        <div class="slds-form-element__control">
+                            <div class="slds-form-element__static">{readingDisplay}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h3 class="slds-section__title slds-theme_shade seccion">
+            <span class="slds-truncate slds-p-horizontal_small">Información de la intervención</span>
+        </h3>
+        <div class="slds-form" role="list">
+            <div class="slds-form__row">
+                <div class="slds-form__item" role="listitem">
+                    <div class="slds-form-element slds-form-element_readonly slds-form-element_stacked">
+                        <span class="slds-form-element__label">Prioridad</span>
+                        <div class="slds-form-element__control">
+                            <div class="slds-form-element__static">{priorityLabel}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="slds-form__item" role="listitem">
+                    <div class="slds-form-element slds-form-element_readonly slds-form-element_stacked">
+                        <span class="slds-form-element__label">Estado inicial</span>
+                        <div class="slds-form-element__control">
+                            <div class="slds-form-element__static">En curso</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="slds-form__row">
+                <div class="slds-form__item" role="listitem">
+                    <div class="slds-form-element slds-form-element_readonly slds-form-element_stacked">
+                        <span class="slds-form-element__label">Origen</span>
+                        <div class="slds-form-element__control">
+                            <div class="slds-form-element__static">Manual (Operador)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="slds-form__row">
+                <div class="slds-form__item motivo" role="listitem">
+                    <lightning-textarea
+                        label="Motivo"
+                        required
+                        max-length={motivoMax}
+                        value={motivo}
+                        onchange={handleMotivo}
+                        field-level-help="Por qué hay que intervenir el activo. Queda en el caso y lo ve coordinación."
+                        message-when-value-missing="Escribe el motivo de la intervención."
+                    ></lightning-textarea>
+                    <p class="contador">{counterText}</p>
+                </div>
+            </div>
+        </div>
+        <p class="nota">La prioridad sale de la severidad actual del activo. Si el activo ya tiene una intervención abierta, no se crea otra.</p>
+    </lightning-modal-body>
+    <lightning-modal-footer>
+        <lightning-button label="Cancelar" onclick={handleCancel} disabled={saving}></lightning-button>
+        <lightning-button class="slds-m-left_x-small" label="Guardar" variant="brand" onclick={handleSave} disabled={saveDisabled}></lightning-button>
+    </lightning-modal-footer>
+</template>
