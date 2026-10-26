@@ -28,6 +28,8 @@ public with sharing class IntervencionOperadorController {
     @TestVisible private static final String REASON_REQUIRED = 'Escribe el motivo de la intervención.';
     @TestVisible private static final String REASON_TOO_LONG = 'El motivo es demasiado largo (máximo 1000 caracteres).';
     @TestVisible private static final String COMMENT_TOO_LONG = 'El comentario es demasiado largo (máximo 4000 caracteres).';
+    // Changing the status always needs a comment (D046); the Case validation rule enforces the same on every other path.
+    @TestVisible private static final String COMMENT_REQUIRED = 'Escribe un comentario para cambiar el estado.';
     @TestVisible private static final String ASSET_NOT_FOUND = 'No se encontró el activo o no tienes acceso a él.';
     @TestVisible private static final String NO_READINGS = 'Este activo aún no tiene lecturas, no se puede abrir una intervención.';
     @TestVisible private static final String ALREADY_OPEN = 'Ya hay una intervención abierta para este activo.';
@@ -156,7 +158,7 @@ public with sharing class IntervencionOperadorController {
 
     /**
      * Changes the status of an open intervention (a Case tied to an asset and not closed) to any active value of the
-     * Case.Status picklist (the list getEstadosSeguimiento returns) and optionally leaves a comment. A closed Case
+     * Case.Status picklist (the list getEstadosSeguimiento returns) and leaves a comment, which is required (D046). A closed Case
      * cannot be reopened here: that could leave two open interventions on one asset.
      * Runs as the user (USER_MODE): a user without Edit on Case cannot do it even with the custom permission.
      */
@@ -169,6 +171,9 @@ public with sharing class IntervencionOperadorController {
             throw safeError(INVALID_STATUS);
         }
         String note = comentario == null ? '' : comentario.trim();
+        if (note == '') {
+            throw safeError(COMMENT_REQUIRED);
+        }
         if (note.length() > COMMENT_MAX) {
             throw safeError(COMMENT_TOO_LONG);
         }
@@ -188,11 +193,9 @@ public with sharing class IntervencionOperadorController {
             }
             Case c = found[0];
             c.Status = estado;
-            if (note != '') {
-                String line = '[' + Datetime.now().format('yyyy-MM-dd HH:mm') + ' ' + UserInfo.getName() + '] ' + note;
-                c.Description = String.isBlank(c.Description) ? line : (c.Description + '\n' + line);
-                c.Description = c.Description.abbreviate(32000);
-            }
+            String line = '[' + Datetime.now().format('yyyy-MM-dd HH:mm') + ' ' + UserInfo.getName() + '] ' + note;
+            c.Description = String.isBlank(c.Description) ? line : (c.Description + '\n' + line);
+            c.Description = c.Description.abbreviate(32000);
             update as user c;
         } catch (AuraHandledException e) {
             throw e;
@@ -204,7 +207,7 @@ public with sharing class IntervencionOperadorController {
 
     /**
      * Closes, in one call, the open interventions of one asset (up to BULK_CLOSE_MAX; `hayMas` says if some are left)
-     * and leaves one line in each Description, with the optional comment. Ingestion opens one intervention per unique
+     * and leaves one line in each Description, with the required comment (D046). Ingestion opens one intervention per unique
      * critical message (D010), so an asset can pile up many; this only changes how they are closed, not how they open.
      * Same key as actualizarSeguimiento (Nova_Casa_Seguir_Intervencion) and the same USER_MODE: only the Cases the
      * user can see and edit are closed, each on its own (one failure does not undo the rest).
@@ -217,6 +220,9 @@ public with sharing class IntervencionOperadorController {
             throw safeError(NO_PERMISSION_FOLLOW);
         }
         String note = comentario == null ? '' : comentario.trim();
+        if (note == '') {
+            throw safeError(COMMENT_REQUIRED);
+        }
         if (note.length() > COMMENT_MAX) {
             throw safeError(COMMENT_TOO_LONG);
         }
@@ -251,8 +257,7 @@ public with sharing class IntervencionOperadorController {
                 open.remove(open.size() - 1);
             }
 
-            String line = '[' + Datetime.now().format('yyyy-MM-dd HH:mm') + ' ' + UserInfo.getName() + '] Cierre en bloque'
-                + (note == '' ? '' : ': ' + note);
+            String line = '[' + Datetime.now().format('yyyy-MM-dd HH:mm') + ' ' + UserInfo.getName() + '] Cierre en bloque: ' + note;
             for (Case c : open) {
                 c.Status = STATUS_CLOSED;
                 // On overflow the oldest text goes, not the line that says who closed it.

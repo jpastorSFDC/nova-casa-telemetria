@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Ultimo_Conflicto__c</fullName>
+    <label>Último conflicto</label>
+    <description>Moment the last conflicting delivery of this identity was processed (D047).</description>
+    <type>DateTime</type>
+</CustomField>

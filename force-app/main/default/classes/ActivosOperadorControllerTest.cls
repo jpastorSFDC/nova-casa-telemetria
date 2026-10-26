@@ -2717,6 +2717,301 @@ private class ActivosOperadorControllerTest {
     }
 
     @isTest
+    static void openingSignalIsTheOneThatOpenedTheCaseNotALaterCriticalAndAManualCaseHasNone() {
+        // Given a telemetry Case opened by one signal (identity upper-cased on the Case) and later refreshed by a newer
+        // critical (D039), and a manual Case on another asset of the same building
+        User operator = newUserWithPermissionSet('nc207openop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Account building = newAccount('Edificio Apertura', operator.Id);
+        Asset pump = newAsset('AST-OPEN-PUMP', building, 'WATER_PUMP');
+        Asset meter = newAsset('AST-OPEN-METER', building, 'WATER_METER');
+        Datetime openedAt = baseTime().addMinutes(-30);
+        Log_Senial__c opener = linkedLog(pump, null, openedAt);
+        opener.Value__c = 41;
+        Log_Senial__c later = linkedLog(pump, null, baseTime());
+        later.Value__c = 55;
+        Case telemetry = caseDraft(pump, operator.Id, 'En curso', 'Señal crítica apertura');
+        telemetry.Origin = 'Telemetria';
+        telemetry.Identidad_Senal__c = opener.Identidad__c.toUpperCase();
+        telemetry.Ultima_Critica_Identidad__c = later.Identidad__c;
+        telemetry.Ultima_Critica_Medicion__c = 'TEMPERATURE';
+        telemetry.Ultima_Critica_Valor__c = 55;
+        telemetry.Ultima_Critica_Unidad__c = 'CELSIUS';
+        telemetry.Ultima_Critica_At__c = baseTime();
+        Case manual = caseDraft(meter, operator.Id, 'En curso', 'Intervención manual en AST-OPEN-METER');
+        manual.Origin = 'Operador';
+        insert new List<Case>{ telemetry, manual };
+        opener.Caso__c = telemetry.Id;
+        later.Caso__c = telemetry.Id;
+        insert new List<Log_Senial__c>{ later, opener };
+
+        // When the operator asks how both started, the manual one first and the telemetry one twice
+        List<ActivosOperadorController.AperturaIntervencion> result;
+        System.runAs(operator) {
+            result = ActivosOperadorController.getAperturasDeIntervencion(new List<Id>{ manual.Id, telemetry.Id, telemetry.Id });
+        }
+
+        // Then each Case comes once, in the order asked; the telemetry one carries the opener, never the later critical
+        Assert.areEqual(2, result.size(), 'one entry per Case, without repeats');
+        Assert.areEqual(manual.Id, result[0].caseId);
+        Assert.isFalse(result[0].esTelemetria);
+        Assert.isNull(result[0].senal, 'a manual intervention has no opening signal');
+        Assert.areEqual(telemetry.Id, result[1].caseId);
+        Assert.isTrue(result[1].esTelemetria);
+        Assert.isNotNull(result[1].senal, 'the opener must be matched ignoring letter case');
+        Assert.areEqual(41, result[1].senal.value.intValue(), 'the signal that opened the Case, not the latest critical');
+        Assert.areEqual('TEMPERATURE', result[1].senal.measurementType);
+        Assert.areEqual('CELSIUS', result[1].senal.unit);
+        Assert.areEqual(openedAt, result[1].senal.occurredAt);
+    }
+
+    @isTest
+    static void openingSignalComesFromTheCaseWhileItsLastCriticalIsStillTheOpenerEvenIfTheLogRowHasNoValue() {
+        // Given a camera Case whose opening log row has no measurement or value (connectivity rows carry none) and whose
+        // last critical is still that same signal
+        User operator = newUserWithPermissionSet('nc207opencam', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Account building = newAccount('Edificio Cámara', operator.Id);
+        Asset camera = newAsset('AST-OPEN-CAM', building, 'SECURITY_CAMERA');
+        Log_Senial__c opener = linkedLog(camera, null, baseTime());
+        opener.Measurement_Type__c = null;
+        opener.Unit__c = null;
+        opener.Value__c = null;
+        Case c = caseDraft(camera, operator.Id, 'En curso', 'Señal crítica cámara');
+        c.Origin = 'Telemetria';
+        c.Identidad_Senal__c = opener.Identidad__c;
+        c.Ultima_Critica_Identidad__c = opener.Identidad__c;
+        c.Ultima_Critica_Medicion__c = 'CAMERA_CONNECTIVITY';
+        c.Ultima_Critica_Valor__c = 750;
+        c.Ultima_Critica_Unidad__c = 'SECONDS';
+        c.Ultima_Critica_At__c = baseTime();
+        insert c;
+        opener.Caso__c = c.Id;
+        insert opener;
+
+        // When the operator asks how it started
+        List<ActivosOperadorController.AperturaIntervencion> result;
+        System.runAs(operator) {
+            result = ActivosOperadorController.getAperturasDeIntervencion(new List<Id>{ c.Id });
+        }
+
+        // Then the opening signal is the one recorded on the Case, with its value
+        Assert.areEqual(1, result.size());
+        Assert.areEqual('CAMERA_CONNECTIVITY', result[0].senal.measurementType);
+        Assert.areEqual(750, result[0].senal.value.intValue());
+        Assert.areEqual('SECONDS', result[0].senal.unit);
+        Assert.areEqual(baseTime(), result[0].senal.occurredAt);
+    }
+
+    @isTest
+    static void openingSignalsSkipHiddenCasesAndStayHiddenWhenTheUserSeesTheCaseButNotItsAsset() {
+        // Given operator A's building with a telemetry Case, and a Case on that asset owned by a stranger outside the role
+        // hierarchy (so the stranger sees that Case but not the asset)
+        User operatorA = newUserWithPermissionSet('nc207openopa', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User operatorB = newUserWithPermissionSet('nc207openopb', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User stranger = newUserWithPermissionSet('nc207openstr', 'Nova_Casa_Operator', null);
+        Account building = newAccount('Edificio Apertura Oculta', operatorA.Id);
+        Asset asset = newAsset('AST-OPEN-HIDDEN', building, 'WATER_PUMP');
+        Log_Senial__c opener = linkedLog(asset, null, baseTime());
+        Log_Senial__c strangerOpener = linkedLog(asset, null, baseTime().addMinutes(-5));
+        Case ownCase = caseDraft(asset, operatorA.Id, 'En curso', 'Caso de A');
+        ownCase.Origin = 'Telemetria';
+        ownCase.Identidad_Senal__c = opener.Identidad__c;
+        Case strangerCase = caseDraft(asset, stranger.Id, 'En curso', 'Caso del extraño');
+        strangerCase.Origin = 'Telemetria';
+        strangerCase.Identidad_Senal__c = strangerOpener.Identidad__c;
+        insert new List<Case>{ ownCase, strangerCase };
+        opener.Caso__c = ownCase.Id;
+        strangerOpener.Caso__c = strangerCase.Id;
+        insert new List<Log_Senial__c>{ opener, strangerOpener };
+
+        // When operator B asks for A's Case, the stranger for both, and A for its own
+        List<ActivosOperadorController.AperturaIntervencion> forB;
+        List<ActivosOperadorController.AperturaIntervencion> forStranger;
+        List<ActivosOperadorController.AperturaIntervencion> forA;
+        Integer strangerSeesAsset;
+        System.runAs(operatorB) {
+            forB = ActivosOperadorController.getAperturasDeIntervencion(new List<Id>{ ownCase.Id });
+        }
+        System.runAs(stranger) {
+            strangerSeesAsset = [SELECT COUNT() FROM Asset WHERE Id = :asset.Id WITH USER_MODE];
+            forStranger = ActivosOperadorController.getAperturasDeIntervencion(new List<Id>{ ownCase.Id, strangerCase.Id });
+        }
+        System.runAs(operatorA) {
+            forA = ActivosOperadorController.getAperturasDeIntervencion(new List<Id>{ ownCase.Id });
+        }
+
+        // Then a Case the user cannot see is left out, a visible Case on a hidden asset carries no signal, and the owner
+        // of the building gets the opener
+        Assert.isTrue(forB.isEmpty(), 'a Case the user cannot see is skipped, not reported');
+        Assert.areEqual(0, strangerSeesAsset, 'precondition: the stranger must not see the asset, or this proves nothing');
+        Assert.areEqual(1, forStranger.size(), 'only the Case the stranger owns');
+        Assert.areEqual(strangerCase.Id, forStranger[0].caseId);
+        Assert.isTrue(forStranger[0].esTelemetria);
+        Assert.isNull(forStranger[0].senal, 'no signal of an asset the user cannot see (D024)');
+        Assert.areEqual(1, forA.size());
+        Assert.areEqual(95.5, forA[0].senal.value, 'the owner of the building gets the opening signal');
+    }
+
+    @isTest
+    static void openingSignalsIgnoreNullAndOtherObjectIdsAndRejectMoreThanTheCap() {
+        // Given an operator with one asset
+        User operator = newUserWithPermissionSet('nc207opencap', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Account building = newAccount('Edificio Apertura Tope', operator.Id);
+        Asset asset = newAsset('AST-OPEN-CAP', building, 'WATER_PUMP');
+        List<Id> tooMany = new List<Id>();
+        for (Integer i = 0; i <= ActivosOperadorController.MAX_APERTURAS; i++) {
+            tooMany.add(asset.Id);
+        }
+
+        // When the operator passes null, an empty list, a list with a null and an Asset Id, and one over the cap
+        List<ActivosOperadorController.AperturaIntervencion> forNull;
+        List<ActivosOperadorController.AperturaIntervencion> forEmpty;
+        List<ActivosOperadorController.AperturaIntervencion> forOther;
+        String overCap;
+        System.runAs(operator) {
+            forNull = ActivosOperadorController.getAperturasDeIntervencion(null);
+            forEmpty = ActivosOperadorController.getAperturasDeIntervencion(new List<Id>());
+            forOther = ActivosOperadorController.getAperturasDeIntervencion(new List<Id>{ null, asset.Id });
+            try {
+                ActivosOperadorController.getAperturasDeIntervencion(tooMany);
+            } catch (AuraHandledException e) {
+                overCap = e.getMessage();
+            }
+        }
+
+        // Then the first three are empty and the last one fails with the safe message
+        Assert.isTrue(forNull.isEmpty());
+        Assert.isTrue(forEmpty.isEmpty());
+        Assert.isTrue(forOther.isEmpty(), 'only Case Ids are looked up');
+        Assert.areEqual(ActivosOperadorController.CASE_MESSAGE, overCap);
+    }
+
+    @isTest
+    static void openingSignalPayloadCarriesOnlyTheAgreedKeysAndNoIdentityForEveryScreenPermissionSet() {
+        // Given a telemetry Case with its opener, seen by the four shipped screen sets
+        User operator = newUserWithPermissionSet('nc207openleakop', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Map<String, User> viewers = new Map<String, User>{
+            'Nova_Casa_Operator' => operator,
+            'Nova_Casa_Coordinator' => newUserWithPermissionSet('nc207openleakco', 'Nova_Casa_Coordinator', COORDINATOR_ROLE),
+            'Nova_Casa_Gerente' => newUserWithPermissionSet('nc207openleakge', 'Nova_Casa_Gerente', GERENTE_ROLE),
+            'Nova_Casa_Admin' => newUserWithPermissionSet('nc207openleakad', 'Nova_Casa_Admin', null)
+        };
+        Account building = newAccount('Edificio Apertura Claves', operator.Id);
+        Asset asset = newAsset('AST-OPEN-KEYS', building, 'WATER_PUMP');
+        Log_Senial__c opener = linkedLog(asset, null, baseTime());
+        String identity = opener.Identidad__c;
+        Case c = caseDraft(asset, operator.Id, 'En curso', 'Señal crítica claves');
+        c.Origin = 'Telemetria';
+        c.Identidad_Senal__c = identity;
+        insert c;
+        opener.Caso__c = c.Id;
+        insert opener;
+
+        // When each serializes the answer
+        Map<String, String> payloads = new Map<String, String>();
+        for (String setName : viewers.keySet()) {
+            System.runAs(viewers.get(setName)) {
+                payloads.put(setName, JSON.serialize(ActivosOperadorController.getAperturasDeIntervencion(new List<Id>{ c.Id })));
+            }
+        }
+
+        // Then everyone gets the opener with only the agreed keys, and nobody gets the identity
+        for (String setName : viewers.keySet()) {
+            String payload = payloads.get(setName);
+            for (String token : new List<String>{ 'Identidad', identity, opener.Message_Id__c, 'Huella', 'Motivo' }) {
+                Assert.isFalse(payload.contains(token), setName + ' payload must not contain ' + token);
+            }
+            List<Object> entries = (List<Object>) JSON.deserializeUntyped(payload);
+            Assert.areEqual(1, entries.size(), setName + ' must see the Case');
+            Map<String, Object> entry = (Map<String, Object>) entries[0];
+            Assert.areEqual(new Set<String>{ 'caseId', 'esTelemetria', 'senal' }, entry.keySet(), setName);
+            Assert.areEqual(new Set<String>{ 'measurementType', 'value', 'unit', 'occurredAt' },
+                ((Map<String, Object>) entry.get('senal')).keySet(), setName + ' must get the opener');
+        }
+    }
+
+    @isTest
+    static void openingSignalIsNullButTheCaseStaysTelemetryWhenALaterCriticalReplacedItAndItsLogRowIsGone() {
+        // Given a telemetry Case whose last critical is no longer the opener and whose opener row is not in the log
+        User operator = newUserWithPermissionSet('nc207opengone', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Account building = newAccount('Edificio Apertura Borrada', operator.Id);
+        Asset asset = newAsset('AST-OPEN-GONE', building, 'WATER_PUMP');
+        Case c = caseDraft(asset, operator.Id, 'En curso', 'Señal crítica borrada');
+        c.Origin = 'Telemetria';
+        c.Identidad_Senal__c = 'test-src|NO-SUCH-MESSAGE';
+        c.Ultima_Critica_Identidad__c = 'test-src|LATER-MESSAGE';
+        c.Ultima_Critica_Medicion__c = 'TEMPERATURE';
+        c.Ultima_Critica_Valor__c = 60;
+        c.Ultima_Critica_Unidad__c = 'CELSIUS';
+        c.Ultima_Critica_At__c = baseTime();
+        insert c;
+
+        // When the operator asks how it started
+        List<ActivosOperadorController.AperturaIntervencion> result;
+        System.runAs(operator) {
+            result = ActivosOperadorController.getAperturasDeIntervencion(new List<Id>{ c.Id });
+        }
+
+        // Then it is still a telemetry intervention, without a signal (never the later critical in its place)
+        Assert.areEqual(1, result.size());
+        Assert.isTrue(result[0].esTelemetria);
+        Assert.isNull(result[0].senal, 'the later critical must not pass for the opener');
+    }
+
+    @isTest
+    static void openingSignalOfAnotherBuildingIsNeverReturnedEvenWhenTheCaseIdentityPointsAtIt() {
+        // Given operator A's Case whose opener identity matches a log row of operator B's building (and whose last critical
+        // is something else, so the log is read)
+        User operatorA = newUserWithPermissionSet('nc207openxa', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User operatorB = newUserWithPermissionSet('nc207openxb', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Account buildingA = newAccount('Edificio Apertura A', operatorA.Id);
+        Account buildingB = newAccount('Edificio Apertura B', operatorB.Id);
+        Asset assetA = newAsset('AST-OPEN-XA', buildingA, 'WATER_PUMP');
+        Asset assetB = newAsset('AST-OPEN-XB', buildingB, 'WATER_PUMP');
+        Log_Senial__c foreign = linkedLog(assetB, null, baseTime());
+        insert foreign;
+        Case c = caseDraft(assetA, operatorA.Id, 'En curso', 'Señal crítica cruzada');
+        c.Origin = 'Telemetria';
+        c.Identidad_Senal__c = foreign.Identidad__c;
+        c.Ultima_Critica_Identidad__c = 'test-src|OTHER';
+        insert c;
+
+        // When operator A asks how it started
+        List<ActivosOperadorController.AperturaIntervencion> result;
+        System.runAs(operatorA) {
+            result = ActivosOperadorController.getAperturasDeIntervencion(new List<Id>{ c.Id });
+        }
+
+        // Then the row of the other building is not returned
+        Assert.areEqual(1, result.size());
+        Assert.isNull(result[0].senal, 'a log row is only accepted when it belongs to the Case asset');
+    }
+
+    @isTest
+    static void openingSignalsWithoutReadOnTheLastCriticalFieldsGetTheSafeAccessMessage() {
+        // Given a user who reads every Case field the method selects except Ultima_Critica_Valor__c, owning a telemetry Case
+        User owner = newUserWithCaseReadExcept('nc207opennofls', 'Case.Ultima_Critica_Valor__c');
+        Account building = newAccount('Edificio Apertura FLS', owner.Id);
+        Asset asset = newAsset('AST-OPEN-FLS', building, 'WATER_PUMP');
+        Case c = caseDraft(asset, owner.Id, 'En curso', 'Señal crítica FLS');
+        c.Origin = 'Telemetria';
+        c.Identidad_Senal__c = 'test-src|FLS-MESSAGE';
+        insert c;
+
+        // When the user asks how it started
+        String message;
+        System.runAs(owner) {
+            try {
+                ActivosOperadorController.getAperturasDeIntervencion(new List<Id>{ c.Id });
+            } catch (AuraHandledException e) {
+                message = e.getMessage();
+            }
+        }
+
+        // Then the value is not read around the field-level security: the call fails with the static access message
+        Assert.areEqual(ActivosOperadorController.ACCESS_MESSAGE, message);
+    }
+
+    @isTest
     static void manualReasonShapedLikeAFollowUpIsNotReturnedAsOneButARealLineAfterTheMarkerIs() {
         // Given two manual Cases whose reason looks like a follow-up line; only the second has a real line after the marker
         User operator = newUserWithPermissionSet('nc207fakeop', 'Nova_Casa_Operator', OPERATOR_ROLE);
@@ -3121,8 +3416,12 @@ private class ActivosOperadorControllerTest {
     }
 
     // Closing is what makes the platform stamp Case.ClosedDate (with the time of that DML statement).
+    // Changing a Case's status needs a comment on the Case (D046): one is appended and the existing text is kept.
     private static void closeCase(Case c) {
-        update new Case(Id = c.Id, Status = 'Closed');
+        Case current = [SELECT Description FROM Case WHERE Id = :c.Id];
+        current.Status = 'Closed';
+        current.Description = (String.isBlank(current.Description) ? '' : current.Description + '\n') + 'Cierre de prueba';
+        update current;
     }
 
     // Apex has no sleep: spin until the clock has moved on, so two closings get different ClosedDate values.

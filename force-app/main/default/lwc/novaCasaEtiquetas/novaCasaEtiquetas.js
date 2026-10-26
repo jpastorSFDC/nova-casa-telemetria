@@ -1,4 +1,4 @@
-// Labels shared by the Asset record page components. Values mirror novaCasaActivosOperador (same wording, same glyphs);
+// Labels shared by the record page components. Values mirror novaCasaActivosOperador (same wording, same glyphs);
 // that component keeps its own copy for now, so change both together.
 
 // Lectura_Vigente__c.Tipo_Medicion__c. Unknown values fall back to the raw value.
@@ -52,6 +52,35 @@ export function reduceError(error) {
         return body.message;
     }
     return GENERIC_ERROR;
+}
+
+const OPENING_NUMBER_FORMAT = new Intl.NumberFormat('es', { maximumFractionDigits: 3 });
+
+// How an intervention started, from ActivosOperadorController.getAperturasDeIntervencion. Returns
+// { known, manual, text, measurement, valueText, occurredAt }: not known while the answer has not arrived; a telemetry
+// one without its signal still says it came from a signal.
+export function openingText(apertura) {
+    if (!apertura) {
+        return { known: false, manual: false, text: '', measurement: '', valueText: '', occurredAt: null };
+    }
+    if (!apertura.esTelemetria) {
+        return { known: true, manual: true, text: 'Abierta a mano, sin señal', measurement: '', valueText: '', occurredAt: null };
+    }
+    const senal = apertura.senal;
+    if (!senal) {
+        return {
+            known: true, manual: false, text: 'Generada por una señal crítica', measurement: 'Señal crítica', valueText: '', occurredAt: null
+        };
+    }
+    const label = MEASUREMENT_LABELS[senal.measurementType] || senal.measurementType || 'Señal crítica';
+    const occurredAt = senal.occurredAt || null;
+    if (senal.value === null || senal.value === undefined) {
+        return { known: true, manual: false, text: `Generada por: ${label}`, measurement: label, valueText: '', occurredAt };
+    }
+    const unit = UNIT_LABELS[senal.unit] || senal.unit || '';
+    const number = OPENING_NUMBER_FORMAT.format(senal.value);
+    const valueText = unit ? `${number} ${unit}` : number;
+    return { known: true, manual: false, text: `Generada por: ${label} ${valueText}`, measurement: label, valueText, occurredAt };
 }
 
 export const STALE_AFTER_MINUTES = 60;

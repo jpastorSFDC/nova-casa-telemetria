@@ -25,7 +25,8 @@ const FUTURE_TOLERANCE_MS = 5 * 60000;
 const DEFAULT_INGEST_PAGES = 5;
 // Same ceiling IngestaController.traerSenales clamps to.
 const MAX_INGEST_PAGES = 25;
-// Same limit as novaCasaHistorialSenales: getHistorial is cacheable, so the detail curve reuses the history's call.
+// Signals the detail curve asks getHistorial for. The "Historial de señales" card is not shown here for now (D048);
+// if it comes back, keep the same limit as novaCasaHistorialSenales so both share the cached call.
 const HISTORY_LIMIT = 20;
 // Scenarios of the simulator contract; IngestaController validates the same list on the server.
 const SCENARIOS = ['MIXED', 'QA_200', 'BOUNDARIES', 'CRITICAL_BURST', 'LATE_MESSAGES', 'DUPLICATES', 'CONFLICT', 'INVALID_DATA', 'CAMERA_OUTAGE'];
@@ -504,8 +505,8 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
         }
     }
 
-    // Same parameters as the history card of the detail, so both read one cached response. A failure only hides the
-    // curve: the history card shows the error.
+    // Recent values for the detail curve. A failure only hides the curve: the readings table and the actions of the
+    // detail don't depend on it, and no other card reports the error now that the history card is not shown (D048).
     @wire(getHistorial, { assetId: '$curveAssetId', limite: HISTORY_LIMIT })
     wiredCurve({ data }) {
         this.curveData = data ? { assetId: this.selectedAssetId, signals: data.signals || [] } : null;
@@ -1380,11 +1381,13 @@ export default class NovaCasaActivosOperador extends NavigationMixin(LightningEl
             ? 'No se pudo cargar la lista de estados. Recarga la pantalla e inténtalo de nuevo.'
             : 'No hay estados disponibles para actualizar el seguimiento.';
     }
+    // Changing the status of a Case always needs a comment (D046), both for one Case and for "Cerrar todas".
     get saveDisabled() {
         return (
             this.isSaving ||
             (this.isCreating && !this.motivo.trim()) ||
-            (this.isFollowing && (!this.hasFollowUpOptions || !this.nuevoEstado))
+            (this.isFollowing && (!this.hasFollowUpOptions || !this.nuevoEstado)) ||
+            ((this.isFollowing || this.isClosingAll) && !this.comentario.trim())
         );
     }
 

@@ -1,7 +1,5 @@
 <template>
     <div class="nc">
-        <div class="solo-lectura" aria-live="polite" aria-atomic="true">{liveMessage}</div>
-
         <template if:true={isLoading}>
             <div role="status" aria-live="polite">
                 <span class="solo-lectura">Cargando la intervención</span>
@@ -71,34 +69,6 @@
                     <span class={statusClass}><span class="solo-lectura">Estado de la intervención: </span>{statusLabel}</span>
                 </div>
 
-                <template if:true={hasPath}>
-                    <ol class="ruta" aria-label="Estados de la intervención">
-                        <template for:each={pathSteps} for:item="step">
-                            <li key={step.key} class="ruta-item">
-                                <template if:true={canFollow}>
-                                    <button
-                                        type="button"
-                                        class={step.cls}
-                                        aria-current={step.ariaCurrent}
-                                        aria-label={step.name}
-                                        data-value={step.value}
-                                        data-return={step.returnKey}
-                                        disabled={isSaving}
-                                        onclick={handleStep}
-                                    >
-                                        <template if:true={step.isDone}><span aria-hidden="true">&#10003; </span></template>{step.label}
-                                    </button>
-                                </template>
-                                <template if:false={canFollow}>
-                                    <span class={step.cls} aria-current={step.ariaCurrent}>
-                                        <template if:true={step.isDone}><span aria-hidden="true">&#10003; </span></template>{step.label}<span class="solo-lectura">{step.srState}</span>
-                                    </span>
-                                </template>
-                            </li>
-                        </template>
-                    </ol>
-                </template>
-
                 <div class="franja">
                     <div class="franja-celda">
                         <span class="micro">{openTileLabel}</span>
@@ -122,138 +92,15 @@
                         <span class="val num">{linkedCount}</span>
                         <span class="sub">{signalsTileSub}</span>
                     </div>
-                    <div class="franja-celda">
-                        <span class="micro">Último seguimiento</span>
-                        <span class="val num">{followTileValue}</span>
-                        <span class="sub">{followTileSub}</span>
-                    </div>
                 </div>
             </section>
 
             <div class="dos">
                 <section class="tarjeta acciones-tarjeta">
                     <div class="tarjeta-cab">
-                        <h3 class="tarjeta-titulo" tabindex="-1" data-focus="acciones">¿Qué hacer ahora?</h3>
-                        <template if:true={hasActionsNote}>
-                            <span class="tarjeta-cab-nota">{actionsNote}</span>
-                        </template>
+                        <h3 class="tarjeta-titulo">¿Qué hacer ahora?</h3>
                     </div>
                     <div class="cuerpo">
-                        <template if:true={canFollow}>
-                            <div class="acciones">
-                                <button
-                                    type="button"
-                                    class="boton primario"
-                                    aria-expanded={followButtonExpanded}
-                                    data-return="seguir"
-                                    disabled={isSaving}
-                                    onclick={handleOpenFollowUp}
-                                >
-                                    Actualizar seguimiento
-                                </button>
-                                <template if:true={canClose}>
-                                    <button
-                                        type="button"
-                                        class="boton boton-cerrar"
-                                        aria-expanded={closeButtonExpanded}
-                                        data-return="cerrar"
-                                        disabled={isSaving}
-                                        onclick={handleOpenClose}
-                                    >
-                                        <span aria-hidden="true">&#10003;</span> Cerrar intervención
-                                    </button>
-                                </template>
-                            </div>
-                        </template>
-
-                        <template if:true={isFollowing}>
-                            <div class="form" tabindex="-1" data-focus="seguir">
-                                <template if:true={hasFollowUpOptions}>
-                                    <fieldset class="grupo">
-                                        <legend class="rot-campo">Nuevo estado</legend>
-                                        <div class="segmento">
-                                            <template for:each={followUpOptions} for:item="o">
-                                                <label key={o.key} class={o.cls}>
-                                                    <input
-                                                        type="radio"
-                                                        class="radio-oculto"
-                                                        name="nuevoEstado"
-                                                        value={o.value}
-                                                        checked={o.checked}
-                                                        disabled={isSaving}
-                                                        onchange={handleEstado}
-                                                    />
-                                                    <span>{o.label}</span>
-                                                </label>
-                                            </template>
-                                        </div>
-                                    </fieldset>
-                                </template>
-                                <template if:true={showFollowUpEmpty}>
-                                    <p class="nota nota-error" role="alert">No hay estados disponibles para actualizar el seguimiento.</p>
-                                </template>
-                                <label class="rot-campo" for="nc-comentario-seguimiento">Comentario (opcional)</label>
-                                <textarea
-                                    class="campo campo-texto"
-                                    id="nc-comentario-seguimiento"
-                                    maxlength={commentMax}
-                                    rows="3"
-                                    placeholder="Ej.: técnico en camino, revisa la válvula de entrada…"
-                                    disabled={isSaving}
-                                    oninput={handleComentario}
-                                ></textarea>
-                                <p class="ayuda">El comentario queda en la intervención con tu nombre y la hora.</p>
-                                <div class="acciones">
-                                    <button type="button" class="boton primario" disabled={saveFollowDisabled} onclick={handleSaveFollowUp}>Guardar</button>
-                                    <button type="button" class="boton" disabled={isSaving} onclick={handleCancel}>Cancelar</button>
-                                </div>
-                            </div>
-                        </template>
-
-                        <template if:true={isClosing}>
-                            <div class="dialogo" role="group" aria-label={closeTitle}>
-                                <h4 class="dialogo-titulo" tabindex="-1" data-focus="cerrar">{closeTitle}</h4>
-                                <div class="dialogo-cuerpo">
-                                    <template if:true={closeWarnsTelemetryCritical}>
-                                        <p class="aviso aviso-critico">
-                                            <span aria-hidden="true">&#9679;</span>
-                                            <span>El activo sigue crítico. Si la cierras, la próxima señal crítica del activo puede abrir una intervención nueva.</span>
-                                        </p>
-                                    </template>
-                                    <template if:true={closeWarnsManualCritical}>
-                                        <p class="aviso aviso-critico">
-                                            <span aria-hidden="true">&#9679;</span>
-                                            <span>El activo sigue crítico.</span>
-                                        </p>
-                                    </template>
-                                    <template if:true={isManual}>
-                                        <p class="aviso aviso-info">Cerrarla no cambia lo que hace la telemetría con este activo.</p>
-                                    </template>
-                                    <label class="rot-campo" for="nc-comentario-cierre">Comentario de cierre (opcional)</label>
-                                    <textarea
-                                        class="campo campo-texto"
-                                        id="nc-comentario-cierre"
-                                        maxlength={commentMax}
-                                        rows="3"
-                                        placeholder="Qué se hizo para resolverla…"
-                                        disabled={isSaving}
-                                        oninput={handleComentario}
-                                    ></textarea>
-                                    <p class="ayuda">El comentario queda en la intervención con tu nombre y la hora.</p>
-                                </div>
-                                <div class="dialogo-botones">
-                                    <button type="button" class="boton" disabled={isSaving} onclick={handleCancel}>Cancelar</button>
-                                    <button type="button" class="boton boton-peligro" disabled={saveCloseDisabled} onclick={handleSaveClose}>
-                                        <span aria-hidden="true">&#10003;</span> Cerrar intervención
-                                    </button>
-                                </div>
-                            </div>
-                        </template>
-
-                        <template if:true={showActionError}>
-                            <p class="nota nota-error" role="alert">{actionError}</p>
-                        </template>
-
                         <template if:true={showStableNote}>
                             <p class="aviso aviso-normal">
                                 <span aria-hidden="true">&#9675;</span>
@@ -266,24 +113,19 @@
                                 <span>Mientras siga abierta, las nuevas críticas de este activo se registran aquí y no abren otra intervención.</span>
                             </p>
                         </template>
-                        <template if:true={showReadOnlyNote}>
-                            <p class="aviso aviso-info">Puedes ver esta intervención y sus señales. Cambiar su estado o cerrarla lo hace coordinación.</p>
-                        </template>
-                        <template if:true={showNoAssetNote}>
-                            <p class="aviso aviso-info">Esta intervención no está ligada a un activo, así que su seguimiento no se hace desde aquí. Usa los detalles del caso, más abajo.</p>
+                        <template if:true={isOpen}>
+                            <p class="aviso aviso-info">
+                                <span aria-hidden="true">&#9432;</span>
+                                <span>El estado se cambia en la pestaña Detalles, con el lápiz junto a Estado. Si no ves el lápiz, el cambio lo hace coordinación.</span>
+                            </p>
                         </template>
 
                         <template if:true={isClosed}>
                             <p class="aviso aviso-info">
                                 <span>
-                                    <template if:true={hasClosingQuote}>
-                                        <span class="cita">{closingQuote}</span>
-                                        <span class="cita-meta"> ({closingMeta})</span>
-                                    </template>
                                     {closedDurationText}
                                 </span>
                             </p>
-                            <p class="ayuda">Una intervención cerrada no se reabre desde aquí.</p>
                             <template if:true={closedAssetStillCritical}>
                                 <p class="aviso aviso-critico">
                                     <span aria-hidden="true">&#9679;</span>

@@ -586,13 +586,13 @@
                             <template if:true={followUpUnavailable}>
                                 <p class="nota nota-error" role="alert">{followUpNote}</p>
                             </template>
-                            <label class="rot-campo" for="a-comentario">Comentario (opcional)</label>
+                            <label class="rot-campo" for="a-comentario">Comentario (obligatorio)</label>
                             <textarea class="campo campo-texto" id="a-comentario" maxlength="4000" rows="3" value={comentario} oninput={handleComentario}></textarea>
                         </template>
                         <template if:true={isClosingAll}>
                             <h3 class="tarjeta-titulo">Cerrar todas las intervenciones abiertas</h3>
                             <p class="nota">{selectedRow.closeAllWarning}</p>
-                            <label class="rot-campo" for="a-comentario-todas">Comentario (opcional)</label>
+                            <label class="rot-campo" for="a-comentario-todas">Comentario (obligatorio)</label>
                             <textarea class="campo campo-texto" id="a-comentario-todas" maxlength="4000" rows="3" value={comentario} oninput={handleComentario}></textarea>
                         </template>
                         <template if:true={showActionError}>
@@ -639,10 +639,6 @@
                             </tbody>
                         </table>
                     </div>
-                </section>
-
-                <section class="historial" aria-label="Historial de señales">
-                    <c-nova-casa-historial-senales asset-id={selectedAssetId}></c-nova-casa-historial-senales>
                 </section>
             </div>
         </template>

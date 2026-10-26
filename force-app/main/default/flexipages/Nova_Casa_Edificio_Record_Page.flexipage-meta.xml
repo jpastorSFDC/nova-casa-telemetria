@@ -29,6 +29,10 @@
                 <identifier>c_novaCasaEdificioResumen</identifier>
             </componentInstance>
         </itemInstances>
+        <name>leftcol</name>
+        <type>Region</type>
+    </flexiPageRegions>
+    <flexiPageRegions>
         <itemInstances>
             <componentInstance>
                 <componentName>flexipage:tabset</componentName>
@@ -39,7 +43,7 @@
                 </componentInstanceProperties>
             </componentInstance>
         </itemInstances>
-        <name>main</name>
+        <name>rightcol</name>
         <type>Region</type>
     </flexiPageRegions>
     <flexiPageRegions>
@@ -94,14 +98,10 @@
         <name>relatedBody</name>
         <type>Facet</type>
     </flexiPageRegions>
-    <flexiPageRegions>
-        <name>sidebar</name>
-        <type>Region</type>
-    </flexiPageRegions>
     <masterLabel>Nova Casa Edificio</masterLabel>
     <sobjectType>Account</sobjectType>
     <template>
-        <name>flexipage:recordHomeTemplateDesktop</name>
+        <name>flexipage:recordHomeTwoColEqualHeaderTemplateDesktop</name>
     </template>
     <type>RecordPage</type>
 </FlexiPage>

@@ -1,28 +1,18 @@
 import { LightningElement, api, wire } from 'lwc';
 import { NavigationMixin } from 'lightning/navigation';
 import { refreshApex } from '@salesforce/apex';
-import { getRecord, getFieldValue, notifyRecordUpdateAvailable } from 'lightning/uiRecordApi';
-import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import { getRecord, getFieldValue } from 'lightning/uiRecordApi';
 import LAST_MODIFIED_FIELD from '@salesforce/schema/Case.LastModifiedDate';
 import getIntervencion from '@salesforce/apex/ActivosOperadorController.getIntervencion';
 import getSenalesDeIntervencion from '@salesforce/apex/ActivosOperadorController.getSenalesDeIntervencion';
-import actualizarSeguimiento from '@salesforce/apex/IntervencionOperadorController.actualizarSeguimiento';
 import { MEASUREMENT_LABELS, UNIT_LABELS, severityUi, reduceError, relativeAge } from 'c/novaCasaEtiquetas';
 
 const SIGNAL_LIMIT = 20;
 const TICK_MS = 60000;
-// Case.Status API values. The path shows these first, in this order, then any other active value, then Closed last.
-// The values themselves come from the server (getEstadosSeguimiento, D036).
-const PATH_FIRST = ['New', 'En curso', 'On Hold', 'Escalated'];
-const STATUS_IN_PROGRESS = 'En curso';
-const STATUS_CLOSED = 'Closed';
 const PRIORITY_CRITICAL = 'Critica';
 // Case.Priority API values; unknown values fall back to the raw value.
 const PRIORITY_LABELS = { Critica: 'Crítica', High: 'Alta', Medium: 'Media', Low: 'Baja' };
-// Same limit as COMMENT_MAX in IntervencionOperadorController.
-const COMMENT_MAX = 4000;
 const RECORD_ID_PATTERN = /^[a-zA-Z0-9]{15,18}$/;
-const FOLLOW_UP_DATE = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}:\d{2})$/;
 
 const NUMBER_FORMAT = new Intl.NumberFormat('es', { maximumFractionDigits: 4 });
 // Case dates (opened, closed) in the browser's time zone, like the operator screen; origin times stay in UTC.
@@ -93,18 +83,13 @@ function readableSubject(subject) {
     return Object.keys(MEASUREMENT_LABELS).reduce((text, code) => text.split(code).join(MEASUREMENT_LABELS[code]), subject);
 }
 
-// "2026-10-19 10:02" (as the server wrote it, in the writer's time zone) -> "19/10 10:02". No time-zone conversion.
-function formatFollowUpDate(fecha) {
-    const match = fecha ? FOLLOW_UP_DATE.exec(fecha) : null;
-    return match ? `${match[3]}/${match[2]} ${match[4]}` : fecha || '';
-}
-
 function plural(count, one, many) {
     return `${count} ${count === 1 ? one : many}`;
 }
 
-// Intervention (Case) record page: what is happening, what to do next and the signals behind it (HP-07).
-// Everything comes from the server with the user's own access; actions are re-checked there (BR-208).
+// Intervention (Case) record page: what is happening and the signals behind it (HP-07). Read-only: the status is
+// changed in the standard Details tab, not here (D046).
+// Everything comes from the server with the user's own access (BR-208).
 export default class NovaCasaIntervencion extends NavigationMixin(LightningElement) {
     @api recordId;
 
@@ -119,16 +104,7 @@ export default class NovaCasaIntervencion extends NavigationMixin(LightningEleme
     wiredSenales;
 
     nowMs = Date.now();
-    formMode = null; // 'seguir' or 'cerrar'
-    nuevoEstado = '';
-    comentario = '';
-    isSaving = false;
-    actionError = '';
-    liveMessage = '';
-
     _timer;
-    _focusTarget; // CSS selector of the element to focus after the next render
-    _returnFocus; // data-return value of the control that opened the form
     _lastModified;
 
     connectedCallback() {
@@ -141,17 +117,6 @@ export default class NovaCasaIntervencion extends NavigationMixin(LightningEleme
 
     disconnectedCallback() {
         clearInterval(this._timer);
-    }
-
-    renderedCallback() {
-        if (!this._focusTarget) {
-            return;
-        }
-        const element = this.template.querySelector(this._focusTarget);
-        if (element) {
-            element.focus();
-        }
-        this._focusTarget = undefined;
     }
 
     get signalLimit() {
@@ -189,7 +154,7 @@ export default class NovaCasaIntervencion extends NavigationMixin(LightningEleme
         }
     }
 
-    // A change saved from the standard tabs below (e.g. Status edited in Details) refreshes this component too.
+    // A change saved from the Details tab (e.g. Status edited there) refreshes this component too.
     @wire(getRecord, { recordId: '$recordId', optionalFields: [LAST_MODIFIED_FIELD] })
     wiredCaseRecord({ data }) {
         const stamp = data ? getFieldValue(data, LAST_MODIFIED_FIELD) : null;
@@ -198,7 +163,7 @@ export default class NovaCasaIntervencion extends NavigationMixin(LightningEleme
         }
         const changed = this._lastModified && stamp !== this._lastModified;
         this._lastModified = stamp;
-        if (changed && !this.isSaving) {
+        if (changed) {
             this.refreshData();
         }
     }
@@ -333,77 +298,6 @@ export default class NovaCasaIntervencion extends NavigationMixin(LightningEleme
         return this.isClosed ? 'estado estado-cerrada' : 'estado';
     }
 
-    // ---- path ----
-
-    // Picklist options in path order: PATH_FIRST, then any other active value, then Closed.
-    get orderedEstados() {
-        const estados = (this.detalle && this.detalle.estados) || [];
-        const first = PATH_FIRST.map((v) => estados.find((o) => o.value === v)).filter(Boolean);
-        const others = estados.filter((o) => !PATH_FIRST.includes(o.value) && o.value !== STATUS_CLOSED);
-        const closed = estados.filter((o) => o.value === STATUS_CLOSED);
-        return [...first, ...others, ...closed];
-    }
-    get hasPath() {
-        return this.orderedEstados.length > 0;
-    }
-    get pathSteps() {
-        const steps = this.orderedEstados;
-        const status = this.detalle ? this.detalle.status : null;
-        const currentIndex = steps.findIndex((o) => o.value === status);
-        const last = steps.length - 1;
-        return steps.map((o, i) => {
-            const isCurrent = i === currentIndex;
-            const isDone = currentIndex >= 0 && i < currentIndex;
-            let name;
-            if (o.value === STATUS_CLOSED) {
-                name = `${o.label}: cerrar la intervención`;
-            } else if (isCurrent) {
-                name = `${o.label} (estado actual): actualizar seguimiento`;
-            } else {
-                name = `Pasar a ${o.label}`;
-            }
-            let cls = 'paso';
-            if (i === 0) {
-                cls += ' paso-primero';
-            }
-            if (i === last) {
-                cls += ' paso-ultimo';
-            }
-            if (isDone) {
-                cls += ' hecho';
-            }
-            if (isCurrent) {
-                cls += ' actual';
-            }
-            let srState = '';
-            if (isCurrent) {
-                srState = ' (estado actual)';
-            } else if (isDone) {
-                srState = ' (paso anterior)';
-            }
-            return {
-                key: o.value,
-                value: o.value,
-                label: o.label,
-                isDone,
-                ariaCurrent: isCurrent ? 'step' : null,
-                cls,
-                name,
-                srState,
-                returnKey: `paso-${i}`
-            };
-        });
-    }
-    handleStep(event) {
-        const value = event.currentTarget.dataset.value;
-        const returnKey = event.currentTarget.dataset.return;
-        if (value === STATUS_CLOSED) {
-            this.openClose(returnKey);
-        } else {
-            this.openFollowUp(value, returnKey);
-        }
-    }
-
     // ---- strip ----
 
     get openTileLabel() {
@@ -488,87 +382,9 @@ export default class NovaCasaIntervencion extends NavigationMixin(LightningEleme
         return first.isFuture ? 'la última con hora del simulador' : `la última ${first.ageText}`;
     }
 
-    get followUp() {
-        return this.detalle ? this.detalle.ultimoSeguimiento : null;
-    }
-    get followTileValue() {
-        return this.followUp ? formatFollowUpDate(this.followUp.fecha) : '—';
-    }
-    get followTileSub() {
-        return this.followUp ? this.followUp.autor : '';
-    }
-
     // ---- what to do now ----
+    // Notes only. Nothing here changes the Case: the status is edited in the Details tab (D046).
 
-    get canFollow() {
-        return this.isOpen && this.detalle.puedeSeguir === true;
-    }
-    get followUpOptions() {
-        return this.orderedEstados
-            .filter((o) => o.value !== STATUS_CLOSED)
-            .map((o) => {
-                const checked = o.value === this.nuevoEstado;
-                return {
-                    key: o.value,
-                    value: o.value,
-                    label: o.label,
-                    checked,
-                    cls: checked ? 'seg seg-sel' : 'seg'
-                };
-            });
-    }
-    get hasFollowUpOptions() {
-        return this.followUpOptions.length > 0;
-    }
-    get canClose() {
-        return this.canFollow && this.orderedEstados.some((o) => o.value === STATUS_CLOSED);
-    }
-    get actionsNote() {
-        if (this.canFollow) {
-            return 'Coordinación';
-        }
-        return this.isOpen ? 'Solo lectura' : '';
-    }
-    get hasActionsNote() {
-        return Boolean(this.actionsNote);
-    }
-    get isFollowing() {
-        return this.canFollow && this.formMode === 'seguir';
-    }
-    get isClosing() {
-        return this.canClose && this.formMode === 'cerrar';
-    }
-    get showFollowUpEmpty() {
-        return this.isFollowing && !this.hasFollowUpOptions;
-    }
-    get followButtonExpanded() {
-        return String(this.isFollowing);
-    }
-    get closeButtonExpanded() {
-        return String(this.isClosing);
-    }
-    get saveFollowDisabled() {
-        return this.isSaving || !this.nuevoEstado || this.comentario.length > COMMENT_MAX;
-    }
-    get saveCloseDisabled() {
-        return this.isSaving || this.comentario.length > COMMENT_MAX;
-    }
-    get commentMax() {
-        return COMMENT_MAX;
-    }
-    get closeTitle() {
-        return this.detalle ? `¿Cerrar el Caso ${this.detalle.caseNumber}?` : '';
-    }
-    // Close confirmation. Never promises that an intervention will open (D038, point 3).
-    get closeWarnsTelemetryCritical() {
-        return this.isTelemetry && this.assetLevel === 2;
-    }
-    get closeWarnsManualCritical() {
-        return this.isManual && this.assetLevel === 2;
-    }
-    get showActionError() {
-        return Boolean(this.actionError);
-    }
     // Only on the open telemetry Case that new criticals of the asset are linked to (D039).
     get showReceivesCriticalsNote() {
         return this.isOpen && this.detalle.recibeCriticas === true;
@@ -579,137 +395,11 @@ export default class NovaCasaIntervencion extends NavigationMixin(LightningEleme
     get showStableNote() {
         return this.isOpen && this.hasAsset && this.assetLevel === 0;
     }
-    get showReadOnlyNote() {
-        return this.isOpen && this.hasAsset && !this.canFollow;
-    }
-    get showNoAssetNote() {
-        return this.isOpen && !this.hasAsset;
-    }
-    get hasClosingQuote() {
-        return this.isClosed && Boolean(this.followUp && this.followUp.texto);
-    }
-    get closingQuote() {
-        return this.hasClosingQuote ? `«${this.followUp.texto}»` : '';
-    }
-    get closingMeta() {
-        if (!this.hasClosingQuote) {
-            return '';
-        }
-        return [this.followUp.autor, formatFollowUpDate(this.followUp.fecha)].filter(Boolean).join(' · ');
-    }
     get closedDurationText() {
         const d = this.detalle;
         const created = d ? toMillis(d.createdDate) : null;
         const closed = d ? toMillis(d.closedDate) : null;
         return created === null || closed === null ? '' : `Estuvo abierta ${durationText(created, closed)}.`;
-    }
-
-    // Default of the follow-up form: the step clicked, else the current status if it is open, else "En curso", else the first.
-    defaultFollowUpState(preferred) {
-        const values = this.followUpOptions.map((o) => o.value);
-        if (preferred && values.includes(preferred)) {
-            return preferred;
-        }
-        const current = this.detalle ? this.detalle.status : null;
-        if (current && values.includes(current)) {
-            return current;
-        }
-        if (values.includes(STATUS_IN_PROGRESS)) {
-            return STATUS_IN_PROGRESS;
-        }
-        return values.length ? values[0] : '';
-    }
-
-    // The textarea is not bound to `comentario`: each form starts empty when it mounts. Re-opening the form that is
-    // already open keeps what was typed and only changes the selected status.
-    // _focusTarget is only set when the form mounts (a render is certain); an already-open form is focused directly.
-    openFollowUp(preferred, returnKey) {
-        if (this.formMode === 'seguir') {
-            if (preferred) {
-                this.nuevoEstado = this.defaultFollowUpState(preferred);
-            }
-            const radios = [...this.template.querySelectorAll('input[name="nuevoEstado"]')];
-            const selected = radios.find((r) => r.value === this.nuevoEstado);
-            if (selected) {
-                selected.focus();
-            }
-            return;
-        }
-        this.formMode = 'seguir';
-        this.nuevoEstado = this.defaultFollowUpState(preferred);
-        this.comentario = '';
-        this.actionError = '';
-        this._returnFocus = returnKey || 'seguir';
-        this._focusTarget = this.nuevoEstado ? 'input[name="nuevoEstado"]:checked' : '[data-focus="seguir"]';
-    }
-    openClose(returnKey) {
-        if (this.formMode === 'cerrar') {
-            const heading = this.template.querySelector('[data-focus="cerrar"]');
-            if (heading) {
-                heading.focus();
-            }
-            return;
-        }
-        this.formMode = 'cerrar';
-        this.comentario = '';
-        this.actionError = '';
-        this._returnFocus = returnKey || 'cerrar';
-        this._focusTarget = '[data-focus="cerrar"]';
-    }
-    handleOpenFollowUp(event) {
-        this.openFollowUp(null, event.currentTarget.dataset.return);
-    }
-    handleOpenClose(event) {
-        this.openClose(event.currentTarget.dataset.return);
-    }
-    handleCancel() {
-        this.formMode = null;
-        this.comentario = '';
-        this.actionError = '';
-        this._focusTarget = this._returnFocus ? `[data-return="${this._returnFocus}"]` : '[data-focus="acciones"]';
-    }
-    handleEstado(event) {
-        this.nuevoEstado = event.target.value;
-    }
-    handleComentario(event) {
-        this.comentario = event.target.value;
-    }
-
-    toast(title, message, variant) {
-        this.dispatchEvent(new ShowToastEvent({ title, message, variant }));
-    }
-
-    handleSaveFollowUp() {
-        if (!this.saveFollowDisabled) {
-            this.save(this.nuevoEstado, 'Seguimiento actualizado');
-        }
-    }
-    handleSaveClose() {
-        if (!this.saveCloseDisabled) {
-            this.save(STATUS_CLOSED, 'Intervención cerrada');
-        }
-    }
-
-    async save(estado, successTitle) {
-        const caseNumber = this.detalle ? this.detalle.caseNumber : '';
-        this.isSaving = true;
-        this.actionError = '';
-        this.liveMessage = '';
-        try {
-            await actualizarSeguimiento({ caseId: this.recordId, estado, comentario: this.comentario });
-            this.formMode = null;
-            this.comentario = '';
-            this.toast(successTitle, `Caso ${caseNumber}`, 'success');
-            this.liveMessage = `${successTitle}: Caso ${caseNumber}.`;
-            this._focusTarget = '[data-focus="acciones"]';
-        } catch (e) {
-            this.actionError = reduceError(e);
-        }
-        // Also after an error: the intervention may have changed under us (someone else closed it).
-        await this.refreshData();
-        // The standard tabs below re-read the Case; if this fails they show the change on the next load.
-        await Promise.resolve(notifyRecordUpdateAvailable([{ recordId: this.recordId }])).catch(() => undefined);
-        this.isSaving = false;
     }
 
     // ---- signals ----

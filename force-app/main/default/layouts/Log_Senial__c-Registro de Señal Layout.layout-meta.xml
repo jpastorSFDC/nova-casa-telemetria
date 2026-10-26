@@ -70,7 +70,7 @@
         <customLabel>true</customLabel>
         <detailHeading>true</detailHeading>
         <editHeading>false</editHeading>
-        <label>Reenvíos y reintento</label>
+        <label>Reenvíos, conflictos y reintento</label>
         <layoutColumns>
             <layoutItems>
                 <behavior>Readonly</behavior>
@@ -80,11 +80,23 @@
                 <behavior>Readonly</behavior>
                 <field>Ultimo_Reenvio__c</field>
             </layoutItems>
+            <layoutItems>
+                <behavior>Readonly</behavior>
+                <field>Accion_Reintento__c</field>
+            </layoutItems>
         </layoutColumns>
         <layoutColumns>
             <layoutItems>
                 <behavior>Readonly</behavior>
-                <field>Accion_Reintento__c</field>
+                <field>Conflictos__c</field>
+            </layoutItems>
+            <layoutItems>
+                <behavior>Readonly</behavior>
+                <field>Ultimo_Conflicto__c</field>
+            </layoutItems>
+            <layoutItems>
+                <behavior>Readonly</behavior>
+                <field>Ultimo_Conflicto_Detalle__c</field>
             </layoutItems>
         </layoutColumns>
         <style>TwoColumnsTopToBottom</style>

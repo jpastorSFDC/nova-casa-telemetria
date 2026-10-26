@@ -323,11 +323,14 @@ private class IntervencionOperadorControllerTest {
         Assert.areEqual(activeStatusValues(), valuesOf(options), 'The operator gets the same list as anyone else');
     }
 
+    // Every status change needs a comment (D046), so success paths send this one.
+    private static final String NOTE = 'Comentario de prueba';
+
     // ─── actualizarSeguimiento ────────────────────────────────────────────
 
     private static String followUpError(Id caseId, String status) {
         try {
-            IntervencionOperadorController.actualizarSeguimiento(caseId, status, null);
+            IntervencionOperadorController.actualizarSeguimiento(caseId, status, NOTE);
         } catch (AuraHandledException e) {
             return e.getMessage();
         }
@@ -353,19 +356,32 @@ private class IntervencionOperadorControllerTest {
     }
 
     @isTest
-    static void shouldChangeStatusWithoutComment_WhenCommentIsBlank() {
+    static void shouldRefuseFollowUp_WhenCommentIsBlank() {
         User operator = newUserWithPermissionSet('ncfupcloseop', 'Nova_Casa_Operator', OPERATOR_ROLE);
         User coordinator = newUserWithPermissionSet('ncfupclose', 'Nova_Casa_Coordinator', COORDINATOR_ROLE);
         Asset asset = newAssetWithReading('AST-FUP-2', 2, operator.Id);
         Case c = new Case(AssetId = asset.Id, OwnerId = operator.Id, Status = 'En curso', Origin = 'Telemetria', Subject = 'Abierta', Description = 'Original');
         insert c;
 
+        List<String> errors = new List<String>();
         System.runAs(coordinator) {
-            IntervencionOperadorController.actualizarSeguimiento(c.Id, 'Closed', '  ');
+            for (String blank : new List<String>{ null, '', '  ', '\r\n' }) {
+                try {
+                    IntervencionOperadorController.actualizarSeguimiento(c.Id, 'Closed', blank);
+                    errors.add('no error');
+                } catch (AuraHandledException e) {
+                    errors.add(e.getMessage());
+                }
+            }
         }
 
+        Assert.areEqual(new List<String>{
+            IntervencionOperadorController.COMMENT_REQUIRED, IntervencionOperadorController.COMMENT_REQUIRED,
+            IntervencionOperadorController.COMMENT_REQUIRED, IntervencionOperadorController.COMMENT_REQUIRED
+        }, errors, 'A status change without a comment is refused (D046)');
         Case after = [SELECT Status, Description, IsClosed FROM Case WHERE Id = :c.Id];
-        Assert.isTrue(after.IsClosed);
+        Assert.isFalse(after.IsClosed, 'The Case is not closed');
+        Assert.areEqual('En curso', after.Status);
         Assert.areEqual('Original', after.Description);
     }
 
@@ -379,7 +395,7 @@ private class IntervencionOperadorControllerTest {
         String error;
         System.runAs(operator) {
             try {
-                IntervencionOperadorController.actualizarSeguimiento(c.Id, 'Closed', null);
+                IntervencionOperadorController.actualizarSeguimiento(c.Id, 'Closed', NOTE);
             } catch (AuraHandledException e) {
                 error = e.getMessage();
             }
@@ -405,8 +421,10 @@ private class IntervencionOperadorControllerTest {
                 new List<Object>{ c.Id, null, null },
                 new List<Object>{ c.Id, '   ', null },
                 new List<Object>{ c.Id, 'Closed', 'x'.repeat(IntervencionOperadorController.COMMENT_MAX + 1) },
-                new List<Object>{ null, 'Closed', null },
-                new List<Object>{ Id.valueOf('500000000000000AAA'), 'Closed', null }
+                new List<Object>{ c.Id, 'Closed', null },
+                new List<Object>{ c.Id, 'Closed', '  ' },
+                new List<Object>{ null, 'Closed', NOTE },
+                new List<Object>{ Id.valueOf('500000000000000AAA'), 'Closed', NOTE }
             }) {
                 try {
                     IntervencionOperadorController.actualizarSeguimiento((Id) args[0], (String) args[1], (String) args[2]);
@@ -422,6 +440,8 @@ private class IntervencionOperadorControllerTest {
             IntervencionOperadorController.INVALID_STATUS,
             IntervencionOperadorController.INVALID_STATUS,
             IntervencionOperadorController.COMMENT_TOO_LONG,
+            IntervencionOperadorController.COMMENT_REQUIRED,
+            IntervencionOperadorController.COMMENT_REQUIRED,
             IntervencionOperadorController.CASE_NOT_FOUND,
             IntervencionOperadorController.CASE_NOT_FOUND
         }, errors);
@@ -443,7 +463,7 @@ private class IntervencionOperadorControllerTest {
             visible = [SELECT COUNT() FROM Case WHERE Id IN :new Set<Id>{ closed.Id, noAsset.Id } WITH USER_MODE];
             for (Case c : new List<Case>{ closed, noAsset }) {
                 try {
-                    IntervencionOperadorController.actualizarSeguimiento(c.Id, 'En curso', null);
+                    IntervencionOperadorController.actualizarSeguimiento(c.Id, 'En curso', NOTE);
                     errors.add('no error');
                 } catch (AuraHandledException e) {
                     errors.add(e.getMessage());
@@ -473,7 +493,7 @@ private class IntervencionOperadorControllerTest {
         System.runAs(gerente) {
             visible = [SELECT COUNT() FROM Case WHERE Id = :c.Id WITH USER_MODE];
             try {
-                IntervencionOperadorController.actualizarSeguimiento(c.Id, 'Closed', null);
+                IntervencionOperadorController.actualizarSeguimiento(c.Id, 'Closed', NOTE);
             } catch (AuraHandledException e) {
                 error = e.getMessage();
             }
@@ -503,7 +523,7 @@ private class IntervencionOperadorControllerTest {
         Case after = [SELECT Status, IsClosed, Description FROM Case WHERE Id = :c.Id];
         Assert.areEqual('Escalated', after.Status);
         Assert.isFalse(after.IsClosed, 'Escalated keeps the intervention open');
-        Assert.areEqual('Original', after.Description, 'No comment, nothing appended');
+        Assert.isTrue(after.Description.startsWith('Original\n[') && after.Description.endsWith(NOTE), 'The required comment is appended');
     }
 
     @isTest
@@ -536,7 +556,7 @@ private class IntervencionOperadorControllerTest {
         for (Integer i = 0; i < offered.size(); i++) {
             Case saved = after.get(cases[i].Id);
             Assert.areEqual(offered[i], saved.Status, 'The Case takes the status it was sent');
-            // Closed needs no comment and closes the Case; any other offered status leaves it open.
+            // Closed closes the Case; any other offered status leaves it open.
             Assert.areEqual(offered[i] == IntervencionOperadorController.STATUS_CLOSED, saved.IsClosed, 'IsClosed after ' + offered[i]);
         }
     }
@@ -681,20 +701,27 @@ private class IntervencionOperadorControllerTest {
     }
 
     @isTest
-    static void shouldStillLeaveALine_WhenTheCommentIsBlank() {
+    static void shouldRefuseCloseAll_WhenTheCommentIsBlank() {
         User operator = newUserWithPermissionSet('nccloseblkop', 'Nova_Casa_Operator', OPERATOR_ROLE);
         User coordinator = newUserWithPermissionSet('nccloseblk', 'Nova_Casa_Coordinator', COORDINATOR_ROLE);
         Asset asset = newAssetWithReading('AST-ALL-3', 2, operator.Id);
         Case c = openCase(asset, operator.Id, 'En curso', 'Original');
         insert c;
 
+        List<String> errors = new List<String>();
         System.runAs(coordinator) {
-            IntervencionOperadorController.cerrarIntervencionesDelActivo(asset.Id, null, '   ');
+            for (String blank : new List<String>{ null, '', '   ' }) {
+                errors.add(closeAllError(asset.Id, blank));
+            }
         }
 
+        Assert.areEqual(new List<String>{
+            IntervencionOperadorController.COMMENT_REQUIRED, IntervencionOperadorController.COMMENT_REQUIRED,
+            IntervencionOperadorController.COMMENT_REQUIRED
+        }, errors, 'Closing in bulk without a comment is refused (D046)');
         Case after = [SELECT IsClosed, Description FROM Case WHERE Id = :c.Id];
-        Assert.isTrue(after.IsClosed);
-        Assert.isTrue(after.Description.endsWith('] Cierre en bloque'), 'The bulk close is traceable even without a comment');
+        Assert.isFalse(after.IsClosed, 'Nothing is closed without a comment');
+        Assert.areEqual('Original', after.Description);
     }
 
     @isTest
@@ -705,7 +732,7 @@ private class IntervencionOperadorControllerTest {
 
         String error;
         System.runAs(operator) {
-            error = closeAllError(asset.Id, null);
+            error = closeAllError(asset.Id, NOTE);
         }
 
         Assert.areEqual(IntervencionOperadorController.NO_PERMISSION_FOLLOW, error);
@@ -723,7 +750,7 @@ private class IntervencionOperadorControllerTest {
         String error;
         System.runAs(gerente) {
             visible = [SELECT COUNT() FROM Case WHERE AssetId = :asset.Id WITH USER_MODE];
-            error = closeAllError(asset.Id, null);
+            error = closeAllError(asset.Id, NOTE);
         }
 
         Assert.areEqual(1, visible, 'The gerente sees the Case through the role hierarchy');
@@ -743,11 +770,11 @@ private class IntervencionOperadorControllerTest {
 
         List<String> errors = new List<String>();
         System.runAs(coordinator) {
-            errors.add(closeAllError(null, null));
-            errors.add(closeAllError(Id.valueOf('02i000000000000AAA'), null));
-            errors.add(closeAllError(hidden.Id, null));
+            errors.add(closeAllError(null, NOTE));
+            errors.add(closeAllError(Id.valueOf('02i000000000000AAA'), NOTE));
+            errors.add(closeAllError(hidden.Id, NOTE));
             errors.add(closeAllError(quiet.Id, 'x'.repeat(IntervencionOperadorController.COMMENT_MAX + 1)));
-            errors.add(closeAllError(quiet.Id, null));
+            errors.add(closeAllError(quiet.Id, NOTE));
         }
 
         Assert.areEqual(new List<String>{
@@ -774,7 +801,7 @@ private class IntervencionOperadorControllerTest {
 
         IntervencionOperadorController.CierreResultado result;
         System.runAs(coordinator) {
-            result = IntervencionOperadorController.cerrarIntervencionesDelActivo(asset.Id, null, null);
+            result = IntervencionOperadorController.cerrarIntervencionesDelActivo(asset.Id, null, NOTE);
         }
 
         Assert.areEqual(1, result.cerradas);
@@ -794,14 +821,14 @@ private class IntervencionOperadorControllerTest {
 
         String stale;
         System.runAs(coordinator) {
-            stale = closeAllError(asset.Id, 2, null);
+            stale = closeAllError(asset.Id, 2, NOTE);
         }
 
         Assert.areEqual(IntervencionOperadorController.COUNT_CHANGED, stale, 'The user confirmed 2 but 3 are open');
         Assert.areEqual(3, [SELECT COUNT() FROM Case WHERE AssetId = :asset.Id AND IsClosed = false], 'A new critical one is not closed unseen');
 
         System.runAs(coordinator) {
-            Assert.areEqual(3, IntervencionOperadorController.cerrarIntervencionesDelActivo(asset.Id, 3, null).cerradas);
+            Assert.areEqual(3, IntervencionOperadorController.cerrarIntervencionesDelActivo(asset.Id, 3, NOTE).cerradas);
         }
     }
 
@@ -842,7 +869,7 @@ private class IntervencionOperadorControllerTest {
         String error;
         System.runAs(operator) {
             try {
-                result = IntervencionOperadorController.cerrarIntervencionesDelActivo(asset.Id, null, null);
+                result = IntervencionOperadorController.cerrarIntervencionesDelActivo(asset.Id, null, NOTE);
             } catch (AuraHandledException e) {
                 error = e.getMessage();
             }
@@ -867,8 +894,8 @@ private class IntervencionOperadorControllerTest {
         IntervencionOperadorController.CierreResultado first;
         IntervencionOperadorController.CierreResultado second;
         System.runAs(coordinator) {
-            first = IntervencionOperadorController.cerrarIntervencionesDelActivo(asset.Id, null, null);
-            second = IntervencionOperadorController.cerrarIntervencionesDelActivo(asset.Id, null, null);
+            first = IntervencionOperadorController.cerrarIntervencionesDelActivo(asset.Id, null, NOTE);
+            second = IntervencionOperadorController.cerrarIntervencionesDelActivo(asset.Id, null, NOTE);
         }
 
         Assert.areEqual(IntervencionOperadorController.BULK_CLOSE_MAX, first.cerradas);
