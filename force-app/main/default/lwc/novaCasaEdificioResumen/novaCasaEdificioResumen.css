@@ -233,6 +233,117 @@
     color: var(--nc-tinta-media);
 }
 
+/* Cards: what needs attention and the last signal received */
+.fichas {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    gap: 0.6rem;
+    margin: 0.8rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+.ficha {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    border: 1px solid var(--nc-linea);
+    border-left: 4px solid var(--nc-linea);
+    border-radius: var(--nc-radio);
+    padding: 0.7rem 0.85rem;
+    background: var(--nc-papel);
+}
+.ficha-critico {
+    border-color: var(--nc-critico);
+    background: #fff1f3;
+}
+.ficha-advertencia {
+    border-left-color: var(--nc-advertencia);
+    background: var(--nc-advertencia-fondo);
+}
+.ficha-normal {
+    border-left-color: var(--nc-normal);
+}
+.ficha-nivel {
+    border-left-color: var(--nc-nivel);
+}
+.ficha-cab {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+.ficha-nombre {
+    font-weight: 700;
+}
+.ficha-nombre-texto {
+    font-weight: 700;
+    color: var(--nc-tinta-media);
+}
+.ficha-medicion {
+    font-size: 0.86rem;
+    color: var(--nc-tinta-media);
+}
+.ficha-valor {
+    font-size: 1.35rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    margin: 0.3rem 0 0.2rem;
+}
+.ficha-pie {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.84rem;
+    color: var(--nc-tinta-media);
+}
+.sim::before {
+    content: ' · ';
+}
+/* Signal that opened the intervention: history, kept apart from the current reading */
+.apertura {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    margin-top: 0.55rem;
+    padding: 0.5rem 0.65rem;
+    border-radius: 6px;
+    background: #f8fafc;
+    border: 1px solid var(--nc-linea);
+}
+.apertura-misma {
+    margin-top: 0.4rem;
+    font-size: 0.84rem;
+    color: var(--nc-tinta-media);
+}
+.apertura-rot {
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 800;
+    color: var(--nc-tinta-media);
+}
+.apertura-texto {
+    font-size: 0.9rem;
+    color: var(--nc-tinta);
+}
+.apertura-valor {
+    margin-left: 0.35em;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+.apertura-hora {
+    font-size: 0.8rem;
+    color: var(--nc-tinta-media);
+}
+.mas,
+.aviso {
+    margin: 0.5rem 0 0;
+    font-size: 0.9rem;
+}
+
 .hueso {
     height: 4rem;
     background: var(--nc-hueco);

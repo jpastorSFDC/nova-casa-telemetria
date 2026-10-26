@@ -264,6 +264,21 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>false</editable>
+        <field>Log_Senial__c.Conflictos__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Log_Senial__c.Ultimo_Conflicto_Detalle__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Log_Senial__c.Ultimo_Conflicto__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
         <field>Log_Senial__c.Retraso_Publicacion_Seg__c</field>
         <readable>true</readable>
     </fieldPermissions>

@@ -10,6 +10,8 @@ private class LogAccionReintentoTest {
 
     private static final String SIN_ACCION = 'No hace falta';
     private static final String SIN_ACCION_CONTADO = 'No hace falta: el reenvío ya quedó contado';
+    private static final String SIN_ACCION_CON_CONFLICTO =
+        'No hace falta con el original; la entrega en conflicto no se aplicó: revisar la fuente (ver Detalle del último conflicto)';
 
     // Estado => texto exacto de la fórmula con Reenvios__c = 0.
     private static final Map<String, String> ACCION_ESPERADA = new Map<String, String>{
@@ -89,6 +91,24 @@ private class LogAccionReintentoTest {
             String esperada = SIN_ACCION.equals(ACCION_ESPERADA.get(fila.Resultado__c))
                 ? SIN_ACCION_CONTADO : ACCION_ESPERADA.get(fila.Resultado__c);
             Assert.areEqual(esperada, fila.Accion_Reintento__c, 'Acción con 2 reenvíos para ' + fila.Resultado__c);
+        }
+    }
+
+    // D047: un conflicto sobre una señal ya procesada no le cambia el Resultado; la fórmula lo dice y manda a revisar la
+    // fuente, también con reenvíos. Los estados que sí se reprocesan o que ya son Conflicto no cambian.
+    @IsTest
+    static void conConflictosLosEstadosSinAccionMandanARevisarLaFuenteYLosDemasNoCambian() {
+        List<Log_Senial__c> filas = new List<Log_Senial__c>();
+        for (String estado : ACCION_ESPERADA.keySet()) {
+            filas.add(new Log_Senial__c(Identidad__c = FUENTE + '|msg_c_' + estado, Source__c = FUENTE,
+                Message_Id__c = 'msg_c_' + estado, Resultado__c = estado, Reenvios__c = 1, Conflictos__c = 1));
+        }
+        insert filas;
+
+        for (Log_Senial__c fila : [SELECT Resultado__c, Accion_Reintento__c FROM Log_Senial__c]) {
+            String esperada = SIN_ACCION.equals(ACCION_ESPERADA.get(fila.Resultado__c))
+                ? SIN_ACCION_CON_CONFLICTO : ACCION_ESPERADA.get(fila.Resultado__c);
+            Assert.areEqual(esperada, fila.Accion_Reintento__c, 'Acción con un conflicto para ' + fila.Resultado__c);
         }
     }
 

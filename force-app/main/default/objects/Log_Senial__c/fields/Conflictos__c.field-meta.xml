@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Conflictos__c</fullName>
+    <label>Conflictos</label>
+    <description>Deliveries that came with this identity and different content after it was already processed (BR-205, BR-209, D047). The row keeps the original result.</description>
+    <type>Number</type>
+    <precision>18</precision>
+    <scale>0</scale>
+    <defaultValue>0</defaultValue>
+</CustomField>
