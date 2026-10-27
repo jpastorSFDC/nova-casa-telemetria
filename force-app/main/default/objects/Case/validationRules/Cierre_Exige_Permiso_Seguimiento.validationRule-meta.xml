@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Cierre_Exige_Permiso_Seguimiento</fullName>
+    <active>true</active>
+    <description>D052. Cerrar una intervención exige el permiso Nova_Casa_Seguir_Intervencion, la misma llave del panel (D035, D036), también desde Detalles. Solo evalúa el cambio a Closed: no se evalúa al crear ni al reabrir.</description>
+    <errorConditionFormula>AND(ISCHANGED(Status), ISPICKVAL(Status, &quot;Closed&quot;), NOT($Permission.Nova_Casa_Seguir_Intervencion))</errorConditionFormula>
+    <errorDisplayField>Status</errorDisplayField>
+    <errorMessage>Para cerrar una intervención necesitas el permiso de seguimiento. Pídele a coordinación que la cierre.</errorMessage>
+</ValidationRule>
