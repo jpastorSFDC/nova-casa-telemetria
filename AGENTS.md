@@ -26,7 +26,8 @@ Remote: `origin` → github.com/jpastorSFDC/nova-casa-telemetria, **public**. Do
 - Asset severity = **the highest** of its latest valid readings (a different policy only if it's justified, documented and tested).
 - Identity = `source` + `messageId`. A resend shares that identity.
 - Same key: doesn't update state or open an intervention. Same key with **different content** is a conflict, not a fresh alert.
-- Baseline: **one intervention per unique critical message**, as D039 refines it: **one open telemetry intervention per asset**, and later critical signals of that asset update it instead of opening another. Consolidating further than D039 says is extra scope.
+- Baseline: **one intervention per unique critical message**. Consolidating different keys into one open incident is extra scope.
+- Our extra, D039 (a team decision in `docs/decisiones.md`, not MDSS text): **one open telemetry intervention per asset**, and later critical signals of that asset update it instead of opening another. Don't consolidate further than D039 says.
 - A late-arriving signal: keep it as evidence; it **doesn't** overwrite current state and **doesn't** open a critical intervention. An alternative only if it separates historical from current state and has tests to back it.
 - Same `occurredAt`: needs a **deterministic** tie-break, defined in D003. Don't let arrival order decide it.
 - Thresholds **live outside code**, in `Umbral__c` (D004). Operators and values are in D006 and D019.
