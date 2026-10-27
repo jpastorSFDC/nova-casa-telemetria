@@ -28,7 +28,7 @@ Status as of 2026-10-20. "Facilitator pending" means the code is done and tested
 
 ## Open questions for the facilitator
 
-The team answered these on 2026-10-19 and 10-20 (John); PR #97 records each answer as one line in its decision. They are team positions, not the facilitator's answer, and each decision in [decisiones.md](decisiones.md) stays Proposed until the facilitator confirms it in writing on the MDSS card.
+The team answered these on 2026-10-19 and 10-20 (John); PR #97 records each answer as one line in its decision. They are team positions, not the facilitator's answer. On 2026-10-27 the team closed each of those decisions in [decisiones.md](decisiones.md) as Accepted, with a note in its Status line that the facilitator hasn't confirmed it in writing.
 
 | Card | Decision | Question | Team position | If the answer is "no" |
 |---|---|---|---|---|
@@ -50,7 +50,7 @@ Closed since Discovery: the intervention is `Case` (D001); a tie on `occurredAt`
 - **US-208:** «`Account` y `Case` en Private, `Asset` Controlled by Parent; cada edificio es de un operador, y coordinador y gerente ven por jerarquía de roles, sin View All. Tres operaciones corren en modo sistema, siempre después de comprobar en modo usuario que la persona ve el activo: crear la intervención manual, comprobar si ya hay una abierta (solo sí o no) y el historial por activo (sin motivo, huella ni identidad). La ingesta no depende de permisos de operador. ¿Aceptan este modelo?»
 - **US-209:** «El historial por activo muestra a operador, coordinador y gerente, solo de los activos que ya ven, el tipo de señal, la fecha, el resultado, la medición, el valor y la unidad; nunca el motivo, la huella ni la identidad. ¿Es aceptable que vean el resultado y el valor de una señal rechazada o en conflicto? Cuando llega la misma clave con otro contenido, la fila original pasa a `Conflicto`, conserva su valor y su caso, y el contenido nuevo no se guarda; la pantalla la marca como «valor original». ¿Basta con eso, o la fila original debe seguir `Procesada` con el conflicto marcado aparte?»
 
-When an answer arrives: move the decision to Accepted (or adjust it) with the date and who answered; if it's still verbal, say so in the decision. Only a change of behavior needs code: log it in `decisiones.md` first, then the PR with its test.
+When an answer arrives: record it in the decision's Status line with the date and who answered (or adjust the decision); if it's still verbal, say so in the decision. Only a change of behavior needs code: log it in `decisiones.md` first, then the PR with its test.
 
 ## Message contract
 
