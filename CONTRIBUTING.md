@@ -58,7 +58,7 @@ Refs: T4.1, T4.3
 
 **Footer** lists the backlog tasks the commit covers: `Refs: T4.1`.
 
-**The hook** (`.githooks/commit-msg`, turn it on once with `git config core.hooksPath .githooks`) checks the header against this section and rejects it if it doesn't match. It lets `Merge`, `Revert`, `fixup!`, `squash!` and `amend!` headers through without checking. It also removes `Co-authored-by` lines from Cursor and Claude, `Made-with: Cursor` and the `Generated with [Claude Code]` line from the message: we don't put AI co-authorship in commits.
+**The hook** (`.githooks/commit-msg`, turn it on once with `git config core.hooksPath .githooks`) checks the header against this section and rejects it if it doesn't match. It lets `Merge`, `Revert`, `fixup!`, `squash!` and `amend!` headers through without checking. It also removes, whatever their capitalization, the `Co-authored-by` lines from Cursor, Claude or Anthropic, `Made-with: Cursor` and the `Generated with [Claude Code]` line from the message (a human co-author stays): we don't put AI co-authorship in commits.
 
 Good:
 
