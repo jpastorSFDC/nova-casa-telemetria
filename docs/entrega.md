@@ -8,7 +8,7 @@ The MDSS brief (`Sprint 2 - Nova Casa.md`) is the source of truth. The reason be
 
 ## Status by story
 
-Status as of 2026-10-28. The code on `main` 1f2ec7b is what runs in `nova-cdo` (drift check of 2026-10-28); the closing PR only changes comments in Apex and LWC files, and those reach the org with the next deploy from `main`. Every story is done: the decisions that rested on the facilitator's confirmation were approved by John as the person responsible on 2026-10-28 (see [Team decisions behind each story](#team-decisions-behind-each-story)).
+Status as of 2026-10-28. The code on `main` 1f2ec7b is what runs in `nova-cdo` (drift check of 2026-10-28); the closing PR only changes comments, and two bundle descriptions, in Apex and LWC files, and those reach the org with the next deploy from `main`. Every story is done: the decisions that rested on the facilitator's confirmation were approved by John as the person responsible on 2026-10-28 (see [Team decisions behind each story](#team-decisions-behind-each-story)).
 
 | Story | Status | Evidence | Left |
 |---|---|---|---|
