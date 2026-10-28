@@ -11,7 +11,7 @@
  * parser's own message, because a JSONException message quotes part of the body, and a telemetry
  * body contains the next cursor.
  *
- * Contract (Sprint 2 - Nova Casa.md, "Contrato", plus docs/entendimiento.md "Simulator connection notes"):
+ * Contract (Sprint 2 - Nova Casa.md, "Contrato", plus docs/entrega.md "Message contract"):
  * the stream starts with POST /session, which returns a cursor. Every GET /telemetry?limit=N sends it
  * in X-Simulator-Cursor, and the response's pagination.nextCursor is the cursor for the next page.
  */

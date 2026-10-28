@@ -3,5 +3,5 @@
     <apiVersion>67.0</apiVersion>
     <isExposed>false</isExposed>
     <masterLabel>Nova Casa - Historial de señales</masterLabel>
-    <description>Read-only signal history of one asset, via ActivosOperadorController.getHistorial (D024). Child of novaCasaActivoEstado.</description>
+    <description>Read-only signal history of one asset, via ActivosOperadorController.getHistorial (D024). No page shows it today: D048 took it off the asset page and the operator screen's detail, and kept the bundle.</description>
 </LightningComponentBundle>

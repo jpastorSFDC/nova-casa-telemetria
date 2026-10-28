@@ -15,14 +15,14 @@
  *              first Case of the same asset.
  *
  *              INGESTION-PATH-ONLY API: runs in system mode (`without sharing`, SYSTEM_MODE query and DML)
- *              because ingestion runs as an Automated Process (BR-208 covers the separate query-side
+ *              because ingestion runs as the integration user (D017; BR-208 covers the separate query-side
  *              authorization path). It must never be called from operator-facing code (LWC or
  *              @AuraEnabled controllers): doing so would bypass CRUD/FLS/sharing for operators.
  *              The strings in Resultado.errorPorIdentidad can come straight from DML
  *              (Database.Error.getMessage()); they must not be shown verbatim to operators or written to logs.
  */
 public without sharing class IntervencionService {
-    // Why `without sharing` + SYSTEM_MODE: ingestion runs as an Automated Process and must not depend on
+    // Why `without sharing` + SYSTEM_MODE: ingestion runs as the integration user (D017) and must not depend on
     // operator/admin permissions (AGENTS.md). The query-side authorization path is separate (BR-208).
 
     // ─── Constants ───────────────────────────────────────────────────────

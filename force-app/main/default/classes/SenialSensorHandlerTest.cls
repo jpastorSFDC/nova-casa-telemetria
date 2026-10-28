@@ -537,7 +537,7 @@ private class SenialSensorHandlerTest {
         Assert.areEqual('Atrasada', filaLog(identidad('msg_0')).Resultado__c, 'Ser más antigua es Atrasada');
     }
 
-    // D011 (h) lo decidió John (2026-10-05) y el facilitador de MDSS no lo ha confirmado. La línea base dice una intervención
+    // D011 (h) es una decisión del equipo (John, 2026-10-05; ver D011). La línea base dice una intervención
     // por mensaje crítico único y que una señal atrasada es solo evidencia: aquí una crítica más vieja del mismo lote (mismo
     // activo + tipo de medición) queda Atrasada y no abre Case; solo la ganadora del lote lo abre. Una alternativa solo vale
     // si separa el estado histórico del vigente y trae sus pruebas. Estas dos pruebas fijan el comportamiento ACTUAL a propósito

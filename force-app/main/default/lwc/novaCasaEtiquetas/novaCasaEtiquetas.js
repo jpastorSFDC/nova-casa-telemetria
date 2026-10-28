@@ -1,5 +1,5 @@
-// Labels shared by the record page components. Values mirror novaCasaActivosOperador (same wording, same glyphs);
-// that component keeps its own copy for now, so change both together.
+// Labels shared by the operator screen (novaCasaActivosOperador) and the record page components: one copy, so the
+// wording and the glyphs are the same everywhere.
 
 // Lectura_Vigente__c.Tipo_Medicion__c. Unknown values fall back to the raw value.
 export const MEASUREMENT_LABELS = {

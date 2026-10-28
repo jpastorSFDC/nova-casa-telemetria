@@ -1,6 +1,8 @@
 /**
  * Read side of the operator screen (US-207, BR-207/BR-208).
- * Runs with the operator's own CRUD/FLS/sharing: it never relies on the ingestion's SYSTEM_MODE path.
+ * Runs with the operator's own CRUD/FLS/sharing: it never relies on the ingestion's SYSTEM_MODE path. The only
+ * system-mode reads are three inner classes that read Log_Senial__c (HistoryReader, CaseSignalReader,
+ * OpeningSignalReader), and each is reached only after the asset or the Case was proven visible in USER_MODE (D024, D045).
  */
 public with sharing class ActivosOperadorController {
 
