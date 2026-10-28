@@ -50,7 +50,7 @@ If a new doc would repeat MDSS content in different words, it doesn't get added 
 
 - **Contributing**: branches, commits, PRs and deploys follow [CONTRIBUTING.md](CONTRIBUTING.md), the same rules for us and for agents. Short version: one branch per story (`feat/us-201-receive-signals`), Conventional Commits in English, a PR approved by the other person, merged with squash.
 - **`main` takes no direct commits**, ours or an agent's — everything comes in through a PR.
-- **Approval**: the MDSS facilitator approves each deliverable; an agreement between the two of us doesn't close it on its own.
+- **Approval**: the MDSS facilitator approves each deliverable; an agreement between the two of us doesn't close it on its own. On 2026-10-28 John, as the person responsible, approved the decisions in `docs/decisiones.md` that rested on the facilitator's confirmation (each Status line says so); the deliverables themselves are still approved in MDSS.
 - **GitHub**: [jpastorSFDC/nova-casa-telemetria](https://github.com/jpastorSFDC/nova-casa-telemetria), public. Don't assume something's pushed until you've checked the remote.
 
 ## Working with the org

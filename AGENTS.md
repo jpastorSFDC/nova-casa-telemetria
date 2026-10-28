@@ -14,7 +14,7 @@ Read this before designing or implementing anything. Don't invent PE fields or B
 
 ## Decision makers and flow
 
-The MDSS facilitator approves each deliverable; an agreement between the two of us doesn't close it on its own. Before proposing an alternative to a closed agreement, log it in `docs/decisiones.md` with justification and test criteria — don't just apply it.
+The MDSS facilitator approves each deliverable; an agreement between the two of us doesn't close it on its own. On 2026-10-28 John, as the person responsible, approved the decisions in `docs/decisiones.md` that rested on the facilitator's confirmation (each Status line says so); the deliverables themselves are still approved in MDSS. Before proposing an alternative to a closed agreement, log it in `docs/decisiones.md` with justification and test criteria — don't just apply it.
 
 Branches, commits and PRs follow `CONTRIBUTING.md`, the same rules for us and for agents: one branch per story (`feat/us-201-receive-signals`), commits in Conventional Commits English with the story as scope, merged with squash after the other person approves. **`main` never takes a direct commit from an agent** — an agent's work lives on its branch until John or Juan Diego reviews it. PRs opened by an agent count as John's, so Juan Diego reviews them. Never add AI co-authorship to commits.
 
