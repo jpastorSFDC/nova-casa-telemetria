@@ -22,7 +22,7 @@ Copy this template, use the next free number, keep the entries in numerical orde
 - **Next action**: what is still needed to validate or implement it.
 ```
 
-Statuses: **Accepted** means the pair considers the decision closed; John and Juan Diego decide. **Superseded by D0YY** means a later decision replaced it. As of 2026-10-28 every entry is Accepted or Superseded. Entries that rest on the pair's own reading of the brief say "team decision" in their Status line, and the readings the delivery relies on are listed in "Lecturas del brief en las que se apoya la entrega" at the end of this file. **Proposed** exists only for entries written from now on, while they are still under review.
+Statuses: **Proposed** means the pair made the decision (many are already on `main` and in the org) but a confirmation is still missing, from the facilitator or from the other team member; the Status line says which. **Accepted** means the pair considers it closed. John and Juan Diego decide when an entry moves from Proposed to Accepted. As of 2026-10-28 no entry is Proposed: every decision is Accepted or Superseded. The ones that rested on the MDSS facilitator were approved by John as the person responsible on 2026-10-28 (each Status line says so), and the limits the team knows and delivers as they are are listed in "Límites conocidos de la entrega".
 
 The "no Jest" remarks in entries D024 to D051 describe the repo when each entry was written. Jest has existed since #102 for `novaCasaActivoEstado`, `novaCasaActivosOperador`, `novaCasaEtiquetas` and `novaCasaHistorialSenales`; `novaCasaIntervencion`, `novaCasaEdificioResumen`, `novaCasaCrearIntervencion` and `novaCasaIlustracion` have none and are checked by hand.
 
@@ -74,7 +74,7 @@ The "no Jest" remarks in entries D024 to D051 describe the repo when each entry 
 
 ## D005 — The building is `Account`; `External_Id__c` for catalog upsert
 
-- **Status**: Accepted (2026-10-27, John and Juan Diego), as a team decision.
+- **Status**: Accepted (2026-10-27, John and Juan Diego). Approved by John as the person responsible on 2026-10-28, in place of the MDSS facilitator's confirmation.
 - **Team position (John, 2026-10-20)**: the sharing model as built is accepted: private `Account` and `Case`, one operator per building, coordinator and manager through the hierarchy (D022), and the three system-mode exceptions: the manual `Case` insert (D020), the open-intervention check (D021) and the history read (D024).
 - **Date**: 2026-10-01
 - **Context**: BR-208/US-208 require the operator to access only authorized buildings/assets. Today there is no building object in the model (`Asset` models the asset/equipment, not the building that contains it), and Juan Diego needs to identify it for his work in progress. An earlier proposal on this same topic (full sharing: OWD, operator permission set, sharing rules) was logged and then lost when `main` was merged into that branch (PR #9, closed without merging) — it never made it into this file.
@@ -86,7 +86,7 @@ The "no Jest" remarks in entries D024 to D051 describe the repo when each entry 
 
 ## D006 — Seeding `Umbral__c` from the catalog load (HP-04)
 
-- **Status**: Accepted (2026-10-27, John and Juan Diego), as a team decision. D054 (2026-10-28) moves the seed values from `CatalogoService` to the `NovaCasaUmbralesSemilla` static resource, unchanged.
+- **Status**: Accepted (2026-10-27, John and Juan Diego). Approved by John as the person responsible on 2026-10-28, in place of the MDSS facilitator's confirmation. D054 (2026-10-28) moves the seed values from `CatalogoService` to the `NovaCasaUmbralesSemilla` static resource, unchanged.
 - **Team position (John, 2026-10-20)**: `Umbral__c` stays the mechanism (D004) and the seeded operators and values stay as they are.
 - **Date**: 2026-10-05
 - **Context**: T3.2 asks for a threshold for each combination in the catalog. `Umbral__c` has no external id field, and `/catalog` delivers `thresholdsReference` as ranges (min/max), not as operator + value.
@@ -144,7 +144,7 @@ The "no Jest" remarks in entries D024 to D051 describe the repo when each entry 
 
 ## D011 — The handler persists the log and the current reading, and owns resend, conflict and late-signal detection
 
-- **Status**: Accepted (2026-10-27, John and Juan Diego), as a team decision.
+- **Status**: Accepted (2026-10-27, John and Juan Diego). Approved by John as the person responsible on 2026-10-28, in place of the MDSS facilitator's confirmation.
 - **Team position on (h) (John, 2026-10-20)**: (h) stays as written: a critical reading older than the batch winner or the current reading, for the same asset and measurement, stays `Atrasada` and opens no case, knowing it departs from the letter of the agreement as (h) explains.
 - **Date**: 2026-10-05
 - **Context**: until now `SenialSensorHandler` only classified in memory. US-201/202/205/206 require logging every message (publishing isn't processing), keeping the latest reading per asset + measurement, and opening one intervention per unique critical message (D010), without letting arrival order decide.
@@ -157,7 +157,7 @@ The "no Jest" remarks in entries D024 to D051 describe the repo when each entry 
 
 ## D012 — The operator screen goes back to the low-fidelity prototype
 
-- **Status**: Accepted (2026-10-27, John and Juan Diego); its visual layer is replaced by D041.
+- **Status**: Accepted (2026-10-27, John and Juan Diego); its visual layer is replaced by D041. John accepted on 2026-10-28, as the person responsible, that the operator screen does not reuse base components (US-207.AC8): its custom markup follows the prototype and the facilitator's Stitch design (D041, D042), and accessibility is handled by hand.
 - **Date**: 2026-10-05
 - **Context**: D008 (point 1) replaced the prototype's look with `lightning-card` cards with SLDS badges and icons. John asked for the screen to look and behave like the prototype (the most recent version of the prototype the facilitator saw, newer than `entregables/02-prototipo-baja-fidelidad.html` and not yet versioned): a list with a situation banner, cards by severity, and an asset detail.
 - **Decision**: replaces point (1) of D008. The `novaCasaActivosOperador` LWC uses its own markup that follows the prototype (color and radius tokens as CSS properties on `:host`, inline SVG icons for pump and ventilation and a neutral one for the other types, a severity badge with a ●/▲/○ glyph in addition to color). It includes both screens (the list and the asset detail, the latter as client state built from the payload already loaded by `getAssets`, with breadcrumbs that keep the filters) and the loading, empty and error states. Points (2) to (7) of D008 still apply: filter by asset type, refresh, stale signal, several readings per asset (in the detail), the "Caso N" link, a Spanish UI, counters labeled "en esta vista" and a cap notice. The "ID" chip is `Asset.External_Id__c`, which is added to the controller's query and to the read-only FLS of `Nova_Casa_Operator` and `Nova_Casa_Coordinator`. Left out of the prototype on purpose: (a) "Ciudad": the model doesn't have that data, so only the building is shown; (b) the "Crear intervención" button: creating Cases by hand is extra scope, and the system opens the intervention; (c) the "Historial reciente" table: it needs `Log_Senial__c` and is left for another round. A critical asset with no open Case doesn't claim that one exists.
@@ -261,7 +261,7 @@ The "no Jest" remarks in entries D024 to D051 describe the repo when each entry 
 
 ## D019 — Operator semantics at the exact limit (US-204, US-206, T5.12)
 
-- **Status**: Accepted (2026-10-27, John and Juan Diego), as a team decision.
+- **Status**: Accepted (2026-10-27, John and Juan Diego). Approved by John as the person responsible on 2026-10-28, in place of the MDSS facilitator's confirmation.
 - **Team position (John, 2026-10-20)**: this boundary rule stays: a value equal to a `GT` or `LT` limit doesn't meet it.
 - **Date**: 2026-10-05
 - **Context**: the story asks us to define what happens with a value exactly equal to the limit. `SenialSensorHandler.cumple()` already resolves it per operator, but no test pinned it down.
@@ -274,7 +274,7 @@ The "no Jest" remarks in entries D024 to D051 describe the repo when each entry 
 
 ## D020 — One screen for every role, with actions by custom permission; manual intervention and "Traer señales"
 
-- **Status**: Accepted (2026-10-27, John and Juan Diego), as a team decision (point 2 is replaced by D036). D053 (2026-10-28) makes the manual intervention owned by the integration user.
+- **Status**: Accepted (2026-10-27, John and Juan Diego) (point 2 is replaced by D036). Approved by John as the person responsible on 2026-10-28, in place of the MDSS facilitator's confirmation. D053 (2026-10-28) makes the manual intervention owned by the integration user.
 - **Team position (John, 2026-10-20)**: creating the manual intervention in `SYSTEM_MODE`, behind the custom permission and the `USER_MODE` asset check, is accepted.
 - **Date**: 2026-10-05
 - **Context**: D012 left the "Crear intervención" button out of the prototype (extra scope), and the screen is read-only for everyone. For the demo we switch users (operator, coordinator, manager, admin) and the screen should look almost the same: what changes is what each person can do, not what they see. Also, fetching signals from the simulator was only possible from Execute Anonymous.
@@ -293,7 +293,7 @@ The "no Jest" remarks in entries D024 to D051 describe the repo when each entry 
 
 ## D021 — The "an intervention is already open" check runs in `OpenCaseCheck`, without sharing and in explicit `SYSTEM_MODE` (US-207)
 
-- **Status**: Accepted (2026-10-27, John and Juan Diego), as a team decision.
+- **Status**: Accepted (2026-10-27, John and Juan Diego). Approved by John as the person responsible on 2026-10-28, in place of the MDSS facilitator's confirmation.
 - **Team position (John, 2026-10-20)**: accepted, including risk (1): the check only answers yes or no.
 - **Date**: 2026-10-06
 - **Context**: with `Case` set to Private (T8.2), the check from D020 point 3 ("ya hay una abierta") didn't see other users' Cases and allowed a second manual intervention to be created. Neither an inline query inside a `without sharing` class nor a `WITH SYSTEM_MODE` query inside a `with sharing` class counted them under `System.runAs`; `Database.countQueryWithBinds(..., AccessLevel.SYSTEM_MODE)` did (diagnosed in `nova-cdo`, 2026-10-06).
@@ -306,7 +306,7 @@ The "no Jest" remarks in entries D024 to D051 describe the repo when each entry 
 
 ## D022 — Coordinator and manager see through the role hierarchy; each building belongs to one operator; personas on Minimum Access (US-208)
 
-- **Status**: Accepted (team decision)
+- **Status**: Accepted. Approved by John as the person responsible on 2026-10-28, OWD change included (D005).
 - **Date**: 2026-10-06
 - **Context**: with `Account` and `Case` set to Private (T8.2, PR #38) the manager only saw what reached them through the hierarchy, and BLD-BAQ-001 belonged to John (no role), so nobody in the hierarchy saw it through ownership. So the manager could compare buildings (persona: "entender qué edificios concentran situaciones graves"), they were given read-only View All (PR #41, deployed to `nova-cdo`). On top of that, the personas' Standard User profile added CRED on `Account`/`Asset` and CRE on `Case` beyond the read-only permission sets.
 - **Decision**: (1) Coordinator and manager visibility comes from the role hierarchy (Gerente_Regional_Operaciones > Coordinador_Mantenimiento > Operador_Edificios / Integracion_Telemetria), not from View All. `Nova_Casa_Gerente` keeps Read on `Account`, `Asset`, `Case`, `Contact` and `Lectura_Vigente__c`, read-only FLS, and no View All, Create, Edit, Delete or Modify All. (2) Every building (`Account` with `External_Id__c` `BLD-…`) is owned by a user with the Operador_Edificios role. BLD-BOG-001 belongs to operator 1; BLD-BAQ-001 moves to operator 2 (new user, Operador_Edificios role). This way the manager and the coordinator see both buildings and each operator sees only their own (T8.4, "dos operadores con edificios distintos"). (3) The personas stay on the Minimum Access - Salesforce profile with `Nova_Casa_Lightning`; CRUD comes only from the Nova Casa permission sets. (4) The manager keeps `RunReports` (without `ExportReport`) to compare buildings; a report only shows the records the manager can see.
@@ -330,8 +330,8 @@ The "no Jest" remarks in entries D024 to D051 describe the repo when each entry 
 
 ## D024 — Signal history per asset for operator, coordinator and manager, without opening `Log_Senial__c` to them (HP-07)
 
-- **Status**: Accepted (2026-10-27, John and Juan Diego), as a team decision.
-- **Team position (John, 2026-10-20)**: the system-mode log read behind the asset check is accepted. Not asked yet: risk (2), whether the three roles may see the result and value of a rejected or conflicting signal.
+- **Status**: Accepted (2026-10-27, John and Juan Diego). Approved by John as the person responsible on 2026-10-28, in place of the MDSS facilitator's confirmation. D056 (2026-10-28) returns measurement, value and unit only for accepted readings.
+- **Team position (John, 2026-10-20)**: the system-mode log read behind the asset check is accepted. Risk (2), whether the three roles may see the result and value of a rejected or conflicting signal, is answered by D056.
 - **Date**: 2026-10-06
 - **Context**: D012 (c) left out the prototype's "Historial reciente" table because it needs `Log_Senial__c`, which is Private and only visible to `Nova_Casa_Admin` (`docs/acceso.md`). Operator, coordinator and manager stopped seeing the history on the asset page (the `Log_Senial__c` related list is only visible to the admin), and it was requested that they see it, each one only for the assets they can already see. `Log_Senial__c` doesn't store value, unit or severity; only `Message_Type__c` (`MEASUREMENT` or `CONNECTIVITY`, not the physical type), `Occurred_At__c` and `Resultado__c`.
 - **Decision**: `ActivosOperadorController.getHistorial(assetId, limite)` (`@AuraEnabled(cacheable=true)`). (1) It first checks in `USER_MODE` that the user can see the asset; if not, it returns the same static message as for an asset that doesn't exist. (2) Only then does it read `Log_Senial__c` by `Asset__c` in a `without sharing` inner class with `WITH SYSTEM_MODE`, ordered by `Occurred_At__c` and `Id` descending, with a cap of 1 to 50 (20 by default). (3) It returns only signal type, origin date and result; never `Motivo__c`, `Huella__c`, `Identidad__c`, `Message_Id__c`, `Source__c` or `Delivery_Id__c`. (4) The LWC's asset detail shows the "Historial de señales" card with a caption: it's a record of what was received, not the current readings, and Atrasada or Superada rows are evidence that doesn't change the current state. It doesn't change any permission set or the data model. It replaces point (c) of D012.
@@ -415,7 +415,7 @@ The "no Jest" remarks in entries D024 to D051 describe the repo when each entry 
 
 ## D031 — Apex publica el Platform Event después de traer las señales del simulador (BR-201, US-201)
 
-- **Estado**: Aceptada (2026-10-27, John y Juan Diego), como decisión del equipo.
+- **Estado**: Aceptada (2026-10-27, John y Juan Diego). John la aprobó como responsable el 2026-10-28, en lugar de la confirmación del facilitador de MDSS.
 - **Posición del equipo (John, 2026-10-19)**: cumple el criterio 1. El simulador solo se puede leer (`GET /telemetry`), así que quien publica es nuestro Apex. Para comprobar que nadie más publica, `SELECT COUNT(Id) FROM Log_Senial__c WHERE Publicado_At__c = null AND Procesado_At__c != null` debe dar 0 (las filas que la ingesta rechaza sin publicar no tienen ninguna de las dos fechas).
 - **Fecha**: 2026-10-07
 - **Contexto**: el criterio 1 de US-201 dice, textual: "El simulador publica Platform Events reales hacia la organización y el suscriptor Apex los recibe." El contrato del simulador (`Sprint 2 - Nova Casa.md`) solo expone `POST /session` y `GET /telemetry` con cursor: no empuja nada. Alguien tiene que llamar al simulador y convertir cada mensaje en `Senial_Sensor__e`. Hoy lo hace `TelemetriaIngesta` (Apex, `EventBus.publish`), lanzada a mano desde Execute Anonymous o desde "Traer señales" (D020, D025). El suscriptor (`SenialSensorTrigger` → `SenialSensorHandler`) sí recibe el evento de forma asíncrona, como pide la frontera formativa.
@@ -428,7 +428,7 @@ The "no Jest" remarks in entries D024 to D051 describe the repo when each entry 
 
 ## D032 — Qué es una señal "inválida" y qué queda como evidencia (BR-202, US-202)
 
-- **Estado**: Aceptada (2026-10-27, John y Juan Diego), como decisión del equipo.
+- **Estado**: Aceptada (2026-10-27, John y Juan Diego). John la aprobó como responsable el 2026-10-28, en lugar de la confirmación del facilitador de MDSS.
 - **Posición del equipo (John, 2026-10-19)**: las 7 reglas de la decisión son la definición de "inválida". La nota del 2026-10-16 sobre si la ingesta y el suscriptor deben tratar igual las señales sin identidad queda como está: no lo hacen (ver la nota del 2026-10-16, alcance).
 - **Fecha**: 2026-10-07
 - **Contexto**: BR-202 pide que una señal inválida no detenga a las demás y que quede evidencia de cuál falló y por qué, pero el brief no define "inválida". El handler ya aplica reglas concretas que hasta hoy no estaban escritas en un solo lugar.
@@ -454,7 +454,7 @@ The "no Jest" remarks in entries D024 to D051 describe the repo when each entry 
 
 ## D034 — El historial muestra tipo de medición, valor y unidad (HP-07)
 
-- **Estado**: Aceptada (2026-10-27, John y Juan Diego), como decisión del equipo.
+- **Estado**: Aceptada (2026-10-27, John y Juan Diego). John la aprobó como responsable el 2026-10-28, en lugar de la confirmación del facilitador de MDSS. La pregunta 6.1 queda resuelta por D056: el historial solo da valores de lecturas aceptadas.
 - **Posición del equipo (John, 2026-10-20)**: un `Conflicto` se queda así en los datos y se corrige la pantalla. El historial marca esa fila como "valor original" en lugar de "solo evidencia". La curva del detalle solo la incluye cuando es la lectura vigente, porque el log no dice si el original se había aceptado. "(última)" solo aparece si el último punto es la lectura vigente.
 - **Fecha**: 2026-10-07
 - **Contexto**: D024 (riesgo 1) y D030 (riesgo 3) dejaron el historial sin valores porque `Log_Senial__c` no los guarda: solo `Message_Type__c` (`MEASUREMENT` o `CONNECTIVITY`). El operador veía "Medición · Conflicto" sin saber de qué medición ni qué valor, y no podía ver la evolución. Hace falta guardarlos al procesar la señal y mostrarlos.
@@ -515,7 +515,7 @@ The "no Jest" remarks in entries D024 to D051 describe the repo when each entry 
 
 ## D039 — Una intervención abierta por activo que se actualiza con la señal crítica más reciente (US-205, BR-205)
 
-- **Estado**: Aceptada (2026-10-17). El facilitador lo confirmó de palabra a John el 2026-10-16 y el 2026-10-17; no hay comentario en la tarjeta de MDSS, así que la única constancia es esta entrada.
+- **Estado**: Aceptada (2026-10-17). El facilitador lo confirmó de palabra a John el 2026-10-16 y el 2026-10-17; no hay comentario en la tarjeta de MDSS, así que la única constancia es esta entrada. John la aprobó por escrito como responsable el 2026-10-28.
 - **Fecha**: 2026-10-16 (propuesta); 2026-10-17 (aceptada)
 - **Contexto**: el acuerdo «Incidente» dice: «En el alcance base se garantiza una intervención como máximo por mensaje crítico único. Consolidar varias lecturas con claves distintas en un solo incidente abierto es un extra; debe explicarse la limitación del diseño base.» D010 y D033 (6) implementaron el alcance base: un `Case` por identidad, así que un activo con varias señales críticas distintas tiene varios casos abiertos a la vez (D035 anotó 25 en un activo el 2026-10-07 y agregó el cierre en bloque). D010 y D033 dejaron la consolidación como alternativa descartada «sin decisión»; D020 también la descartó para la intervención manual, y D035 anotó que exigiría repetir los escenarios. BR-205 dice «Una señal crítica nueva genera una intervención.» y BR-206 «Una señal crítica produce una intervención operativa.»: con esta propuesta, una crítica nueva sobre un activo con caso abierto se registra en ese caso y no abre otro, y esa lectura la confirmó el facilitador de palabra (ver Estado y Decisión). Además, con un caso por identidad el número de casos de un activo depende de cómo el flujo se parta en lotes (D011 h; «Batch dependence» en `entrega.md`).
 - **Decisión**: el facilitador (de palabra a John, 2026-10-16 y 2026-10-17): un activo puede recibir muchas señales; la primera crítica abre la intervención y, mientras siga abierta, otra crítica del mismo activo (por ejemplo la de la corrida siguiente, 5 minutos después) no abre otra: ya se sabe que hay que intervenir el activo, y la nueva crítica solo avisa que sigue crítico y actualiza la información del caso. Lo que no precisó lo fijó el equipo: (1) Un caso de telemetría abierto por activo, sin importar la medición: si dos mediciones del mismo activo son críticas, el caso registra la más reciente y la otra queda en su fila de `Log_Senial__c`, enlazada al mismo caso por `Caso__c`. (2) El caso guarda la última crítica en cinco campos nuevos: `Ultima_Critica_Medicion__c`, `Ultima_Critica_Valor__c`, `Ultima_Critica_Unidad__c`, `Ultima_Critica_At__c` (`occurredAt`) y `Ultima_Critica_Identidad__c`; sin contador (el conteo sale de los logs con el mismo `Caso__c`, y un contador se duplicaría al reintentar una `Fallida`). Los cuatro primeros se ven, de solo lectura, en la sección «Última señal crítica» del layout del `Case`; la identidad es técnica y solo la leen el admin y la ingesta. (3) Cuando el activo deja de ser crítico, el caso sigue abierto: lo cierra una persona. (4) Cerrado el caso, la siguiente crítica vigente abre uno nuevo. «Vigente» se mide por activo y medición (D011), así que una crítica de otra medición puede abrirlo aunque sea más vieja que la última crítica del caso cerrado. (5) Solo una crítica que gana por activo y medición (D003, D011) llega a `IntervencionService`, así que un reenvío, un conflicto, una `Atrasada`, una `Superada` o una `Rechazada` no tocan el caso. Una crítica que gana se enlaza al caso abierto aunque sea más vieja que la que el caso registra, pero los campos solo cambian si es más reciente, con el orden de D003 extendido a todas las críticas del activo: `occurredAt`, luego `messageId`, luego `source` (la severidad siempre empata, porque toda crítica es nivel 2). (6) `Identidad_Senal__c`, `Subject` y `Description` quedan con la señal que abrió el caso (son historia, no la última crítica); si en un mismo lote llegan varias críticas de un activo sin caso abierto, lo abre la más reciente con ese orden y las demás se enlazan. La identidad que abrió un caso sigue recibiendo ese caso, abierto o cerrado, sin tocarlo (D010, D035). Una identidad enlazada que quedó `Fallida` (por ejemplo, porque no se guardó su lectura) vuelve a buscar el caso abierto del activo al reintentarse. (7) Solo cuentan los casos con `Origin = 'Telemetria'`: un caso manual abierto no absorbe señales ni se actualiza, y el activo puede tener uno manual y uno automático abiertos, como hoy (D020, D021 riesgo 2). (8) Si el activo ya tiene varios casos de telemetría abiertos (los acumulados antes de este cambio), la señal se enlaza al de telemetría más reciente (`CreatedDate`, luego `Id`, el mismo orden de la pantalla del operador, que además muestra los manuales); los demás se cierran con «Cerrar las N abiertas» (D035). (9) Antes de buscar el caso abierto, `IntervencionService` bloquea las filas de los activos con `FOR UPDATE`, como `crearIntervencion`, para que dos lotes a la vez no abran dos casos del mismo activo (la restricción única por identidad ya no lo cubre).
@@ -706,7 +706,7 @@ The "no Jest" remarks in entries D024 to D051 describe the repo when each entry 
 - **Decisión**: los 21 valores pasan, sin cambiar ninguno, al recurso estático `NovaCasaUmbralesSemilla` (JSON: medición, severidad, operador, valor). `CatalogoService` lo lee al sembrar; si falta, no es JSON válido, está vacío o una fila está incompleta, la carga falla con el motivo en vez de sembrar en silencio. Una medición del catálogo que no tenga reglas en el recurso no se siembra, como hasta ahora, y sus señales quedan `Rechazada` «No hay umbral activo», nunca Normal. La siembra sigue igual: solo combinaciones sin ningún umbral, nunca pisa uno editado.
 - **Alternativa descartada**: (a) dejarlo y llamarlo «solo semilla»: el criterio no hace excepciones y el código ya estaba desactualizado frente a la org. (b) Custom Metadata para la semilla: un tipo y registros nuevos sin ganancia; D004 lo descartó para los límites. (c) quitar la siembra y cargar un archivo a mano: suma un paso manual en cada org nueva.
 - **Trade-off**: cambiar la semilla sigue pidiendo un deploy, pero la semilla no son los límites: los vigentes se editan en `Umbral__c` sin desplegar.
-- **Riesgo / dependencia**: la org tiene TEMPERATURE Advertencia LT 17 desde el 2026-10-20 (cambio de un admin, sin decisión registrada); la semilla conserva LT 18, el valor del equipo. Si 17 es el correcto, se cambia en el recurso en su propio PR.
+- **Riesgo / dependencia**: la org tenía TEMPERATURE Advertencia LT 17 desde el 2026-10-20 (cambio de un admin, sin decisión registrada) y la semilla LT 18. John eligió LT 18 el 2026-10-28 y ese día se volvió a 18 en la org: los 21 umbrales activos de la org coinciden con el recurso.
 - **Criterios de prueba**: `CatalogoServiceTest`: `shouldSeedOneThresholdSetPerCombination_WhenCatalogIsValid` (21 umbrales, crítica GT 35), `shouldSeedExactlyTheRulesOfTheStaticResource_WhenCatalogIsValid` (los de temperatura son exactamente las filas del recurso), `shouldFailWithoutSeeding_WhenTheSeedResourceIsMissing`.
 - **Siguiente acción**: desplegada y probada con D053 (ver su siguiente acción).
 
@@ -721,6 +721,18 @@ The "no Jest" remarks in entries D024 to D051 describe the repo when each entry 
 - **Riesgo / dependencia**: un motivo nuevo por configuración (otro texto) caería en el texto genérico hasta sumarlo a la fórmula.
 - **Criterios de prueba**: `LogAccionReintentoTest.unaRechazadaPorConfiguracionPideCorregirSalesforceYUnaPorDatoPideCorregirElOrigen` (sin umbral y activo fuera del catálogo: texto de configuración; valor no numérico, también uno que imita el motivo de configuración: texto de origen); `laFormulaDaLaAccionExactaPorEstado` sigue igual.
 - **Siguiente acción**: desplegada y probada con D053 (ver su siguiente acción).
+
+## D056 — El historial por activo solo da medición, valor y unidad de lecturas aceptadas (US-208, US-209, BR-208, BR-209)
+
+- **Estado**: Aceptada (John, 2026-10-28, como responsable; PR #118 mergeado)
+- **Fecha**: 2026-10-28
+- **Contexto**: la pregunta 6.1 de D034: ¿pueden operador, coordinador y gerente ver el resultado y el valor de una señal rechazada o en conflicto? Desde D048 la tarjeta «Historial de señales» no está en ninguna pantalla y la curva del detalle solo dibuja valores de señales `Procesada` (y del `Conflicto` que es la lectura vigente), pero `ActivosOperadorController.getHistorial` seguía devolviendo medición, valor y unidad de todas las filas a quien ve el activo: pidiéndolo directamente al servidor se obtenía, por ejemplo, el valor fuera de rango de una señal rechazada.
+- **Decisión**: `getHistorial` sigue devolviendo todas las filas con tipo, fecha y resultado, pero medición, valor y unidad solo de una lectura aceptada: `Procesada`, o un `Conflicto` cuya identidad es la de la lectura vigente del activo (conserva el valor aceptado del original, D034). En `Rechazada`, `Fallida`, `Atrasada`, `Superada` y un `Conflicto` que no es la lectura vigente vuelven vacíos. La identidad se compara dentro del lector en modo sistema y nunca se devuelve. Investigar el contenido de una señal rechazada o en conflicto sigue siendo del admin, en Registros de Señal.
+- **Alternativa descartada**: (a) dejarlo como estaba: la pantalla no lo muestra, pero BR-208 pide que la restricción funcione también al pedir al servidor. (b) quitar el historial a quien no es admin: la curva del detalle desaparece y D024 pierde su razón.
+- **Trade-off**: si la tarjeta vuelve, una fila rechazada o atrasada se ve sin valor («—»); el detalle está en el log para el admin. La curva no cambia: ya solo usaba esas filas.
+- **Riesgo / dependencia**: una consulta más por llamada (las identidades de las lecturas vigentes del activo, como mucho una por tipo de medición).
+- **Criterios de prueba**: `ActivosOperadorControllerTest.historyGivesValuesOnlyForAcceptedReadingsButKeepsEveryRow` (siete filas de todos los resultados con valor: vuelven las siete, solo dos con valor, y el valor de la rechazada no aparece en la respuesta); `historyReturnsMeasurementTypeUnitAndValueAndNullForOldRows` y `historyValuesReachAnOperatorWhoCannotReadTheLogAndAreNotExposedForAHiddenAsset` siguen igual.
+- **Siguiente acción**: desplegada el 2026-10-28 desde `fix/us-209-history-accepted-values` con el OK de John (dry-run primero; 2 de 2 componentes). El org omite las pruebas en los deploys; después, la suite completa (19 clases): 460 de 460, 90 % de cobertura del org. El PR #118 se mergeó el 2026-10-28.
 
 ## D057 — `Lectura_Vigente__c` y `Log_Senial__c` son objetos propios (modelo de datos)
 
@@ -755,15 +767,15 @@ The "no Jest" remarks in entries D024 to D051 describe the repo when each entry 
 - **Alternativa descartada**: (a) ocultarlo: un cambio de LWC, su prueba y un deploy, a cambio de que esos tres casos se cierren uno por uno, sin ganancia visible hoy. (b) Quitarlo: rompe `cerrarIntervencionesDelActivo`, `CierreResultado`, `BULK_CLOSE_MAX`, los avisos `COUNT_CHANGED` y `NOTHING_TO_CLOSE`, el código del LWC (`formMode`, `isClosingAll`, `saveLabel`, `toastCloseAll`, `canCloseAll`, `closeAll*`), 10 pruebas de `IntervencionOperadorControllerTest`, dos referencias de `AccesoFueraDeJerarquiaTest` y lo que dicen D035, D046 y D052. Sería su propia historia, con una entrada nueva y el acuerdo de los dos.
 - **Trade-off**: queda código que el flujo normal no usa, y el botón no se ha probado a mano en el panel (D052).
 - **Riesgo / dependencia**: (1) probarlo a mano exige crear antes varios casos abiertos en un mismo activo. (2) Si D039 cambiara de forma que dos casos de telemetría abiertos fueran de nuevo lo normal, el botón vuelve a ser el camino principal para cerrarlos.
-- **Criterios de prueba**: `IntervencionOperadorControllerTest.shouldCloseEveryOpenCaseOfTheAssetAndOnlyOfThatAsset_WhenCoordinatorClosesAll` y el resto de pruebas de cierre de esa clase, con `AccesoFueraDeJerarquiaTest`; pasaron 36 de 36 el 2026-10-27 (D052) y están dentro de la suite completa del 2026-10-28, 459 de 459.
+- **Criterios de prueba**: `IntervencionOperadorControllerTest.shouldCloseEveryOpenCaseOfTheAssetAndOnlyOfThatAsset_WhenCoordinatorClosesAll` y el resto de pruebas de cierre de esa clase, con `AccesoFueraDeJerarquiaTest`; pasaron 36 de 36 el 2026-10-27 (D052) y están dentro de la suite completa del 2026-10-28, 460 de 460.
 - **Siguiente acción**: ninguna.
 
 ## Límites conocidos de la entrega (2026-10-27)
 
-Todas las decisiones quedaron Aceptadas o Reemplazadas el 2026-10-27, salvo D053 a D055, que lo quedaron el 2026-10-28 al mergear el PR #117, y D059, del mismo día. Esto son los límites que el equipo conoce y entrega como están; ninguno bloquea una decisión, y cada uno se resuelve en su propia rama si se decide hacerlo.
+Todas las decisiones quedaron Aceptadas o Reemplazadas el 2026-10-27, y desde el 2026-10-28 ninguna espera al facilitador: John aprobó como responsable las que dependían de él (lo dice el Estado de cada una). D053 a D056 se aceptaron el 2026-10-28 al mergear sus PR, y D059 ese día por decisión de John. Esto son los límites que el equipo conoce y entrega como están; ninguno bloquea una decisión, y cada uno se resuelve en su propia rama si se decide hacerlo.
 
 1. **D007**: el corte de antigüedad no es uno solo. La pantalla del operador usa `staleMinutes` (15 minutos) y las páginas del edificio y del activo usan `STALE_AFTER_MINUTES` (60) de `novaCasaEtiquetas`. Unificarlo.
-2. **D006, D054**: resuelto: la siembra de umbrales salió del código al recurso estático `NovaCasaUmbralesSemilla` (D054). Queda una diferencia de valor: la org tiene TEMPERATURE Advertencia LT 17 desde el 2026-10-20 y la siembra conserva LT 18, el valor del equipo. La siembra solo actúa sobre combinaciones sin `Umbral__c`, así que la diferencia no afecta a la org; si 17 es el correcto, se cambia en el recurso en su propio PR.
+2. **D006, D054**: resuelto: la siembra de umbrales salió del código al recurso estático `NovaCasaUmbralesSemilla` (D054), y John eligió LT 18 para la advertencia baja de temperatura el 2026-10-28; D054 registra que la org se corrigió a LT 18 ese día. La siembra solo actúa sobre combinaciones sin `Umbral__c`.
 3. **D013**: el tope de profundidad de la cadena (27) nunca se alcanzó en una corrida real, y el permiso Create sobre `Senial_Sensor__e` que se documenta para quien inicia la ingesta no se comprueba en el código.
 4. **D023**: no se ha visto en vivo un reintento por 429/5xx ni la reapertura de la sesión.
 5. **D040, D031**: la ingesta programada está apagada desde la limpieza del 2026-10-21 (`scripts/apex/programar-ingesta.apex` la enciende). Ninguna clave se ha trazado de una corrida programada, de la publicación al resultado.
@@ -781,14 +793,14 @@ Todas las decisiones quedaron Aceptadas o Reemplazadas el 2026-10-27, salvo D053
 
 Estos puntos venían de Discovery y necesitaban una entrada D00X cada uno. Estado revisado el 2026-10-16 contra `main` (70f282e) y cerrado el 2026-10-27:
 
-1. Operadores y valores exactos de umbral por `asset.type` + `measurement.type` (van en metadata, no en código). **Cerrado como decisión del equipo (2026-10-27).** Los límites viven en `Umbral__c` (D004) y se siembran con la tabla de referencia del equipo (D006); D019 fija qué pasa en el límite exacto. D006 y D019 quedan Aceptadas como lectura del equipo.
-2. Modelo de sharing de edificios/activos para el operador (BR-208). **Implementado y cerrado como decisión del equipo (2026-10-27).** D005 define el edificio como `Account`, y D022 (Aceptada) fija la visibilidad: `Account` y `Case` en Private y `Asset` Controlled by Parent (los tres en `force-app/main/default/objects`, PR #38), coordinador y gerente por role hierarchy (PR #41), permission sets `Nova_Casa_*` por rol, y controladores `with sharing` con `USER_MODE`. Límites: (a) el cambio de OWD toca BR-208 y es lectura del equipo (D005, D022); (b) las excepciones en modo sistema (D020, D021 y D024) son decisión del equipo; (c) no se registró el login as de operador 2, coordinador y gerente ni se volvió a medir la visibilidad del gerente (ver `docs/acceso.md`, "Jerarquía en vez de View All (D022)").
+1. Operadores y valores exactos de umbral por `asset.type` + `measurement.type` (van en metadata, no en código). **Cerrado como decisión del equipo (2026-10-27).** Los límites viven en `Umbral__c` (D004) y se siembran con la tabla de referencia del equipo (D006); D019 fija qué pasa en el límite exacto. D006 y D019 quedan Aceptadas; John aprobó operadores y valores como responsable el 2026-10-28, con LT 18 para la advertencia baja de temperatura (D054).
+2. Modelo de sharing de edificios/activos para el operador (BR-208). **Implementado y cerrado como decisión del equipo (2026-10-27).** D005 define el edificio como `Account`, y D022 (Aceptada) fija la visibilidad: `Account` y `Case` en Private y `Asset` Controlled by Parent (los tres en `force-app/main/default/objects`, PR #38), coordinador y gerente por role hierarchy (PR #41), permission sets `Nova_Casa_*` por rol, y controladores `with sharing` con `USER_MODE`. Límites: (a) y (b): John aprobó como responsable el 2026-10-28 el cambio de OWD (D005, D022) y las tres excepciones en modo sistema (D020, D021, D024); (c) no se registró el login as de operador 2, coordinador y gerente; la visibilidad del gerente se midió de nuevo el 2026-10-27 (ver `docs/acceso.md`, "Measured again on 2026-10-27").
 
 ## Riesgos generales del sprint
 
 Revisados el 2026-10-16. Los riesgos de una sola decisión están en su entrada; aquí van los que cruzan varias.
 
-- **Lecturas del brief en las que se apoya la entrega**: D031 (publicar desde Apex cumple el criterio 1 de US-201), D032 (qué es "inválido"), D006 y D019 (operadores y valores de umbral), D011 (h) (una crítica más vieja que otra del mismo lote no abre caso) y el OWD de D022 son lectura del equipo, cerradas el 2026-10-27 sin respuesta escrita del MDSS. Si alguna cambia, hay que ajustar código y pruebas y repetir las corridas de `docs/entrega.md`.
+- **Confirmaciones del facilitador**: ya no quedan pendientes. John aprobó como responsable el 2026-10-28 las decisiones que esperaban al facilitador: D031 (si publicar desde Apex cumple el criterio 1 de US-201), D032 (qué es "inválido"), D006 y D019 (operadores y valores de umbral), D011 (h) (una crítica más vieja que otra del mismo lote no abre caso) y el OWD de D022. Si alguna cambia, hay que ajustar código y pruebas y repetir las corridas de `docs/entrega.md`.
 - **El simulador no es reproducible**: el mismo escenario devuelve volúmenes distintos entre corridas y reutiliza `messageId` entre sesiones. Los conteos de la evidencia describen una corrida, no el escenario, y antes de una demo o una corrida para evidencia hay que limpiar el org (README, "Cleaning the org before a demo or a recorded run").
 - **Los deploys no prueban nada en `nova-cdo`**: el org informa `Running Tests - Skipped` en cada deploy (`CONTRIBUTING.md`). La evidencia de pruebas y cobertura es la corrida manual de `sf apex run test`, y hay que guardarla en el PR.
 - **Profundidad de la cadena de Queueable**: desde D025 un solo trabajo lee varias páginas (25 páginas de 200 caben en 2 trabajos), así que una corrida casi no encadena; ninguna corrida real llegó al tope de 27 de D013 (punto 1.bis), que sigue sin validar en la práctica.

@@ -1,6 +1,6 @@
 # Delivery: status, evidence and demo
 
-Everything needed to close the sprint, in one place: where each story stands, the team decisions behind each card, the message contract, the scenario runs, how to repeat the evidence in the org, and the demo script. The older files it replaces are in git history.
+Everything needed to close the sprint, in one place: where each story stands, the team decisions behind each card, the message contract, the scenario runs, how to repeat the evidence in the org, and the demo script. The older files it replaces (`entendimiento.md`, `preguntas-facilitador.md`, `contrato-mensaje.md`, `simulador.md`, `evidencia-escenarios.md`, `checklist-evidencia.md`, `demo.md`) are in git history.
 
 The MDSS brief (`Sprint 2 - Nova Casa.md`) is the source of truth. The reason behind each rule is in [decisiones.md](decisiones.md) (the D-numbers below). Who sees and does what is in [acceso.md](acceso.md).
 
@@ -8,29 +8,29 @@ The MDSS brief (`Sprint 2 - Nova Casa.md`) is the source of truth. The reason be
 
 ## Status by story
 
-Status as of 2026-10-28. "Done" means the code is done, tested and on `main` and in the org. "Done in tests" means the same, but the manual evidence listed in the last column hasn't been collected. Where a card rests on the team's own reading of the brief, the decision is named (see [Team decisions behind each story](#team-decisions-behind-each-story)).
+Status as of 2026-10-28, on `main` 1f2ec7b, which matches `nova-cdo` (drift check of 2026-10-28). Every story is done: the decisions that waited on the facilitator were approved by John as the person responsible on 2026-10-28 (see [Team decisions behind each story](#team-decisions-behind-each-story)).
 
-| Story | Status | Evidence | Not verified by hand |
+| Story | Status | Evidence | Left |
 |---|---|---|---|
-| US-201 | Done (D031) | `TelemetriaIngestaTest`, `SimuladorClientTest`, `SenialSensorHandlerTest.publicarElEventoPersisteATravesDelTrigger`; key traced in the 10-14 `QA_200` run (published to processed in 5 s); list view Todas las señales | Trace one key from a scheduled run (D040); the scheduled ingestion has been off since 2026-10-21 |
-| US-202 | Done (D032) | `SenialSensorHandlerTest` (`unLoteMixtoDe200SenialesSeparaValidasEInvalidasConUnNumeroFijoDeConsultasYDml`, `doscientosEventosEnUnLoteUsanUnNumeroFijoDeConsultasYDml`, `unaExcepcionEnUnEventoNoTumbaElLote`), `TelemetriaIngestaTest.unaPaginaDe200SeProcesaEnUnSoloExecute`; `INVALID_DATA` run; list view Rechazadas | Ingestion and subscriber don't treat signals with no identity the same way (D032, note of 10-16); accepted |
-| US-203 | Done (D011 h) | `SenialSensorHandlerTest` (`unaSenialMasAntiguaQueLaVigenteQuedaAtrasadaAunqueSeaCritica`, `elDesempateD003NoDependeDelOrdenDeLlegada`, `tiposDeMedicionDistintosDelMismoActivoNoSeSobrescriben`, and the two batch-order tests of D011 h); `LATE_MESSAGES` run; list view Atrasadas | — |
-| US-204 | Done in tests | `SenialSensorHandlerTest.editarElLimiteDeUnUmbralCambiaLaClasificacionSinTocarElHistorico` and the four boundary tests (D019); `UmbralValidadorTest` (D018); `CatalogoServiceTest.shouldSeedExactlyTheRulesOfTheStaticResource_WhenCatalogIsValid` (D054: the seed values live in the `NovaCasaUmbralesSemilla` static resource, not in Apex); list view Nova Casa - Umbrales | A real run that changes a limit without deploying ([block C](#block-c--boundaries-twice)) |
-| US-205 | Done (D039, confirmed verbally on 10-16 and 10-17, deployed in #92) | `IntervencionServiceTest`, `SenialSensorHandlerTest` (`unReenvioIgualSoloSumaReenviosSinTocarLecturaNiCase`, `siFallaElCaseLaIdentidadQuedaFallidaSinLecturaYLasDemasSeProcesan`); `CONFLICT` run (405 `Conflicto`, none with a Case); list views Intervenciones abiertas, Duplicadas (reenvíos), Conflictos | The scenario runs predate D039 and haven't been repeated ([block B](#block-b--duplicates)); the `DUPLICATE_VALUE` race in `IntervencionService` has a test only for the branch where the rival Case exists (`IntervencionServiceTest.shouldLinkToTheCaseAConcurrentRunOpened_WhenTheInsertHitsADuplicateIdentity`); the branch where it isn't found and the `FOR UPDATE` lock have none (D010); the verbal confirmation isn't on the MDSS card |
-| US-206 | Done in tests | `SenialSensorHandlerTest` (`tresValoresRepresentativosDeTemperaturaSonNormalAdvertenciaYCritica`, `unaAdvertenciaEscribeLecturaNivel1SinCaseYElActivoQuedaEnNivel1`, `elActivoMuestraLaMaximaSeveridadEntreAdvertenciaYCritica`) and the boundary tests | An asset in warning on screen; the boundary tests only use `TECHNICAL_ROOM` + `TEMPERATURE` |
-| US-207 | Done in tests | `ActivosOperadorControllerTest`, `IntervencionOperadorControllerTest`; Jest for `novaCasaActivosOperador`, `novaCasaActivoEstado`, `novaCasaEtiquetas` and `novaCasaHistorialSenales` (`npm run test:unit`) | The manual screen checks, including the D041/D042 redesign deployed on 10-19 ([US-207 checks](#us-207-checks)); «Cerrar todas» in the panel (D059) |
-| US-208 | Done (D005, D022, D053) | [acceso.md](acceso.md) ("Result (T8.6)", "Hierarchy instead of View All (D022)"); `ActivosOperadorControllerTest.operatorDoesNotSeeAnotherOperatorsBuildingButGerenteSeesBoth`, `SeguridadTest`, `PermisosProcesamientoTest`, `SenialSensorHandlerTest.laIngestaPersisteConUnUsuarioSinPermisosDeOperador`, `TelemetriaIngestaTest.laIngestaPublicaTodoConUnUsuarioSinPermisosDeOperador`; for D053, `IntervencionOperadorControllerTest.shouldFollowTheBuildingNotTheCreator_WhenTheBuildingChangesOperator` and `ActivosOperadorControllerTest.signalsStayHiddenWhenTheUserSeesTheCaseButNotItsAsset`; the [login-as walkthrough of 10-13](#manual-walkthrough-of-2026-10-13) | The negative case for records outside the hierarchy: BLD-TEST-NOAUT no longer exists in the org, so the "None" rows couldn't be measured again (`acceso.md`, "Measured again on 2026-10-27"); that the signal history loads for each persona |
-| US-209 | Done in tests | List views of `Log_Senial__c` with `Accion_Reintento__c` (D014, D055); `LogAccionReintentoTest` (including `unaRechazadaPorConfiguracionPideCorregirSalesforceYUnaPorDatoPideCorregirElOrigen`), `IngestaControllerTest`, `SeguridadTest`; on 10-13 operators, coordinator and manager had no "Registros de Señal" tab | See the tab as admin; inspect a normal, invalid, resent and late signal as admin ([US-209 checks](#us-209-checks)); nothing tests `Motivo__c` for secrets; no real run has left a `Fallida` row |
+| US-201 | Done | `TelemetriaIngestaTest`, `SimuladorClientTest`, `SenialSensorHandlerTest.publicarElEventoPersisteATravesDelTrigger`; 2026-10-27 `QA_200` run: 200 received, 200 published, all processed in 7 s, none left `Publicada`; key `nova-casa-simulator|msg_000007` traced from publication to its Case in 6 s; list view Todas las señales | A trace from a scheduled run (D040): the scheduler stays off for the demo |
+| US-202 | Done | `SenialSensorHandlerTest` (`unLoteMixtoDe200SenialesSeparaValidasEInvalidasConUnNumeroFijoDeConsultasYDml`, `doscientosEventosEnUnLoteUsanUnNumeroFijoDeConsultasYDml`, `unaExcepcionEnUnEventoNoTumbaElLote`); 2026-10-27 runs: 4 (`QA_200`) and 17 (`DUPLICATES`) rejected with a D032 reason while the rest were processed; list view Rechazadas | — |
+| US-203 | Done | `SenialSensorHandlerTest` (`unaSenialMasAntiguaQueLaVigenteQuedaAtrasadaAunqueSeaCritica`, `elDesempateD003NoDependeDelOrdenDeLlegada`, `tiposDeMedicionDistintosDelMismoActivoNoSeSobrescriben`, the batch-order tests of D011 h); 2026-10-27 `QA_200`: 169 `Atrasada`, none newer than its current reading, none with a Case; list view Atrasadas | — |
+| US-204 | Done | `SenialSensorHandlerTest.editarElLimiteDeUnUmbralCambiaLaClasificacionSinTocarElHistorico`, the boundary tests (D019), `UmbralValidadorTest`, `CatalogoServiceTest` (seed from the static resource, D054); 2026-10-27 `BOUNDARIES` twice: the coordinator lowered TECHNICAL_ROOM TEMPERATURE Crítica from GT 35 to GT 34 in the UI and the same 35 °C signal went from Advertencia to Crítica with its intervention; limit restored; every current reading on an exact limit followed D019 | — |
+| US-205 | Done | `IntervencionServiceTest` (incl. the `DUPLICATE_VALUE` race), `SenialSensorHandlerTest` (`unReenvioIgualSoloSumaReenviosSinTocarLecturaNiCase`, `siFallaElCaseLaIdentidadQuedaFallidaSinLecturaYLasDemasSeProcesan`); 2026-10-27 `DUPLICATES`: 1000 deliveries, 717 identities, 207 rows resent with their result unchanged, 27 `Conflicto` without a Case, 5 Cases for the 5 assets with a processed critical, never two open on one asset; list views Intervenciones abiertas, Duplicadas (reenvíos), Conflictos | — |
+| US-206 | Done | `SenialSensorHandlerTest` (`tresValoresRepresentativosDeTemperaturaSonNormalAdvertenciaYCritica`, `unaAdvertenciaEscribeLecturaNivel1SinCaseYElActivoQuedaEnNivel1`, `elActivoMuestraLaMaximaSeveridadEntreAdvertenciaYCritica`); 2026-10-27 `QA_200`: 3 critical, 2 warning (no Case) and 5 normal current readings, told apart on screen by symbol and text | — |
+| US-207 | Done | `ActivosOperadorControllerTest`, `IntervencionOperadorControllerTest`, Jest 29 of 29 (4 suites); [walkthrough of 2026-10-27](#walkthrough-of-2026-10-27): filters, age, states, navigation and actions per persona; the custom design without base components accepted by John (D012) | «Cerrar todas» in the panel hasn't been tried by hand (D059) |
+| US-208 | Done | [acceso.md](acceso.md); `ActivosOperadorControllerTest`, `IntervencionOperadorControllerTest` (incl. the building reassignment of D053), `SeguridadTest`, `AccesoFueraDeJerarquiaTest`, `PermisosProcesamientoTest`; security review of 2026-10-26 with no High finding, its two Medium ones fixed in D053; walkthrough of 2026-10-27 with five personas | — |
+| US-209 | Done | `LogAccionReintentoTest` (incl. D055), `SeguridadTest`; 2026-10-27 walkthrough as admin: normal, rejected, resent, late and conflicting rows found by identity with result, reason, retry action and Case; every stored reason scanned, nothing secret-shaped; the history gives values only for accepted readings (D056) | — |
 | HP-01 | Done | `CAMERA_OUTAGE`: loss of communication arrives as normal `CONNECTIVITY` messages | — |
-| HP-05 | Done in tests | `TelemetriaIngestaTest`; the 10-page runs of 10-14 used one job each (up to 72 s) | No retry or reopened session has been seen live (D023); chain depth beyond 27 hasn't been exercised (D013) |
+| HP-05 | Done in tests | `TelemetriaIngestaTest`; the 2026-10-27 runs used one job each (up to 18 s for 1000 messages) | No retry or reopened session has been seen live (D023); chain depth beyond 27 is unvalidated (D013) |
 
 **Review of 2026-10-27.** The facilitator's review left four criteria Partial: US-204.AC1 (the seed limits were written in Apex), US-208.AC2 (after a building changed operator, the previous operator kept their manual Case, and `getIntervencion` returned a hidden asset's Id and last critical reading), US-209.AC4 (the retry action said to fix the data at the source for a rejection caused by configuration) and BR-210 (no test for the `DUPLICATE_VALUE` race). PR #117, merged and deployed on 2026-10-28, changes the code for each one (D054, D053, D055 and a test); D053 traces the US-208.AC2 gap to the team's own security review of 2026-10-26 as well. The table above lists the evidence for each criterion.
 
-**Tests.** Last full run on 2026-10-28, in `nova-cdo`, with the code that is now `main` (8a869ce): 459 of 459 passing, 90 % org coverage, no class of ours below 87 % (the lowest are `CatalogoService` and `SesionSimulador`). `scripts/org-check.sh tests` runs it again. `npm run test:unit` runs the four Jest suites. A deploy proves none of this: in `nova-cdo` it reports `Running Tests - Skipped` (`CONTRIBUTING.md`).
+**Tests.** Last full run on 2026-10-28, on `main` (1f2ec7b): 460 of 460 passing, 90 % org coverage, no class of ours below 87 % (the lowest are `CatalogoService` and `SesionSimulador`). Jest: 29 of 29 in 4 suites. `scripts/org-check.sh tests` runs the Apex suite again. A deploy proves none of this: in `nova-cdo` it reports `Running Tests - Skipped` (`CONTRIBUTING.md`).
 
 ## Team decisions behind each story
 
-The brief leaves some readings open. The team closed each one as a decision on 2026-10-27 ([decisiones.md](decisiones.md)); the ones the delivery relies on are listed in "Lecturas del brief en las que se apoya la entrega" at the end of that file. If a reading changes, the last column says what has to change.
+The brief leaves some readings open. The team closed each one as a decision on 2026-10-27 ([decisiones.md](decisiones.md)). On 2026-10-28 John, as the person responsible, approved those that had rested on the facilitator's confirmation (each Status line says so); the ones the delivery relies on are listed in "Confirmaciones del facilitador" at the end of that file. Two answers changed something: the low temperature warning is LT 18 (D054), and the history gives values only for accepted readings (D056). If a reading changes, the last column says what has to change.
 
 | Card | Decision | What the team decided | If the reading changes |
 |---|---|---|---|
@@ -97,6 +97,21 @@ Valid: `msg_000002` in `muestras/telemetry.json`, a `WATER_PUMP` reading `WATER_
 
 ## Scenario runs
 
+### Runs of 2026-10-27
+
+Four runs by John's session with `scripts/org-check.sh run <SCENARIO> 5 42 200`, each on a cleaned org with a fresh simulator session, after D039, D047 and D049. All passed the gates: one `TelemetriaIngesta` job `Completed` with 0 errors, no row left `Publicada`.
+
+| # | Scenario | Received | Log rows | Readings | Cases | Breakdown | Processing |
+|---|---|---|---|---|---|---|---|
+| A | `QA_200` | 200 | 189 | 10 (3 crit, 2 warn, 5 normal) | 4 | 16 Procesada, 169 Atrasada, 4 Rechazada; 10 resends, 1 conflict counted | 7 s |
+| B | `DUPLICATES` | 1000 | 717 | 9 | 5 | 51 Procesada, 622 Atrasada, 27 Conflicto, 17 Rechazada; 207 rows resent | 24 s |
+| C1 | `BOUNDARIES` (Crítica GT 35) | 1000 | 1000 | 9, all on an exact limit | 1 | 53 Procesada, 947 Atrasada | — |
+| C2 | `BOUNDARIES` (Crítica GT 34) | 1000 | 1000 | 9 | 3 | 53 Procesada, 947 Atrasada; the 35 °C reading now Crítica with its Case | — |
+
+The org was cleaned after the last run and left demo-ready; the threshold changed for C2 was restored and all 21 matched the previous day.
+
+### Runs of 2026-10-14 (before D039 and D047)
+
 Nine runs on 2026-10-14 by Juan Diego with `scripts/org-check.sh`, in this order, each on a cleaned org, seed 42. Counts are SOQL on `Log_Senial__c.Resultado__c`, `Lectura_Vigente__c` and `Case`. All nine passed the gates: one `TelemetriaIngesta` job `Completed` with 0 errors, no row left `Publicada`, no log or publish failure. **They predate D039**, so the Case counts follow the old rule of one Case per unique critical message.
 
 | # | Scenario | Pages × batch | Log rows | Readings | Cases | Breakdown | Job |
@@ -125,7 +140,7 @@ Caveats:
 
 - **Volume isn't reproducible.** The same scenario returns different message counts across runs (`DUPLICATES` gave 766, 564 and 276 in earlier runs and 1437 here). Each row describes that run, not what a future run will give. The earlier runs of 2026-10-05 and 10-06 are in git history.
 - **Batch dependence.** Counts depend on how the stream is split into batches (D011 h). If the reading of D011 (h) changes, every run has to be repeated.
-- **The clean.** On 10-14 the script's clean failed on the Apex CPU limit when it deleted logs, Cases and readings in one execution; deleting each kind on its own always worked. The script now deletes one kind per execution, logs first. That version hadn't been run in the org when these runs were taken.
+- **The clean.** On 10-14 the script's clean failed on the Apex CPU limit when it deleted logs, Cases and readings in one execution; deleting each kind on its own always worked. The script now deletes one kind per execution, logs first; that version ran five times on 2026-10-27, each in one pass.
 - The simulator reuses `messageId` across sessions: on a dirty org everything comes out `Conflicto` or as a resend.
 
 ### Manual walkthrough of 2026-10-13
@@ -141,9 +156,21 @@ Juan Diego, with "Iniciar sesión como", on the data that existed then. No scree
 
 Findings: each persona's first session lands on the "Servicio" app with "No tiene acceso a este registro" (opening Nova Casa Telemetry once fixes it, so the demo prep includes it). A custom profile, an app icon and manager reports were proposed and not done. Two manual interventions in Nova Alameda aren't removed by the clean (it only deletes `Origin = 'Telemetria'`): close them by hand before the demo.
 
+### Walkthrough of 2026-10-27
+
+John, with "Iniciar sesión como", on the `QA_200` data of block A, following the checklists below (US-207, US-208 and US-209 checks). Every check passed:
+
+| Persona | What they saw |
+|---|---|
+| Operator 1 | Only Nova Alameda; loading, data and empty states; filters by building and severity; age and "hora del simulador"; "Ver activo" and "Caso N"; "Crear intervención" but no follow-up or thresholds; no Registros de Señal; Nova Caribe not found |
+| Operator 2 | Only Nova Caribe; critical, warning and normal told apart without relying on color |
+| Coordinator | Both buildings and Intervenciones abiertas; a status change without a comment is rejected, with one it saves; a contradictory limit is rejected on save; no Registros de Señal; the accounts outside the hierarchy not found |
+| Manager | Both buildings, read-only, no action buttons; no Registros de Señal or Umbrales |
+| Admin | Registros de Señal and its list views; a signal found by identity with its three times; result, reason, retry action and Case on processed, rejected, late, resent and conflicting rows; no secret anywhere |
+
 ## Repeating the evidence
 
-How to repeat the runs and checks in the org. They need a user who can run the ingestion and see the log (John or Juan Diego). Each check says what passes.
+Done on 2026-10-27: blocks A, B and C and the checks per persona (results in [Scenario runs](#scenario-runs) and the walkthrough above). This section stays as the procedure to repeat them. Each check says what passes.
 
 **Before starting**
 
@@ -177,7 +204,7 @@ As the operator, with date and pass or fail for each:
 4. "Caso N" opens the `Case`; going back with the breadcrumb keeps the filters.
 5. With a truncated list, the banner is qualified ("Al menos N" or "Ningún crítico verificado").
 6. Tab to "Ver activo" and Enter opens the detail once.
-7. Later decisions: the history summary and filter (D033); the Medición and Valor columns (D034); "Cerrar las N abiertas" closes only that asset's Cases (D035, coordinator); the status list matches the `Case` page (D036); "Antigüedad" and "hora del simulador" (D037); "Última intervención: Caso N" with "Abrir nueva intervención" (D038); grid cards, the "Salud de la flota" donut, the building table and the "Traer señales" panel (D041); the color band by state, the 3-pulse critical, "Subió a crítico" and the 60 s refresh (D042); a `Conflicto` row tagged "valor original" (D034).
+7. Later decisions: the history summary and filter (D033); the Medición and Valor columns (D034); "Cerrar las N abiertas" closes only that asset's Cases (D035, coordinator); the status list matches the `Case` page (D036); "Antigüedad" and "hora del simulador" (D037); "Última intervención: Caso N" with "Abrir nueva intervención" (D038); grid cards, the "Salud de la flota" donut, the building table and the "Traer señales" panel (D041); the color band by state, the 3-pulse critical, "Subió a crítico" and the 60 s refresh (D042); once PR #97 is merged and deployed, a `Conflicto` row tagged "valor original" (D034).
 
 Save screenshots of the list, the detail and the loading, empty and error states, with several severities.
 
@@ -212,7 +239,7 @@ With D039 an asset has one open telemetry Case; later critical signals link to i
 4. Passes if the same reading (same `Identidad__c`) now comes out critical and opens its intervention. If the simulator doesn't repeat the stream, compare another value of the same measurement and say so.
 5. **Put the limit back** and confirm it: the thresholds are shared. Save value, old and new limit, and severity before and after, with no Ids.
 
-**At the end:** `clean`, turn the scheduled ingestion back on, tell Slack, paste the evidence on each card and move it (QA → Ready, `CONTRIBUTING.md`). A failed check isn't fixed here: note it and open a branch for the story.
+**At the end:** `clean`, turn the scheduled ingestion back on, tell Slack, paste the evidence on each card and move it (QA → Ready, `CONTRIBUTING.md`). A story with an open question stays in QA. A failed check isn't fixed here: note it and open a branch for the story.
 
 ## Demo script
 
@@ -221,8 +248,8 @@ It follows the brief's "Historia de referencia" (`Sprint 2 - Nova Casa.md`): Lau
 **Before the demo (not timed)**
 
 1. Say in Slack who runs the ingestion and when. Juan Diego or John runs it with his own user: both have `Nova_Casa_Admin` and `Nova_Casa_Simulator_Integration`. The admin persona doesn't have the second one, so "Traer señales" fails with that user.
-2. Turn off the scheduled ingestion (`desprogramar-ingesta.apex`) and turn it back on afterwards.
-3. Clean org: `scripts/org-check.sh clean` shows what it would delete, and `clean confirm=<org>:<n>` deletes it, once John and Juan Diego agree. It only deletes telemetry Cases: close the manual interventions by hand if they shouldn't show.
+2. Turn off the scheduled ingestion (`desprogramar-ingesta.apex`) and turn it back on afterwards, only if the team wants it on (it is off on 2026-10-28).
+3. Clean org: `scripts/org-check.sh clean` shows what it would delete, and `clean confirm=<org>:<n>` deletes it, once John and Juan Diego agree. It only deletes telemetry Cases: close the manual interventions by hand if they shouldn't show. On 2026-10-28 the org is clean: 0 log rows, readings and telemetry Cases, no open Case, every asset "Sin lecturas".
 4. Catalog loaded (`CatalogoService.loadCatalog();`, README) and the "Building owners" query of `acceso.md` returns nothing: BLD-BOG-001 (Edificio Nova Alameda) belongs to operator 1 and BLD-BAQ-001 (Edificio Nova Caribe) to operator 2.
 5. Persona users active. Log in as each one once and open the Nova Casa Telemetry app, or their first session lands on "Servicio".
 6. Tests run the same day (`scripts/org-check.sh tests`); keep the result for step 9.
@@ -241,23 +268,23 @@ It follows the brief's "Historia de referencia" (`Sprint 2 - Nova Casa.md`): Lau
 | 9 | 1 | Presenter | Automated tests | BR-210 |
 
 1. **Context.** Each vendor has its own portal and the operator finds out late. Read the reference story aloud. The flow in one sentence: simulator → `Senial_Sensor__e` → `SenialSensorTrigger` as the integration user → `Lectura_Vigente__c`, `Log_Senial__c` and `Case` → "Activos del operador".
-2. **The signals arrive.** In Execute Anonymous, as Juan Diego: `TelemetriaIngesta.iniciar('QA_200', 42, 200, 5);`. Apex Jobs shows one `TelemetriaIngesta` job `Completed`. In Registros de Señal > Todas las señales (`/lightning/o/Log_Senial__c/list?filterName=Todas_las_senales`): each row has its identity, `Occurred_At__c`, `Publicado_At__c` and `Procesado_At__c`; rows go from `Publicada` to `Procesada` by themselves; a few stay `Rechazada` with a reason and the rest carry on.
-3. **Laura starts her shift.** Log in as operator 1 > Activos del operador. Only BLD-BOG-001 shows up. The banner and the building summary count assets in Crítica, Precaución and Sin dato; the asset takes the highest severity of its latest readings. Filter by severity, then by building; a combination with no results says "Ningún activo coincide con esos filtros" with "Limpiar filtros", which isn't the same as "Sin lecturas todavía". Cards show the reading's age and "(desactualizada)" past 15 minutes (D007). "Ver activo" shows the current reading per measurement type and, if critical, "Caso N". Laura can "Crear intervención" but has no "Actualizar seguimiento" or "Ver límites" (D020). If the pump isn't critical in this run, use whichever asset is.
-4. **One intervention, even if it arrives twice.** As Juan Diego, note the count in Cases > Intervenciones abiertas. Run the same `iniciar` again. The count doesn't change; Duplicadas (reenvíos) shows rows with `Reenvios__c` > 0 and the same result and Case. If the simulator sends different content with the same key, the row is `Conflicto` (list view Conflictos), also with no new Case. Back as Laura, "Actualizar": still a single "Caso N".
+2. **The signals arrive.** In Execute Anonymous, as Juan Diego: `TelemetriaIngesta.iniciar('QA_200', 42, 200, 5, true);` (`true` opens a fresh simulator session; without it the run continues the saved one, D025). Apex Jobs shows one `TelemetriaIngesta` job `Completed`. In Registros de Señal > Todas las señales (`/lightning/o/Log_Senial__c/list?filterName=Todas_las_senales`): each row has its identity, `Occurred_At__c`, `Publicado_At__c` and `Procesado_At__c`; rows go from `Publicada` to `Procesada` by themselves; a few stay `Rechazada` with a reason and the rest carry on.
+3. **Laura starts her shift.** Log in as operator 1 > Activos del operador. Only BLD-BOG-001 shows up. The banner and the building summary count assets in Crítica, Precaución and Sin dato; the asset takes the highest severity of its latest readings. Filter by severity, then by building; a combination with no results says "Ningún activo coincide con esos filtros" with "Limpiar filtros", which isn't the same as "Sin lecturas todavía". Cards show the reading's age and "(desactualizada)" past 15 minutes (D007). "Ver activo" shows the current reading per measurement type and, if critical, "Caso N". Laura can "Crear intervención" but has no "Actualizar seguimiento" or "Ver límites" (D020). If the pump isn't critical in this run, use whichever asset is (on 2026-10-27 it was the camera).
+4. **One intervention, even if it arrives twice.** As Juan Diego, note the count in Cases > Intervenciones abiertas. Run exactly the same `iniciar` again, with `true`: a fresh session with the same seed sends the same messages. The count doesn't change; Duplicadas (reenvíos) shows rows with `Reenvios__c` > 0 and the same result and Case. If the simulator sends different content with the same key, the row keeps its result and counts the conflict (list view Conflictos, "Detalle del último conflicto", D047), also with no new Case. Back as Laura, "Actualizar": still a single "Caso N".
 5. **An old reading isn't the current condition.** Open a row in Atrasadas and its asset: the row's `Occurred_At__c` is older than the current reading, its reason says so, the current reading didn't change and the row has no Case even if it's critical. Almost every row ends up `Atrasada` in a full run; that's D011 (h).
-6. **The coordinator organizes the work.** Log in as the coordinator > Intervenciones abiertas: one open intervention per asset for both buildings (D039). On a critical asset, "Actualizar seguimiento" (On Hold, with a comment) > Guardar; Laura couldn't. "Ver límites": thresholds are `Umbral__c` records edited without deploying; a contradictory range is rejected on save (D018). Don't leave a threshold changed.
-7. **Everyone sees their own data.** The manager sees BLD-BOG-001 and BLD-BAQ-001 read-only, with no action buttons. Operator 2 sees only BLD-BAQ-001. The case outside the hierarchy can't be shown live because BLD-TEST-NOAUT no longer exists in the org; `acceso.md` has the permission evidence (D022). The restriction is also on the server: the controller is `with sharing` and queries in `USER_MODE` (`ActivosOperadorControllerTest.operatorDoesNotSeeAnotherOperatorsBuildingButGerenteSeesBoth`).
-8. **The administrator investigates.** Rechazadas, Conflictos and Fallidas, then look up a signal by its identity in global search: each row shows its result, Motivo and Acción de reintento (D014): a rejected row says to fix the data at the source or, when the reason is a missing threshold or an asset outside the catalog, to configure Salesforce first (D055); either way a rejected identity isn't reprocessed, so it needs another `messageId`. A failed row says to retry, a processed one says there's nothing to do. Retrying a failed row means running the ingestion again; the identity prevents a duplicate Case. No token, cursor or secret in any row, and only the admin sees the log.
-9. **Quality.** Show the test result from the preparation and name the tests that fail if what the audience saw breaks: `tresValoresRepresentativosDeTemperaturaSonNormalAdvertenciaYCritica`, `operadorGTUnValorIgualAlLimiteNoLoCumpleYElSiguienteSi`, `editarElLimiteDeUnUmbralCambiaLaClasificacionSinTocarElHistorico`, `unReenvioIgualSoloSumaReenviosSinTocarLecturaNiCase`, `mismaIdentidadConOtroContenidoEsConflictoSinCambiarEstado`, `IntervencionServiceTest` (one open Case per asset, D039), `doscientosEventosEnUnLoteUsanUnNumeroFijoDeConsultasYDml`, `unaSenialMasAntiguaQueLaVigenteQuedaAtrasadaAunqueSeaCritica`, `elDesempateD003NoDependeDelOrdenDeLlegada`, `ActivosOperadorControllerTest`, `PermisosProcesamientoTest`. What wasn't verified by hand is in [Status by story](#status-by-story).
+6. **The coordinator organizes the work.** Log in as the coordinator > Intervenciones abiertas: one open intervention per asset for both buildings (D039). On a critical asset, "Actualizar seguimiento" (On Hold, with a comment) > Guardar; Laura couldn't. On the Case page the status changes in Detalles and needs a comment too (D046); closing needs the follow-up permission (D052). "Ver límites": thresholds are `Umbral__c` records edited without deploying; a contradictory range is rejected on save (D018). Don't leave a threshold changed.
+7. **Everyone sees their own data.** The manager sees BLD-BOG-001 and BLD-BAQ-001 read-only, with no action buttons, and a global search for an account outside the hierarchy (Acme, Global Media) finds nothing (D022). Operator 2 sees only BLD-BAQ-001. The restriction is also on the server: the controller is `with sharing` and queries in `USER_MODE` (`ActivosOperadorControllerTest.operatorDoesNotSeeAnotherOperatorsBuildingButGerenteSeesBoth`).
+8. **The administrator investigates.** Rechazadas, Conflictos and Fallidas, then look up a signal by its identity in global search: each row shows the reading it brought (measurement, value, unit, D049), its result, Motivo and Acción de reintento (D014): a rejected row says to fix the data at the source, or the configuration when the threshold or the asset is missing (D055); a failed one says to retry; a processed one says there's nothing to do. Retrying means running the ingestion again; the identity prevents a duplicate Case. No token, cursor or secret in any row, and only the admin sees the log.
+9. **Quality.** Show the test result from the preparation and name the tests that fail if what the audience saw breaks: `tresValoresRepresentativosDeTemperaturaSonNormalAdvertenciaYCritica`, `operadorGTUnValorIgualAlLimiteNoLoCumpleYElSiguienteSi`, `editarElLimiteDeUnUmbralCambiaLaClasificacionSinTocarElHistorico`, `unReenvioIgualSoloSumaReenviosSinTocarLecturaNiCase`, `mismaIdentidadConOtroContenidoEsConflictoSinCambiarEstado`, `IntervencionServiceTest` (one open Case per asset, D039, and the concurrent first Case), `IntervencionOperadorControllerTest.shouldFollowTheBuildingNotTheCreator_WhenTheBuildingChangesOperator` (D053), `doscientosEventosEnUnLoteUsanUnNumeroFijoDeConsultasYDml`, `unaSenialMasAntiguaQueLaVigenteQuedaAtrasadaAunqueSeaCritica`, `elDesempateD003NoDependeDelOrdenDeLlegada`, `ActivosOperadorControllerTest`, `PermisosProcesamientoTest`. The suite is 460 tests, all passing on 2026-10-28; what's still open is in [Status by story](#status-by-story).
 
 **If something goes wrong**
 
 - **The simulator doesn't respond or a job is `Failed`:** read the error in Apex Jobs and run the same `iniciar` again; the identity prevents duplicates. If it keeps failing, show the [scenario runs](#scenario-runs) and the data already in the org.
 - **Everything is `Conflicto` or a resend:** the org wasn't clean. Show Conflictos and Duplicadas (reenvíos) as proof of BR-205 and carry on.
-- **No critical signal or no new Case:** it depends on how the batches are split (D011 h). Show `CRITICAL_BURST` in the scenario runs.
+- **No critical signal or no new Case:** it depends on how the batches are split (D011 h). Show block A or B of the [runs of 2026-10-27](#runs-of-2026-10-27).
 - **"Traer señales" fails:** the admin persona lacks `Nova_Casa_Simulator_Integration`; use Execute Anonymous with Juan Diego's user.
 - **No "Login" in Setup > Users:** check "Administrators Can Log in as Any User", or show the `UserRecordAccess` tables in `acceso.md`.
 - **"No pudimos cargar tus activos":** "Reintentar". If it persists, the user lacks FLS: it's the error state BR-207 asks for; carry on with another role.
-- **The run is slow:** 10-page runs took up to 72 s; use `QA_200` with few pages.
+- **The run is slow:** 1000 messages took 24 s on 2026-10-27; use `QA_200` with few pages.
 
 Runs create real records. Don't delete what someone else created; the clean is agreed in Slack.
