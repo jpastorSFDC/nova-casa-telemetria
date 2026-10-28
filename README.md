@@ -40,7 +40,7 @@ Each fact has one home. Other files link to it instead of repeating it.
 
 If a new doc would repeat MDSS content in different words, it doesn't get added — quote the verbatim instead.
 
-**Language.** Everything we write is in English: docs, decisions, commits, PRs. The exceptions are the MDSS source (`Sprint 2 - Nova Casa.md`, `docs/br-201-210.md`), which stays verbatim in Spanish, and the approved `entregables/`, which we don't edit ([`entregables/README.md`](entregables/README.md) says which of their points later decisions replaced).
+**Language.** Everything we write is in English: docs, commits, PRs. The exceptions are the MDSS source (`Sprint 2 - Nova Casa.md`, `docs/br-201-210.md`), which stays verbatim in Spanish; the approved `entregables/`, which we don't edit ([`entregables/README.md`](entregables/README.md) says which of their points later decisions replaced); and the decisions log: `docs/decisiones.md` is in English up to D025 and in Spanish from D026 on, including the sections after D059 (known limits, inherited points, general risks). We haven't translated it.
 
 **Backlog and board.** Task-level status lives outside the repo: the Slack list "Nova Casa Sprint 2 · Backlog MVP" in `#novacasa_sprint_2`, and the story cards on the MDSS board (see the "Board and backlog" section of [CONTRIBUTING.md](CONTRIBUTING.md#board-and-backlog)).
 
