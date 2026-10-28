@@ -8,7 +8,7 @@ How we work on this repo: branches, commits, pull requests and deploys to the or
 2. Commits follow Conventional Commits, in English, with the story as scope.
 3. Every change reaches `main` through a pull request approved by the other person, merged with squash.
 4. In the shared org, deploy only your story's files from your branch. The full `force-app` is deployed only from `main`.
-5. Every Apex class ships with its test class: the org is production and rejects Apex deploys without coverage.
+5. Every Apex class ships with its test class: the org is production and Apex needs 75% coverage per class. `nova-cdo` doesn't run the tests on deploy, so we run them ourselves and put the result in the PR. A component with behavior ships with its Jest test.
 
 ## Branches
 
@@ -28,7 +28,7 @@ git pull
 git switch -c feat/us-204-thresholds
 ```
 
-`main` is protected: nobody pushes to it directly, admins included. Branches are not deleted automatically; after the merge, the author deletes the branch on GitHub and locally with `git branch -D <branch>`. It has to be `-D`: after a squash merge, Git does not find the branch's commits in `main`, so `-d` refuses to delete it.
+Nobody pushes to `main` directly, admins included. This is an agreement between us: on 2026-10-27 GitHub had no branch protection or ruleset on `main`, and the only thing it enforces is that the repo accepts squash merges and no other kind. Branches are not deleted automatically; after the merge, the author deletes the branch on GitHub and locally with `git branch -D <branch>`. It has to be `-D`: after a squash merge, Git does not find the branch's commits in `main`, so `-d` refuses to delete it.
 
 ## Commits
 
@@ -57,6 +57,8 @@ Refs: T4.1, T4.3
 **Subject** uses the imperative mood, names exactly what changed (the class, object, field or component) and has no period at the end. Aim for 72 characters; the hook rejects headers longer than 100.
 
 **Footer** lists the backlog tasks the commit covers: `Refs: T4.1`.
+
+**The hook** (`.githooks/commit-msg`, turn it on once with `git config core.hooksPath .githooks`) checks the header against this section and rejects it if it doesn't match. It lets `Merge`, `Revert`, `fixup!`, `squash!` and `amend!` headers through without checking. It also removes, whatever their capitalization, the `Co-authored-by` lines from Cursor, Claude or Anthropic, `Made-with: Cursor` and the `Generated with [Claude Code]` line from the message (a human co-author stays): we don't put AI co-authorship in commits.
 
 Good:
 
@@ -129,8 +131,10 @@ We both work on the same org, `nova-cdo`. The org keeps a single version of each
 2. Validate first. `--dry-run` checks the deploy without changing anything:
 
    ```bash
-   sf project deploy start --source-dir force-app/main/default/classes/Umbrales.cls --source-dir force-app/main/default/objects/Umbral__c --dry-run
+   sf project deploy start --source-dir force-app/main/default/objects/Umbral__c --dry-run
    ```
+
+   If the files include Apex, add `--test-level RunSpecifiedTests --tests <test class>` as shown in "Apex needs tests".
 
 3. Deploy only your story's files, with the same command and without `--dry-run`. Never deploy the whole `force-app` from a branch: it carries old copies of the other person's files.
 
@@ -139,9 +143,12 @@ We both work on the same org, `nova-cdo`. The org keeps a single version of each
    ```bash
    git switch main
    git pull
-   sf project deploy start --source-dir force-app --dry-run
-   sf project deploy start --source-dir force-app
+   tests=(); for f in force-app/main/default/classes/*Test.cls; do tests+=(--tests "$(basename "$f" .cls)"); done
+   sf project deploy start --source-dir force-app --test-level RunSpecifiedTests "${tests[@]}" --dry-run
+   sf project deploy start --source-dir force-app --test-level RunSpecifiedTests "${tests[@]}"
    ```
+
+   The first line of the block builds one `--tests` per test class in the repo (it works in bash and zsh). If the Apex jobs of the ingestion are scheduled, Salesforce blocks the deploy of those classes: turn them off first (see the README, "Automatic ingestion every 5 minutes").
 
 Shared files are changed by one person at a time: permission sets, page layouts, the app and `Case` (the intervention object, [D001](docs/decisiones.md#d001--intervention-object-case)). Whoever needs one says so in Slack, and the other waits until that PR is merged before changing it.
 
@@ -176,9 +183,20 @@ To run tests without deploying:
 sf apex run test --class-names CatalogoServiceTest --code-coverage --result-format human --wait 10
 ```
 
+### LWC tests (Jest)
+
+The Lightning web components have Jest suites next to them (`force-app/main/default/lwc/*/__tests__`), run with `@salesforce/sfdx-lwc-jest`. They need Node and run without touching the org:
+
+```bash
+npm install        # once
+npm run test:unit
+```
+
+A change to a component's behavior comes with its Jest test in the same PR, as Apex does. The Jest suites are not part of the 75% rule, which only counts Apex.
+
 ### Why a deploy shows 0 passed, 0 failed
 
-In `nova-cdo` a deploy or `--dry-run` reports `Running Tests - Skipped` and `Passing: 0, Failing: 0, Total: 0`, even with `--test-level RunSpecifiedTests --tests ...` and even when an Apex class changed. We checked this with a dry-run that changed `CatalogoService`: still 0 tests. The org was created in the Solutions workspace as a trial Enterprise Edition org (`IsSandbox=false`), and we believe it does not run tests on deploy, but Salesforce has not confirmed that.
+In `nova-cdo` a deploy or `--dry-run` reports `Running Tests - Skipped` and `Passing: 0, Failing: 0, Total: 0`, even with `--test-level RunSpecifiedTests --tests ...` and even when an Apex class changed. We checked this with a dry-run that changed `CatalogoService`: still 0 tests. The org was created in the Solutions workspace as a trial Enterprise Edition org (`IsSandbox=false`), and it does not run tests on deploy; we haven't found the setting that explains it, so the tests are always run separately with `sf apex run test`.
 
 So the deploy result proves only that the metadata compiles and is valid. It says nothing about the tests or the 75% coverage. After every real deploy with Apex, run the tests yourself and put that result in the PR:
 

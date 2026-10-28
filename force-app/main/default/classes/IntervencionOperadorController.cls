@@ -7,8 +7,8 @@
  * like a telemetry Case, so who sees it follows the building and not who opened it (D053). The "no open intervention" check runs in
  * OpenCaseCheck (a separate `without sharing` class): SYSTEM_MODE inside a `with sharing` class still applies sharing,
  * and with Case Private a Case the user cannot see would not block a duplicate. The message never names that Case.
- * This is not the ingestion path: a manual intervention does not count as a critical message and leaves the
- * one-intervention-per-critical-message rule of IntervencionService untouched.
+ * This is not the ingestion path: a manual intervention (Origin = Operador) is never linked to or updated by
+ * IntervencionService, which only handles the telemetry Case of an asset (D039).
  */
 public with sharing class IntervencionOperadorController {
 
@@ -218,8 +218,10 @@ public with sharing class IntervencionOperadorController {
 
     /**
      * Closes, in one call, the open interventions of one asset (up to BULK_CLOSE_MAX; `hayMas` says if some are left)
-     * and leaves one line in each Description, with the required comment (D046). Ingestion opens one intervention per unique
-     * critical message (D010), so an asset can pile up many; this only changes how they are closed, not how they open.
+     * and leaves one line in each Description, with the required comment (D046). Ingestion keeps one open telemetry
+     * intervention per asset (D039), so several can be open only for ones that piled up before it, for a manual
+     * intervention next to a telemetry one, or for a closed Case reopened from Details (D035, D043); this only changes
+     * how they are closed, not how they open.
      * Same key as actualizarSeguimiento (Nova_Casa_Seguir_Intervencion) and the same USER_MODE: only the Cases the
      * user can see and edit are closed, each on its own (one failure does not undo the rest).
      * `esperadas` is the number the person saw and confirmed: if the open count changed since (ingestion keeps opening

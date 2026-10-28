@@ -9,7 +9,7 @@
  * Event descarta los hasta 200 eventos entregados. Por eso el trabajo por evento y cada DML van protegidos.
  */
 public without sharing class SenialSensorHandler {
-    // Por qué `without sharing` + SYSTEM_MODE: la ingesta corre como Automated Process y no puede depender de los
+    // Por qué `without sharing` + SYSTEM_MODE: la ingesta corre como el usuario de integración (D017) y no puede depender de los
     // permisos de operador/administrador (AGENTS.md). La ruta de consulta del operador tiene su propia autorización
     // (BR-208). Esta clase es solo de la ruta de ingesta: no debe llamarse desde LWC ni controladores @AuraEnabled.
     private static final String MENSAJE_CONECTIVIDAD = 'CONNECTIVITY';
@@ -651,7 +651,7 @@ public without sharing class SenialSensorHandler {
 
     private static Map<String, Log_Senial__c> consultarLogs(Set<String> identidades) {
         Map<String, Log_Senial__c> logs = new Map<String, Log_Senial__c>();
-        // SYSTEM_MODE: misma razón que el resto de la ruta de ingesta (Automated Process, sin permisos de operador).
+        // SYSTEM_MODE: misma razón que el resto de la ruta de ingesta (usuario de integración, sin permisos de operador).
         for (Log_Senial__c log : [
             SELECT Id, Identidad__c, Resultado__c, Huella__c, Reenvios__c, Conflictos__c
             FROM Log_Senial__c
@@ -704,7 +704,7 @@ public without sharing class SenialSensorHandler {
 
     private static Map<String, List<Umbral__c>> consultarUmbrales() {
         Map<String, List<Umbral__c>> umbralesPorTipo = new Map<String, List<Umbral__c>>();
-        // SYSTEM_MODE: la ingesta corre como Automated Process y no puede depender de los permisos del operador.
+        // SYSTEM_MODE: la ingesta corre como el usuario de integración (D017) y no puede depender de los permisos del operador.
         for (Umbral__c umbral : [
             SELECT Tipo_Activo__c, Tipo_Medicion__c, Operador__c, Valor__c, Unidad_Esperada__c, Severidad__c, Severidad_Nivel__c
             FROM Umbral__c

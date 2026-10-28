@@ -1473,7 +1473,7 @@ private class ActivosOperadorControllerTest {
         ActivosOperadorController.AssetView view = result[0];
         Assert.areEqual(warning.Id, view.assetId);
         Assert.areEqual(1, view.severityLevel);
-        // Current controller label for level 1 (labelFor); the LWC shows 'Precaución' -- see report
+        // Current controller label for level 1 (labelFor); the LWC shows 'Precaución' from c/novaCasaEtiquetas and doesn't read this label
         Assert.areEqual('Advertencia', view.severityLabel);
         Assert.areEqual(1, view.readings.size());
         Assert.areEqual(1, view.readings[0].severityLevel);

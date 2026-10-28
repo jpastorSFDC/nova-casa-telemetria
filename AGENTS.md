@@ -1,6 +1,6 @@
 # Sprint 2 — Nova Casa Telemetry
 
-Current phase: **Development**, opened in MDSS on Sep 25. Discovery & Design (Sep 15–26) delivered the prototypes in `entregables/`. QA & Delivery is still locked.
+Current phase: **Development**, opened in MDSS on Sep 25, and the sprint is being closed: what's delivered, with its evidence, is in `docs/entrega.md`. Discovery & Design (Sep 15–26) delivered the prototypes in `entregables/`.
 
 Team: John Alejandro Pastor + Juan Diego Velásquez. Respond in English.
 
@@ -14,7 +14,7 @@ Read this before designing or implementing anything. Don't invent PE fields or B
 
 ## Decision makers and flow
 
-The MDSS facilitator approves each deliverable; an agreement between the two of us doesn't close it on its own. Before proposing an alternative to a closed agreement, log it in `docs/decisiones.md` with justification and test criteria — don't just apply it.
+The MDSS facilitator approves each deliverable; an agreement between the two of us doesn't close it on its own. On 2026-10-28 John, as the person responsible, approved the decisions in `docs/decisiones.md` that rested on the facilitator's confirmation (each Status line says so); the deliverables themselves are still approved in MDSS. Before proposing an alternative to a closed agreement, log it in `docs/decisiones.md` with justification and test criteria — don't just apply it.
 
 Branches, commits and PRs follow `CONTRIBUTING.md`, the same rules for us and for agents: one branch per story (`feat/us-201-receive-signals`), commits in Conventional Commits English with the story as scope, merged with squash after the other person approves. **`main` never takes a direct commit from an agent** — an agent's work lives on its branch until John or Juan Diego reviews it. PRs opened by an agent count as John's, so Juan Diego reviews them. Never add AI co-authorship to commits.
 
@@ -27,9 +27,10 @@ Remote: `origin` → github.com/jpastorSFDC/nova-casa-telemetria, **public**. Do
 - Identity = `source` + `messageId`. A resend shares that identity.
 - Same key: doesn't update state or open an intervention. Same key with **different content** is a conflict, not a fresh alert.
 - Baseline: **one intervention per unique critical message**. Consolidating different keys into one open incident is extra scope.
+- Our extra, D039 (a team decision in `docs/decisiones.md`, not MDSS text): **one open telemetry intervention per asset**, and later critical signals of that asset update it instead of opening another. Don't consolidate further than D039 says.
 - A late-arriving signal: keep it as evidence; it **doesn't** overwrite current state and **doesn't** open a critical intervention. An alternative only if it separates historical from current state and has tests to back it.
-- Same `occurredAt`: needs a **deterministic** tie-break (still to be defined in decisions). Don't let arrival order decide it.
-- Thresholds **live outside code** (Custom Metadata or equivalent). Exact operators and values are still to be agreed.
+- Same `occurredAt`: needs a **deterministic** tie-break, defined in D003. Don't let arrival order decide it.
+- Thresholds **live outside code**, in `Umbral__c` (D004). Operators and values are in D006 and D019.
 - Publishing a PE isn't the same as processing it. The log keeps both moments separate.
 - Ingestion doesn't depend on operator/admin permissions. Query-side LWC/Apex uses a different authorization path (BR-208).
 

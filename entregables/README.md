@@ -10,7 +10,7 @@ The numbering follows the "Entregables" section of `Sprint 2 - Nova Casa.md`.
 
 | # | MDSS deliverable | File | Notes |
 |---|---|---|---|
-| 1 | Entendimiento del problema | [`01-entendimiento-del-problema.pdf`](01-entendimiento-del-problema.pdf) | The version handed in. [`docs/entrega.md`](../docs/entrega.md#open-questions-for-the-facilitator) tracks what happened to its open questions and assumptions. |
+| 1 | Entendimiento del problema | [`01-entendimiento-del-problema.pdf`](01-entendimiento-del-problema.pdf) | The version handed in. [`docs/entrega.md`](../docs/entrega.md#team-decisions-behind-each-story) records the team decisions that closed its open questions and assumptions. |
 | 2 | Prototipo de baja fidelidad | [`02-prototipo-baja-fidelidad.html`](02-prototipo-baja-fidelidad.html) | Clickable mock of the operator LWC: asset list, asset detail, loading, empty and error states. |
 | 3 | Arquitectura de una página | [`03-diagrama-solucion.html`](03-diagrama-solucion.html) | **This is deliverable 3**: the one-page diagram plus rules R1–R4. |
 | 3 (supporting) | — | [`03-arquitectura-flujo-datos.html`](03-arquitectura-flujo-datos.html) | Interactive walkthrough with illustrative Apex for each piece. Not a deliverable on its own, and superseded: most of its code no longer matches the build (see below). Where it disagrees with `03-diagrama-solucion.html` or `04-modelo-de-datos.html`, those two win. |
@@ -29,7 +29,7 @@ Each row is something one or more deliverables say that is no longer true. D-num
 | Tie-break on equal `occurredAt` | Open (04), or "the highest `messageId` wins" as an example (01) | Higher severity, then `messageId` in ascending alphabetical order; the loser is `Superada` | D003, D011 |
 | Where the current reading lives | Fields on `Asset` (03-arquitectura only) | `Lectura_Vigente__c`, one row per asset + measurement type, as 01, 03-diagrama and 04 already said | D011 |
 | Deduplication | SOQL lookup on `messageId` (03-arquitectura only) | Unique `Log_Senial__c.Identidad__c` (`source\|messageId`) written with upsert, as 04 already said; same key with other content is `Conflicto` | D010, D011 |
-| When a Case opens | Only if the asset has no open Case (03-arquitectura only) | One Case per unique critical message, keyed by `Case.Identidad_Senal__c`; consolidating per asset is extra scope | D010, D033 |
+| When a Case opens | Only if the asset has no open Case (03-arquitectura only) | One open Case per asset; a later critical signal updates it (`Case.Ultima_Critica_*`) instead of opening another. It started as one Case per unique critical message | D010, D033, D039 |
 | Platform Event | 12 fields, no `Source` (03-arquitectura, 03-diagrama) | `Senial_Sensor__e`, 17 text fields including `Source__c`, `Delivery_Id__c` and the connectivity fields | [entrega.md](../docs/entrega.md#message-contract) |
 | Simulator call | `GET /api/v1/telemetry?limit=200&cursor=…` | `POST /session`, then `GET /telemetry` with the cursor in the `X-Simulator-Cursor` header | [entrega.md](../docs/entrega.md#message-contract), D025 |
 | Who publishes the event | A synchronous callout class that loops over every page (03-arquitectura) | `TelemetriaIngesta`, a chain of Queueables, started by a person; a `Publicada` log row is written before each publish | D013, D023, D031 |

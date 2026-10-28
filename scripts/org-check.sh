@@ -7,11 +7,12 @@
 #     org-check.sh queries                       counts, personas, buildings and classes in the org
 #     org-check.sh logs                          log rows and Cases by day and Resultado__c
 #     org-check.sh tests                         all our test classes: summary and coverage
-#     org-check.sh drift                         retrieve into a throwaway worktree and show what differs from origin/main
+#     org-check.sh drift                         retrieve what the repo has (and the Apex, LWC and permission sets the org
+#                                                has) into a throwaway worktree reset to origin/main, then list real differences
 #     org-check.sh clean                         preview of what a clean deletes and what stays
 #     org-check.sh wait <since>                  wait until the run started at <since> is fully processed
 #     org-check.sh evidence [SCENARIO] [since]   markdown for docs/entrega.md ("Scenario runs")
-#   Writes org data (announce it, one person at a time, see docs/entrega.md, "Collecting the remaining evidence"):
+#   Writes org data (announce it, one person at a time, see docs/entrega.md, "Repeating the evidence"):
 #     org-check.sh clean confirm=<org>:<n>       delete the telemetry rows; <n> = Log_Senial__c rows in the preview
 #     org-check.sh run <SCENARIO> [pages=10] [seed=42] [batch=200]
 #                                                start one ingestion, on a clean org, with a fresh simulator session
@@ -24,6 +25,7 @@ TMP_ROOT="${TMPDIR:-/tmp}"
 TMP_ROOT="${TMP_ROOT%/}"
 SCENARIOS="MIXED QA_200 BOUNDARIES CRITICAL_BURST LATE_MESSAGES DUPLICATES CONFLICT INVALID_DATA CAMERA_OUTAGE"
 JOB_ACTIVE="'Queued','Preparing','Processing','Holding'" # same statuses as IngestaController.hayIngestaEnCurso
+SCHEDULED_PREFIX='Nova Casa - ingesta automatica' # TelemetriaIngestaProgramada.PREFIJO: the 12 scheduled jobs start with it
 PURGE_CHUNK=2000 # rows per object per delete pass: 3 objects stay well under the 10,000 DML rows of a transaction
 PURGE_PASSES=10
 WORK=""
@@ -137,6 +139,10 @@ inflight() { # number of TelemetriaIngesta jobs still queued or running
   count "SELECT COUNT() FROM AsyncApexJob WHERE ApexClass.Name = 'TelemetriaIngesta' AND Status IN ($JOB_ACTIVE)"
 }
 
+scheduled_jobs() { # number of live scheduled ingestion jobs (TelemetriaIngestaProgramada keeps 12 when it is on)
+  count "SELECT COUNT() FROM CronTrigger WHERE CronJobDetail.Name LIKE '$SCHEDULED_PREFIX%' AND State != 'DELETED'"
+}
+
 # Has the Apex trigger on Senial_Sensor__e processed everything published? Prints caught-up | behind | unknown,
 # plus "last-error" when the subscriber has one (the text itself is never printed).
 subscriber_state() {
@@ -148,10 +154,12 @@ subscriber_state() {
     end' 2>/dev/null || echo unknown
 }
 
-require_idle() { # dies unless nothing is running and the subscriber has caught up
-  local jobs state
+require_idle() { # dies unless nothing is running or scheduled and the subscriber has caught up
+  local jobs sched state
   jobs=$(inflight) || die "could not check for running ingestion jobs"
   [ "$jobs" = "0" ] || die "$jobs TelemetriaIngesta job(s) still queued or running. Wait for them (wait <since>) and try again."
+  sched=$(scheduled_jobs) || die "could not check for scheduled ingestion jobs"
+  [ "$sched" = "0" ] || die "$sched scheduled ingestion job(s) are on: a run would start in the middle of this one and add rows. Turn them off first: sf apex run --file scripts/apex/desprogramar-ingesta.apex -o $ORG"
   state=$(subscriber_state)
   case "$state" in
     behind*) die "the Senial_Sensor__e trigger has not caught up with the published events. Wait a minute and try again." ;;
@@ -224,7 +232,7 @@ mode_clean() {
     echo "To delete: Log_Senial__c=$LOGS Lectura_Vigente__c=$READS Case(Origin = 'Telemetria')=$CASES"
     echo "Stays:     $STAYS"
     [ "$CATALOG_OK" = "yes" ] || echo "WARN: the catalog looks empty (buildings, assets or active thresholds = 0). Load it first (README, \"Loading the building/asset catalog\")."
-    echo "Jobs in flight: $(inflight || echo '?')   Trigger subscriber: $(subscriber_state)"
+    echo "Jobs in flight: $(inflight || echo '?')   Scheduled ingestion jobs: $(scheduled_jobs || echo '?') (must be 0 to clean or run)   Trigger subscriber: $(subscriber_state)"
     echo
     echo "To delete these rows, John and Juan Diego both agree first, then: scripts/org-check.sh clean confirm=$ORG:<the Log_Senial__c number above>"
     return 0
@@ -387,9 +395,11 @@ mode_evidence() {
     mdrows "SELECT Resultado__c, COUNT(Id) n FROM Log_Senial__c WHERE Caso__c != null GROUP BY Resultado__c ORDER BY COUNT(Id) DESC"
     echo
     atr=$(count "SELECT COUNT() FROM Log_Senial__c WHERE Resultado__c = 'Atrasada'") || atr="?"
-    lote=$(count "SELECT COUNT() FROM Log_Senial__c WHERE Resultado__c = 'Atrasada' AND Motivo__c LIKE '%(el lote)'") || lote="?"
+    # SenialSensorHandler.marcarPerdedora writes "Más antigua que otra lectura de la misma colección (<id>)..." when the
+    # newer reading is in the same batch and "Más antigua que <id> (la lectura vigente)" when it is the stored one.
+    lote=$(count "SELECT COUNT() FROM Log_Senial__c WHERE Resultado__c = 'Atrasada' AND Motivo__c LIKE '%de la misma colecci%'") || lote="?"
     vigente=$(count "SELECT COUNT() FROM Log_Senial__c WHERE Resultado__c = 'Atrasada' AND Motivo__c LIKE '%(la lectura vigente)'") || vigente="?"
-    echo "\`Atrasada\` rows ($atr), by what they lost to (D011 h): the same batch (\`(el lote)\`) $lote, the stored reading (\`(la lectura vigente)\`) $vigente."
+    echo "\`Atrasada\` rows ($atr), by what they lost to (D011 h): another reading of the same batch (\`de la misma colección\`) $lote, the stored reading (\`(la lectura vigente)\`) $vigente."
     echo
     echo "Most common \`Rechazada\` reasons (US-202, D032):"
     echo
@@ -432,6 +442,37 @@ mode_evidence() {
   if grep -Eq '@[A-Za-z0-9._-]+\.[A-Za-z]{2,}|(^|[^A-Za-z0-9])(00D|005|0Af|707)[A-Za-z0-9]{12}([A-Za-z0-9]{3})?([^A-Za-z0-9]|$)|Bearer |force://' "$WORK/evidence.md"; then
     echo "WARNING: the output above looks like it has an Id, a username or a token. Do not paste it anywhere before you check." >&2
   fi
+}
+
+# Drift: the org against origin/main, in a throwaway worktree that is reset to origin/main on every run (what a
+# previous run left in it is discarded). nova-cdo has no source tracking, so the way to compare is to retrieve:
+# every component the repo has (`-d force-app`) plus all Apex, triggers, LWC and the Nova Casa permission sets, so
+# anything that exists only in the org shows up too. Read-only on the org.
+mode_drift() {
+  local root wt out status n
+  command -v python3 > /dev/null 2>&1 || die "python3 is not in PATH (the comparison script needs it)"
+  root="$(cd "$(git -C "$REPO" rev-parse --git-common-dir)/.." && pwd)" # the main clone, even from a worktree
+  wt="$root/.claude/worktrees/org-check"
+  git -C "$REPO" fetch origin -q || die "git fetch origin failed"
+  if [ -d "$wt" ]; then
+    git -C "$wt" restore . && git -C "$wt" clean -fdq && git -C "$wt" checkout -q --detach origin/main || die "could not reset $wt to origin/main"
+  else
+    git -C "$REPO" worktree add -q --detach "$wt" origin/main || die "could not create the worktree $wt"
+  fi
+  echo "## worktree $(basename "$wt") reset to origin/main at $(git -C "$wt" rev-parse --short HEAD)"
+  # sf does not accept --source-dir together with --metadata, so it takes two retrieves into the same worktree.
+  out=$(cd "$wt" && sf project retrieve start -o "$ORG" -d force-app --json 2>/dev/null)
+  status=$(echo "$out" | jq -r '.status // "none"' 2>/dev/null)
+  [ "$status" = "0" ] || die "the retrieve of the repo's components did not finish (status: $status; login expired or wrong org alias?). Nothing below would be a comparison."
+  n=$(echo "$out" | jq -r '(.result.files // []) | length' 2>/dev/null)
+  echo "## retrieved $n files the repo has"
+  out=$(cd "$wt" && sf project retrieve start -o "$ORG" \
+    -m "ApexClass" -m "ApexTrigger" -m "LightningComponentBundle" -m "PermissionSet:Nova_Casa_*" --json 2>/dev/null)
+  status=$(echo "$out" | jq -r '.status // "none"' 2>/dev/null)
+  [ "$status" = "0" ] || die "the retrieve of the Apex, LWC and permission sets did not finish (status: $status). Nothing below would be a comparison."
+  n=$(echo "$out" | jq -r '(.result.files // []) | length' 2>/dev/null)
+  echo "## retrieved $n files of those types (this is how files that exist only in the org show up)"
+  python3 "$HERE/org-drift-compare.py" "$wt"
 }
 
 # ---------------------------------------------------------------- dispatch
@@ -483,22 +524,7 @@ tests)
   grep -E '^[A-Za-z_]+ +[0-9]+%' "$OUT" | head -40
   ;;
 drift)
-  ROOT="$(cd "$(git -C "$REPO" rev-parse --git-common-dir)/.." && pwd)" # the main clone, even from a worktree
-  WT="$ROOT/.claude/worktrees/org-check"
-  git -C "$REPO" fetch origin -q
-  [ -d "$WT" ] || git -C "$REPO" worktree add --detach "$WT" origin/main
-  cd "$WT" || exit 1
-  echo "## worktree at: $(git rev-parse --short HEAD)"
-  sf project retrieve start -o "$ORG" \
-    -m "ApexClass" -m "ApexTrigger" -m "LightningComponentBundle" \
-    -m "CustomApplication:Nova_Casa" -m "PermissionSet:Nova_Casa_*" \
-    -m "CustomObject:Log_Senial__c" -m "CustomObject:Lectura_Vigente__c" -m "CustomObject:Umbral__c" \
-    -m "CustomObject:Senial_Sensor__e" 2>&1 | tail -8
-  echo "## Files that differ from main (M) or exist only in the org (??)"
-  git status --short | head -60
-  echo "## Diff summary"
-  git diff --stat | tail -5
-  echo "Leave the worktree in place to read it, then run: git restore . && git clean -fd"
+  mode_drift
   ;;
 clean)
   [ "$#" -le 2 ] || { usage; exit 2; }

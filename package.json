@@ -2,7 +2,7 @@
   "name": "nova-casa-telemetria",
   "private": true,
   "version": "1.0.0",
-  "description": "Pruebas unitarias de los Lightning Web Components de Nova Casa (sfdx-lwc-jest).",
+  "description": "Jest unit tests for the Nova Casa Lightning Web Components (sfdx-lwc-jest).",
   "scripts": {
     "test:unit": "sfdx-lwc-jest",
     "test:unit:watch": "sfdx-lwc-jest --watch"
