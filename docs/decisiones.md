@@ -22,7 +22,7 @@ Copy this template, use the next free number, keep the entries in numerical orde
 - **Next action**: what is still needed to validate or implement it.
 ```
 
-Statuses: **Accepted** means the pair considers the decision closed; John and Juan Diego decide. **Superseded by D0YY** means a later decision replaced it. As of 2026-10-27 every entry is Accepted or Superseded. Entries that rest on the pair's own reading of the brief say "team decision" in their Status line, and the readings the delivery relies on are listed in "Lecturas del brief en las que se apoya la entrega" at the end of this file. **Proposed** exists only for entries written from now on, while they are still under review.
+Statuses: **Accepted** means the pair considers the decision closed; John and Juan Diego decide. **Superseded by D0YY** means a later decision replaced it. As of 2026-10-28 every entry is Accepted or Superseded. Entries that rest on the pair's own reading of the brief say "team decision" in their Status line, and the readings the delivery relies on are listed in "Lecturas del brief en las que se apoya la entrega" at the end of this file. **Proposed** exists only for entries written from now on, while they are still under review.
 
 The "no Jest" remarks in entries D024 to D051 describe the repo when each entry was written. Jest has existed since #102 for `novaCasaActivoEstado`, `novaCasaActivosOperador`, `novaCasaEtiquetas` and `novaCasaHistorialSenales`; `novaCasaIntervencion`, `novaCasaEdificioResumen`, `novaCasaCrearIntervencion` and `novaCasaIlustracion` have none and are checked by hand.
 
@@ -746,9 +746,21 @@ The "no Jest" remarks in entries D024 to D051 describe the repo when each entry 
 - **Criterios de prueba**: el dry-run de los roles; la matriz de OWD de `docs/acceso.md`.
 - **Siguiente acción**: ninguna.
 
+## D058 — «Cerrar todas» se queda en el panel, para los casos que D039 ya no genera pero que aún pueden existir (US-205, US-207)
+
+- **Estado**: Aceptada (John, 2026-10-28)
+- **Fecha**: 2026-10-28
+- **Contexto**: D035 puso «Cerrar todas» en el panel para cerrar de una vez varias intervenciones abiertas de un activo. Desde D039 la ingesta mantiene un solo caso de telemetría abierto por activo, así que en el flujo normal el botón ya no aparece: solo sale con `Nova_Casa_Seguir_Intervencion` y con más de una intervención abierta (`openInterventionCount > 1`). Sigue habiendo tres caminos a varias abiertas en un activo: casos acumulados antes de D039, un caso manual y uno de telemetría abiertos a la vez (D039, punto 7), y un caso cerrado que se reabre desde Detalles (D043, riesgo 6; D036, riesgo 3). Al cerrar el sprint se preguntó si el botón debía quitarse.
+- **Decisión**: el botón se queda como está. Sin cambio de código ni deploy.
+- **Alternativa descartada**: (a) ocultarlo: un cambio de LWC, su prueba y un deploy, a cambio de que esos tres casos se cierren uno por uno, sin ganancia visible hoy. (b) Quitarlo: rompe `cerrarIntervencionesDelActivo`, `CierreResultado`, `BULK_CLOSE_MAX`, los avisos `COUNT_CHANGED` y `NOTHING_TO_CLOSE`, el código del LWC (`formMode`, `isClosingAll`, `saveLabel`, `toastCloseAll`, `canCloseAll`, `closeAll*`), 10 pruebas de `IntervencionOperadorControllerTest`, dos referencias de `AccesoFueraDeJerarquiaTest` y lo que dicen D035, D046 y D052. Sería su propia historia, con una entrada nueva y el acuerdo de los dos.
+- **Trade-off**: queda código que el flujo normal no usa, y el botón no se ha probado a mano en el panel (D052).
+- **Riesgo / dependencia**: (1) probarlo a mano exige crear antes varios casos abiertos en un mismo activo. (2) Si D039 cambiara de forma que dos casos de telemetría abiertos fueran de nuevo lo normal, el botón vuelve a ser el camino principal para cerrarlos.
+- **Criterios de prueba**: `IntervencionOperadorControllerTest.shouldCloseEveryOpenCaseOfTheAssetAndOnlyOfThatAsset_WhenCoordinatorClosesAll` y el resto de pruebas de cierre de esa clase, con `AccesoFueraDeJerarquiaTest`; pasaron 36 de 36 el 2026-10-27 (D052) y están dentro de la suite completa del 2026-10-28, 459 de 459.
+- **Siguiente acción**: ninguna.
+
 ## Límites conocidos de la entrega (2026-10-27)
 
-Todas las decisiones quedaron Aceptadas o Reemplazadas el 2026-10-27, salvo D053 a D055, que lo quedaron el 2026-10-28 al mergear el PR #117. Esto son los límites que el equipo conoce y entrega como están; ninguno bloquea una decisión, y cada uno se resuelve en su propia rama si se decide hacerlo.
+Todas las decisiones quedaron Aceptadas o Reemplazadas el 2026-10-27, salvo D053 a D055, que lo quedaron el 2026-10-28 al mergear el PR #117, y D058, del mismo día. Esto son los límites que el equipo conoce y entrega como están; ninguno bloquea una decisión, y cada uno se resuelve en su propia rama si se decide hacerlo.
 
 1. **D007**: el corte de antigüedad no es uno solo. La pantalla del operador usa `staleMinutes` (15 minutos) y las páginas del edificio y del activo usan `STALE_AFTER_MINUTES` (60) de `novaCasaEtiquetas`. Unificarlo.
 2. **D006, D054**: resuelto: la siembra de umbrales salió del código al recurso estático `NovaCasaUmbralesSemilla` (D054). Queda una diferencia de valor: la org tiene TEMPERATURE Advertencia LT 17 desde el 2026-10-20 y la siembra conserva LT 18, el valor del equipo. La siembra solo actúa sobre combinaciones sin `Umbral__c`, así que la diferencia no afecta a la org; si 17 es el correcto, se cambia en el recurso en su propio PR.
