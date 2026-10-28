@@ -15,6 +15,9 @@ authUrl*.txt
 .cursor/mcp.json
 CLAUDE.local.md
 .claude/settings.local.json
+.claude/worktrees/
+.claude/drafts/
+.cursor/worktrees/
 
 # Editor settings stay on each machine; only the recommended extensions list is shared
 .vscode/*
