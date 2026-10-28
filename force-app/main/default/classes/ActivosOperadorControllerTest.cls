@@ -820,6 +820,60 @@ private class ActivosOperadorControllerTest {
     }
 
     @isTest
+    static void historyGivesValuesOnlyForAcceptedReadingsButKeepsEveryRow() {
+        // Given one asset with a row of each result, every one carrying a value, and a Conflicto that is the current reading
+        Account building = newAccount('Edificio Hist Aceptadas');
+        Asset asset = newAsset('AST-HIST-ACC', building, 'WATER_PUMP');
+        Datetime t = baseTime();
+        Map<String, Decimal> valueByResult = new Map<String, Decimal>{
+            'Procesada' => 3.2, 'Rechazada' => 7476, 'Atrasada' => 2.1, 'Fallida' => 5.5, 'Superada' => 3.3, 'Conflicto' => 9.9
+        };
+        List<Log_Senial__c> rows = new List<Log_Senial__c>();
+        Integer minute = 0;
+        for (String result : valueByResult.keySet()) {
+            Log_Senial__c l = logRow(asset, 'MEASUREMENT', result, t.addMinutes(-(++minute)), null, null);
+            l.Measurement_Type__c = 'WATER_PRESSURE';
+            l.Unit__c = 'BAR';
+            l.Value__c = valueByResult.get(result);
+            l.Identidad__c = l.Source__c + '|' + l.Message_Id__c;
+            rows.add(l);
+        }
+        Log_Senial__c currentConflict = logRow(asset, 'MEASUREMENT', 'Conflicto', t, null, null);
+        currentConflict.Measurement_Type__c = 'WATER_PRESSURE';
+        currentConflict.Unit__c = 'BAR';
+        currentConflict.Value__c = 4.1;
+        currentConflict.Identidad__c = currentConflict.Source__c + '|' + currentConflict.Message_Id__c;
+        rows.add(currentConflict);
+        insert rows;
+        insert new Lectura_Vigente__c(
+            Asset__c = asset.Id, Clave__c = 'AST-HIST-ACC|WATER_PRESSURE', Tipo_Medicion__c = 'WATER_PRESSURE', Unidad__c = 'BAR',
+            Valor__c = 4.1, Occurred_At__c = t, Severidad_Nivel__c = 0, Identidad_Senal__c = currentConflict.Identidad__c.toUpperCase()
+        );
+
+        // When the operator reads the history
+        ActivosOperadorController.HistoryResult result = history(userLike('nc207operator'), asset.Id, null);
+
+        // Then every row comes back with its result, but only accepted readings carry measurement, value and unit (D056)
+        Assert.areEqual(7, result.signals.size(), 'No row is dropped: the result still shows what was received');
+        Map<String, ActivosOperadorController.SignalView> byValueKey = new Map<String, ActivosOperadorController.SignalView>();
+        Integer withValue = 0;
+        for (ActivosOperadorController.SignalView s : result.signals) {
+            if (s.value != null) {
+                withValue++;
+                byValueKey.put(s.resultado + ' ' + s.value.stripTrailingZeros().toPlainString(), s);
+            } else {
+                Assert.isNull(s.measurementType, s.resultado + ': no measurement without a value');
+                Assert.isNull(s.unit, s.resultado + ': no unit without a value');
+            }
+        }
+        Assert.areEqual(2, withValue, 'Only the processed reading and the current Conflicto carry a value: ' + byValueKey.keySet());
+        Assert.isTrue(byValueKey.containsKey('Procesada 3.2'), 'A processed reading keeps its value');
+        Assert.isTrue(byValueKey.containsKey('Conflicto 4.1'), 'The Conflicto that is the current reading keeps its accepted value');
+        Assert.areEqual('BAR', byValueKey.get('Procesada 3.2').unit);
+        Assert.isFalse(JSON.serialize(result).contains('7476'), 'The value of a rejected signal never leaves the controller');
+    }
+
+    @isTest
     static void historyRejectsAnIdOfAnotherObjectWithTheSameSafeMessage() {
         // Given a Case Id (a real record the operator can see)
         Account building = newAccount('Edificio Hist Caso');

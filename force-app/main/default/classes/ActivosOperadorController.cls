@@ -289,18 +289,21 @@ public with sharing class ActivosOperadorController {
         @AuraEnabled public Datetime occurredAt { get; private set; }
         // Log_Senial__c.Resultado__c, e.g. Procesada, Atrasada, Duplicada.
         @AuraEnabled public String resultado { get; private set; }
-        // Physical measurement (e.g. TEMPERATURE, CELSIUS, 21.5). Null on rows received before these fields existed.
+        // Physical measurement (e.g. TEMPERATURE, CELSIUS, 21.5), only for an accepted reading (D056): null on a rejected,
+        // failed, late or conflicting row, and on rows received before these fields existed.
         @AuraEnabled public String measurementType { get; private set; }
         @AuraEnabled public String unit { get; private set; }
         @AuraEnabled public Decimal value { get; private set; }
 
-        public SignalView(Log_Senial__c l) {
+        public SignalView(Log_Senial__c l, Boolean withValues) {
             this.messageType = l.Message_Type__c;
             this.occurredAt = l.Occurred_At__c;
             this.resultado = l.Resultado__c;
-            this.measurementType = l.Measurement_Type__c;
-            this.unit = l.Unit__c;
-            this.value = l.Value__c;
+            if (withValues) {
+                this.measurementType = l.Measurement_Type__c;
+                this.unit = l.Unit__c;
+                this.value = l.Value__c;
+            }
         }
     }
 
@@ -323,7 +326,7 @@ public with sharing class ActivosOperadorController {
     private without sharing class HistoryReader {
         List<Log_Senial__c> read(Id assetId, Integer fetch) {
             return [
-                SELECT Message_Type__c, Occurred_At__c, Resultado__c, Measurement_Type__c, Unit__c, Value__c
+                SELECT Message_Type__c, Occurred_At__c, Resultado__c, Measurement_Type__c, Unit__c, Value__c, Identidad__c
                 FROM Log_Senial__c
                 WHERE Asset__c = :assetId
                 WITH SYSTEM_MODE
@@ -331,12 +334,34 @@ public with sharing class ActivosOperadorController {
                 LIMIT :fetch
             ];
         }
+
+        // Identities (lower-case) of the asset's current readings; compared, never returned.
+        Set<String> currentIdentities(Id assetId) {
+            Set<String> identities = new Set<String>();
+            for (Lectura_Vigente__c r : [
+                SELECT Identidad_Senal__c FROM Lectura_Vigente__c WHERE Asset__c = :assetId WITH SYSTEM_MODE
+            ]) {
+                if (r.Identidad_Senal__c != null) {
+                    identities.add(r.Identidad_Senal__c.toLowerCase());
+                }
+            }
+            return identities;
+        }
+    }
+
+    // D056: measurement, value and unit only for an accepted reading. A rejected, failed or conflicting signal's content
+    // is technical detail for the admin (BR-209, US-208), and a late one is not the current condition. A Conflicto row
+    // that is the current reading keeps its original's accepted value (D034).
+    private static Boolean isAcceptedReading(Log_Senial__c l, Set<String> currentIdentities) {
+        return l.Resultado__c == 'Procesada'
+            || (l.Resultado__c == 'Conflicto' && l.Identidad__c != null && currentIdentities.contains(l.Identidad__c.toLowerCase()));
     }
 
     /**
      * Recent signals (newest first) of an asset the running user can see.
      * Authorization: the asset is first queried WITH USER_MODE; if the user cannot see it the call fails and the log is never read.
-     * The log rows themselves are then read in system mode and only six non-technical fields are returned (type, time, result, measurement type, unit, value).
+     * The log rows themselves are then read in system mode and only six non-technical fields are returned (type, time, result, measurement type, unit, value);
+     * the last three only for an accepted reading (D056).
      * @param assetId Asset Id
      * @param limite max rows; clamped to 1..50, null means 20
      */
@@ -351,11 +376,13 @@ public with sharing class ActivosOperadorController {
                 throw safeError(HISTORY_ASSET_MESSAGE);
             }
             Integer cap = limite == null ? HISTORY_DEFAULT_LIMIT : Math.min(Math.max(limite, 1), HISTORY_MAX_LIMIT);
-            List<Log_Senial__c> rows = new HistoryReader().read(assetId, cap + 1);
+            HistoryReader reader = new HistoryReader();
+            List<Log_Senial__c> rows = reader.read(assetId, cap + 1);
+            Set<String> current = reader.currentIdentities(assetId);
             Boolean truncated = rows.size() > cap;
             List<SignalView> signals = new List<SignalView>();
             for (Integer i = 0; i < Math.min(rows.size(), cap); i++) {
-                signals.add(new SignalView(rows[i]));
+                signals.add(new SignalView(rows[i], isAcceptedReading(rows[i], current)));
             }
             return new HistoryResult(signals, cap, truncated);
         } catch (AuraHandledException e) {

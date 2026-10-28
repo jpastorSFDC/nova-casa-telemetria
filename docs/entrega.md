@@ -28,7 +28,7 @@ Status as of 2026-10-20. "Facilitator pending" means the code is done and tested
 
 ## Open questions for the facilitator
 
-The team answered these on 2026-10-19 and 10-20 (John); PR #97 records each answer as one line in its decision. They are team positions, not the facilitator's answer. On 2026-10-27 the team closed each of those decisions in [decisiones.md](decisiones.md) as Accepted, with a note in its Status line that the facilitator hasn't confirmed it in writing.
+The team answered these on 2026-10-19 and 10-20 (John); PR #97 records each answer as one line in its decision. They were team positions, not the facilitator's answer. On 2026-10-28 John, as the person responsible, approved every one of them in place of the facilitator's confirmation (each Status line in [decisiones.md](decisiones.md) says so): none is open. Two answers changed something: the low temperature warning is LT 18 (D054), and question 6.1 is settled by D056 (the history gives values only for accepted readings). The table and the card comments below stay as the record of what was asked.
 
 | Card | Decision | Question | Team position | If the answer is "no" |
 |---|---|---|---|---|
