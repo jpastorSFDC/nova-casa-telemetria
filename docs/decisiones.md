@@ -692,7 +692,7 @@ Statuses: **Proposed** means the pair made the decision (many are already on `ma
 - **Trade-off**: el dueño del registro ya no dice quién la abrió (queda en la descripción). La creación depende de que exista el usuario de integración, que es dato del org.
 - **Riesgo / dependencia**: (1) las 4 intervenciones manuales que ya hay en el org conservan su dueño; todas están cerradas. (2) Si el usuario de integración se desactiva o pierde `Nova_Casa_Procesamiento`, nadie puede abrir intervenciones manuales hasta corregirlo. (3) Las pruebas que crean una intervención manual dependen de que ese usuario exista en el org (es dato, D017), igual que la ingesta. (4) Un `Case` sin activo sigue sin comprobación de activo al leer sus señales (seguimiento 11).
 - **Criterios de prueba**: `IntervencionOperadorControllerTest`: `shouldOpenManualCaseWithReasonAndPriorityFromSeverity_WhenOperatorHasPermission` (el dueño tiene el rol de integración), `shouldFollowTheBuildingNotTheCreator_WhenTheBuildingChangesOperator` (tras reasignar el edificio, el operador anterior no la ve ni por SOQL ni por la pantalla y el nuevo sí), `shouldRefuseAndOpenNothing_WhenNoActiveIntegrationUserExists`. `ActivosOperadorControllerTest.signalsStayHiddenWhenTheUserSeesTheCaseButNotItsAsset` (sin `assetId` ni `ultimaCritica` para quien no ve el activo; con ambos para quien sí).
-- **Siguiente acción**: dry-run con `RunSpecifiedTests`, deploy con el OK de John, correr las clases a mano, PR de John (revisa Juan Diego).
+- **Siguiente acción**: desplegado el 2026-10-28 desde `fix/us-204-close-review-gaps` junto con D054 y D055 (11 de 11 componentes: 4 clases, sus 5 clases de prueba, el recurso estático y la fórmula), con el OK de John. El org omite las pruebas en los deploys, así que se corrieron después con `sf apex run test`: `CatalogoServiceTest`, `IntervencionOperadorControllerTest`, `ActivosOperadorControllerTest`, `IntervencionServiceTest` y `LogAccionReintentoTest`, 189 de 189; la suite completa (19 clases), 459 de 459 con 90 % de cobertura del org. Falta el PR de John (revisa Juan Diego).
 
 ## D054 — Los valores de la siembra de umbrales salen del código a un recurso estático (US-204, BR-204)
 
@@ -704,7 +704,7 @@ Statuses: **Proposed** means the pair made the decision (many are already on `ma
 - **Trade-off**: cambiar la semilla sigue pidiendo un deploy, pero la semilla no son los límites: los vigentes se editan en `Umbral__c` sin desplegar.
 - **Riesgo / dependencia**: la org tiene TEMPERATURE Advertencia LT 17 desde el 2026-10-20 (cambio de un admin, sin decisión registrada); la semilla conserva LT 18, el valor del equipo. Si 17 es el correcto, se cambia en el recurso en su propio PR.
 - **Criterios de prueba**: `CatalogoServiceTest`: `shouldSeedOneThresholdSetPerCombination_WhenCatalogIsValid` (21 umbrales, crítica GT 35), `shouldSeedExactlyTheRulesOfTheStaticResource_WhenCatalogIsValid` (los de temperatura son exactamente las filas del recurso), `shouldFailWithoutSeeding_WhenTheSeedResourceIsMissing`.
-- **Siguiente acción**: igual que D053.
+- **Siguiente acción**: desplegada y probada con D053 (ver su siguiente acción).
 
 ## D055 — La acción de reintento distingue un rechazo por configuración de uno por dato (US-209, BR-209)
 
@@ -716,7 +716,7 @@ Statuses: **Proposed** means the pair made the decision (many are already on `ma
 - **Trade-off**: la fórmula depende de la redacción del handler. La prueba nueva produce las filas con el handler real, así que si alguien cambia el texto, la prueba falla.
 - **Riesgo / dependencia**: un motivo nuevo por configuración (otro texto) caería en el texto genérico hasta sumarlo a la fórmula.
 - **Criterios de prueba**: `LogAccionReintentoTest.unaRechazadaPorConfiguracionPideCorregirSalesforceYUnaPorDatoPideCorregirElOrigen` (sin umbral y activo fuera del catálogo: texto de configuración; valor no numérico, también uno que imita el motivo de configuración: texto de origen); `laFormulaDaLaAccionExactaPorEstado` sigue igual.
-- **Siguiente acción**: igual que D053.
+- **Siguiente acción**: desplegada y probada con D053 (ver su siguiente acción).
 
 ## Seguimiento después del cierre (2026-10-27)
 
