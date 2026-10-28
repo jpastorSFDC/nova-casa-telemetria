@@ -2682,6 +2682,10 @@ private class ActivosOperadorControllerTest {
         newReading(asset, 'TEMPERATURE', 'CELSIUS', 95, baseTime(), 2);
         Case c = caseDraft(asset, stranger.Id, 'En curso', 'Caso del extraño');
         c.Origin = 'Telemetria';
+        c.Ultima_Critica_Medicion__c = 'TEMPERATURE';
+        c.Ultima_Critica_Valor__c = 95;
+        c.Ultima_Critica_Unidad__c = 'CELSIUS';
+        c.Ultima_Critica_At__c = baseTime();
         insert c;
         insert new List<Log_Senial__c>{ linkedLog(asset, c.Id, baseTime()), linkedLog(asset, c.Id, baseTime().addMinutes(-1)) };
 
@@ -2710,10 +2714,14 @@ private class ActivosOperadorControllerTest {
         Assert.isNull(forStranger.assetName, 'no name of an asset the user cannot see');
         Assert.isNull(forStranger.assetExternalId, 'no code of an asset the user cannot see');
         Assert.isNull(forStranger.accountName, 'no building of an asset the user cannot see');
+        Assert.isNull(forStranger.assetId, 'no Id of an asset the user cannot see (D053)');
+        Assert.isNull(forStranger.ultimaCritica, 'no last critical reading of an asset the user cannot see (D053)');
         Assert.areEqual(2, adminSignals.signals.size(), 'a user who sees the asset gets the signals');
         Assert.areEqual(2, forAdmin.senalesEnlazadas);
         Assert.areEqual(2, forAdmin.assetLevel);
         Assert.areEqual('AST-CASE-GATE', forAdmin.assetName, 'a user who sees the asset gets its name');
+        Assert.areEqual(asset.Id, forAdmin.assetId, 'a user who sees the asset gets its Id');
+        Assert.isNotNull(forAdmin.ultimaCritica, 'and its last critical reading');
     }
 
     @isTest

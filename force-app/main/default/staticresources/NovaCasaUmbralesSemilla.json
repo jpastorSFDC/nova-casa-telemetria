@@ -1,0 +1,23 @@
+[
+  { "measurement": "TEMPERATURE", "severity": "Advertencia", "comparison": "LT", "limitValue": 18 },
+  { "measurement": "TEMPERATURE", "severity": "Advertencia", "comparison": "GT", "limitValue": 30 },
+  { "measurement": "TEMPERATURE", "severity": "Critica", "comparison": "LT", "limitValue": 15 },
+  { "measurement": "TEMPERATURE", "severity": "Critica", "comparison": "GT", "limitValue": 35 },
+  { "measurement": "TEMPERATURE", "severity": "Invalida", "comparison": "LE", "limitValue": -11 },
+  { "measurement": "TEMPERATURE", "severity": "Invalida", "comparison": "GE", "limitValue": 81 },
+  { "measurement": "WATER_PRESSURE", "severity": "Advertencia", "comparison": "LT", "limitValue": 2.5 },
+  { "measurement": "WATER_PRESSURE", "severity": "Advertencia", "comparison": "GT", "limitValue": 4 },
+  { "measurement": "WATER_PRESSURE", "severity": "Critica", "comparison": "LT", "limitValue": 1.5 },
+  { "measurement": "WATER_PRESSURE", "severity": "Critica", "comparison": "GT", "limitValue": 5 },
+  { "measurement": "WATER_PRESSURE", "severity": "Invalida", "comparison": "GT", "limitValue": 20 },
+  { "measurement": "WATER_CONSUMPTION", "severity": "Advertencia", "comparison": "GT", "limitValue": 400 },
+  { "measurement": "WATER_CONSUMPTION", "severity": "Critica", "comparison": "GT", "limitValue": 650 },
+  { "measurement": "WATER_CONSUMPTION", "severity": "Invalida", "comparison": "LT", "limitValue": 0 },
+  { "measurement": "WATER_CONSUMPTION", "severity": "Invalida", "comparison": "GT", "limitValue": 5000 },
+  { "measurement": "ENERGY_CONSUMPTION", "severity": "Advertencia", "comparison": "GT", "limitValue": 40 },
+  { "measurement": "ENERGY_CONSUMPTION", "severity": "Critica", "comparison": "GT", "limitValue": 65 },
+  { "measurement": "ENERGY_CONSUMPTION", "severity": "Invalida", "comparison": "LT", "limitValue": 0 },
+  { "measurement": "ENERGY_CONSUMPTION", "severity": "Invalida", "comparison": "GT", "limitValue": 1000 },
+  { "measurement": "CAMERA_CONNECTIVITY", "severity": "Advertencia", "comparison": "GT", "limitValue": 90 },
+  { "measurement": "CAMERA_CONNECTIVITY", "severity": "Critica", "comparison": "GT", "limitValue": 180 }
+]

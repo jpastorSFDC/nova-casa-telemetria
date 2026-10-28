@@ -549,6 +549,28 @@ private class IntervencionServiceTest {
     }
 
     @isTest
+    static void shouldLinkToTheCaseAConcurrentRunOpened_WhenTheInsertHitsADuplicateIdentity() {
+        // Given another run inserts the asset's Case, with the same opener identity, between our lookup and our insert
+        Asset a = asset('AST-INT-001');
+        IntervencionService.insertarRivalAntesDeAbrir = true;
+
+        Test.startTest();
+        IntervencionService.Resultado r = IntervencionService.abrir(new List<IntervencionService.Solicitud>{
+            critica('SIM|msg-race-new', a, 'TEMPERATURE', T0.addMinutes(5), 40, 'CELSIUS'),
+            critica('SIM|msg-race-old', a, 'TEMPERATURE', T0, 41, 'CELSIUS')
+        });
+        Test.stopTest();
+
+        // Then the collision is recovered, not reported, and no second Case opens
+        Assert.isTrue(r.errorPorIdentidad.isEmpty(), 'A duplicate opener on insert is recovered: ' + r.errorPorIdentidad);
+        List<Case> cases = [SELECT Id, Identidad_Senal__c FROM Case WHERE AssetId = :a.Id];
+        Assert.areEqual(1, cases.size(), 'Only the Case the other run opened exists');
+        Assert.areEqual('SIM|msg-race-new', cases[0].Identidad_Senal__c, 'The other run opened it from the same most recent critical');
+        Assert.areEqual(cases[0].Id, r.casoPorIdentidad.get('SIM|msg-race-new'), 'The opener maps to the existing Case');
+        Assert.areEqual(cases[0].Id, r.casoPorIdentidad.get('SIM|msg-race-old'), 'The asset\'s other identity links to it too');
+    }
+
+    @isTest
     static void shouldCreateOneCaseAndKeepFirst_WhenIdentityDuplicatedInBatch() {
         Asset a = asset('AST-INT-001');
 

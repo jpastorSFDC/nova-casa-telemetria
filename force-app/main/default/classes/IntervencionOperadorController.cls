@@ -3,7 +3,8 @@
  * Each action checks its custom permission on the server, so hiding a button in the LWC is never the only guard (BR-208).
  *
  * `with sharing`: the asset must be visible to the user (USER_MODE). The Case insert runs in SYSTEM_MODE on purpose:
- * operators have no Create on Case, the custom permission is their only key. The "no open intervention" check runs in
+ * operators have no Create on Case, the custom permission is their only key. The Case is owned by the integration user,
+ * like a telemetry Case, so who sees it follows the building and not who opened it (D053). The "no open intervention" check runs in
  * OpenCaseCheck (a separate `without sharing` class): SYSTEM_MODE inside a `with sharing` class still applies sharing,
  * and with Case Private a Case the user cannot see would not block a duplicate. The message never names that Case.
  * This is not the ingestion path: a manual intervention does not count as a critical message and leaves the
@@ -38,6 +39,10 @@ public with sharing class IntervencionOperadorController {
     @TestVisible private static final String COUNT_CHANGED = 'Cambió el número de intervenciones abiertas de este activo. Revisa y vuelve a confirmar.';
     @TestVisible private static final String INVALID_STATUS = 'El estado no es válido.';
     @TestVisible private static final String SAVE_FAILED = 'No se pudo guardar. Inténtalo de nuevo más tarde.';
+    @TestVisible private static final String NO_OWNER = 'No se pudo abrir la intervención: falta el usuario de integración. Avisa al administrador.';
+
+    // Role of the user who owns every intervention (D053). Test-only override: must NEVER be assigned outside a test class.
+    @TestVisible private static String integrationRole = 'Integracion_Telemetria';
 
     public class Resultado {
         @AuraEnabled public Id caseId { get; private set; }
@@ -120,8 +125,14 @@ public with sharing class IntervencionOperadorController {
                 throw safeError(NO_READINGS);
             }
 
+            Id ownerId = integrationOwnerId();
+            if (ownerId == null) {
+                throw safeError(NO_OWNER);
+            }
+
             String code = String.isBlank(asset.External_Id__c) ? asset.Name : asset.External_Id__c;
             Case c = new Case(
+                OwnerId = ownerId,
                 Origin = ORIGIN_OPERATOR,
                 Status = STATUS_IN_PROGRESS,
                 Priority = priorityFor(level),
@@ -313,6 +324,29 @@ public with sharing class IntervencionOperadorController {
             best = best == null ? level : Math.max(best, level);
         }
         return best;
+    }
+
+    // The integration user: its role sits under the coordinator, and the operator who owns the building reaches its Cases
+    // through the role's Case access, so a reassigned building takes its interventions with it (D053).
+    private static Id integrationOwnerId() {
+        return new IntegrationOwner().find();
+    }
+
+    // `without sharing` (like OpenCaseCheck): SYSTEM_MODE inside a `with sharing` class still applies User sharing, and an
+    // operator could miss the integration user if the org's User default ever became Private.
+    private without sharing class IntegrationOwner {
+        Id find() {
+            // The role alone is not enough: only the user ingestion runs as also holds the processing permission set (D017).
+            List<User> owners = [
+                SELECT Id FROM User
+                WHERE UserRole.DeveloperName = :integrationRole AND IsActive = true
+                    AND Id IN (SELECT AssigneeId FROM PermissionSetAssignment WHERE PermissionSet.Name = 'Nova_Casa_Procesamiento')
+                WITH SYSTEM_MODE
+                ORDER BY CreatedDate, Id
+                LIMIT 1
+            ];
+            return owners.isEmpty() ? null : owners[0].Id;
+        }
     }
 
     @TestVisible

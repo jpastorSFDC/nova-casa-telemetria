@@ -10,9 +10,11 @@ public with sharing class CatalogoService {
     private static final String CATALOG_ENDPOINT = 'callout:Nova_Casa_Simulator/catalog';
     private static final String HTTP_GET = 'GET';
 
-    // /catalog's thresholdsReference gives ranges, not operators, so this seed table holds the team's
-    // proposed reference values from T2.7; operators/values await facilitator confirmation (AGENTS.md pendiente 1).
-    private static final Map<String, List<ThresholdRule>> RULES_BY_MEASUREMENT = buildReferenceRules();
+    // /catalog's thresholdsReference gives ranges, not operators, so the seed holds the team's reference values from
+    // T2.7 (D006). They live in this static resource, not in the code (US-204, D054); the limits in force are Umbral__c.
+    // Test-only override: must NEVER be assigned outside a test class.
+    @TestVisible
+    private static String seedResourceName = 'NovaCasaUmbralesSemilla';
 
     // ─── Public API ──────────────────────────────────────────────────────
 
@@ -160,11 +162,12 @@ public with sharing class CatalogoService {
      * @throws CatalogoServiceException if access is missing or the query/insert fails
      */
     private static void seedThresholds(CatalogResponse catalogResponse) {
+        Map<String, List<ThresholdRule>> rulesByMeasurement = referenceRules();
         Map<String, AssetWrapper> assetByCombination = new Map<String, AssetWrapper>();
         for (BuildingWrapper building : catalogResponse?.catalog?.buildings ?? new List<BuildingWrapper>()) {
             for (AssetWrapper asset : building.assets ?? new List<AssetWrapper>()) {
                 if (asset.type == null || asset.measurement == null || asset.unit == null
-                    || !RULES_BY_MEASUREMENT.containsKey(asset.measurement)) {
+                    || !rulesByMeasurement.containsKey(asset.measurement)) {
                     continue;
                 }
                 String combination = asset.type + '|' + asset.measurement;
@@ -206,7 +209,7 @@ public with sharing class CatalogoService {
                 continue;
             }
             AssetWrapper asset = assetByCombination.get(combination);
-            for (ThresholdRule rule : RULES_BY_MEASUREMENT.get(asset.measurement)) {
+            for (ThresholdRule rule : rulesByMeasurement.get(asset.measurement)) {
                 thresholds.add(new Umbral__c(
                     Tipo_Activo__c = asset.type,
                     Tipo_Medicion__c = asset.measurement,
@@ -229,35 +232,31 @@ public with sharing class CatalogoService {
     }
 
     /**
-     * Builds the reference threshold rules keyed by measurement type.
+     * Reads the reference threshold rules from the seed static resource, keyed by measurement type.
+     *              The resource is metadata, not record data, so it is read in system mode.
      * @return Map of measurement type to its threshold rules
+     * @throws CatalogoServiceException if the resource is missing, is not valid JSON or has an incomplete row
      */
-    private static Map<String, List<ThresholdRule>> buildReferenceRules() {
-        List<ThresholdRule> rules = new List<ThresholdRule>{
-            new ThresholdRule('TEMPERATURE', 'Advertencia', 'LT', 18),
-            new ThresholdRule('TEMPERATURE', 'Advertencia', 'GT', 30),
-            new ThresholdRule('TEMPERATURE', 'Critica', 'LT', 15),
-            new ThresholdRule('TEMPERATURE', 'Critica', 'GT', 35),
-            new ThresholdRule('TEMPERATURE', 'Invalida', 'LE', -11),
-            new ThresholdRule('TEMPERATURE', 'Invalida', 'GE', 81),
-            new ThresholdRule('WATER_PRESSURE', 'Advertencia', 'LT', 2.5),
-            new ThresholdRule('WATER_PRESSURE', 'Advertencia', 'GT', 4),
-            new ThresholdRule('WATER_PRESSURE', 'Critica', 'LT', 1.5),
-            new ThresholdRule('WATER_PRESSURE', 'Critica', 'GT', 5),
-            new ThresholdRule('WATER_PRESSURE', 'Invalida', 'GT', 20),
-            new ThresholdRule('WATER_CONSUMPTION', 'Advertencia', 'GT', 400),
-            new ThresholdRule('WATER_CONSUMPTION', 'Critica', 'GT', 650),
-            new ThresholdRule('WATER_CONSUMPTION', 'Invalida', 'LT', 0),
-            new ThresholdRule('WATER_CONSUMPTION', 'Invalida', 'GT', 5000),
-            new ThresholdRule('ENERGY_CONSUMPTION', 'Advertencia', 'GT', 40),
-            new ThresholdRule('ENERGY_CONSUMPTION', 'Critica', 'GT', 65),
-            new ThresholdRule('ENERGY_CONSUMPTION', 'Invalida', 'LT', 0),
-            new ThresholdRule('ENERGY_CONSUMPTION', 'Invalida', 'GT', 1000),
-            new ThresholdRule('CAMERA_CONNECTIVITY', 'Advertencia', 'GT', 90),
-            new ThresholdRule('CAMERA_CONNECTIVITY', 'Critica', 'GT', 180)
-        };
+    private static Map<String, List<ThresholdRule>> referenceRules() {
+        List<StaticResource> resources = [SELECT Body FROM StaticResource WHERE Name = :seedResourceName WITH SYSTEM_MODE LIMIT 1];
+        if (resources.isEmpty()) {
+            throw new CatalogoServiceException('Failed to seed Umbral__c: static resource ' + seedResourceName + ' not found');
+        }
+        List<ThresholdRule> rules;
+        try {
+            rules = (List<ThresholdRule>) JSON.deserialize(resources[0].Body.toString(), List<ThresholdRule>.class);
+        } catch (Exception e) {
+            throw new CatalogoServiceException('Failed to seed Umbral__c: ' + seedResourceName + ' is not a valid list of rules', e);
+        }
+        if (rules == null || rules.isEmpty()) {
+            throw new CatalogoServiceException('Failed to seed Umbral__c: ' + seedResourceName + ' has no rules');
+        }
         Map<String, List<ThresholdRule>> rulesByMeasurement = new Map<String, List<ThresholdRule>>();
         for (ThresholdRule rule : rules) {
+            if (rule == null || String.isBlank(rule.measurement) || String.isBlank(rule.severity)
+                || String.isBlank(rule.comparison) || rule.limitValue == null) {
+                throw new CatalogoServiceException('Failed to seed Umbral__c: incomplete rule in ' + seedResourceName);
+            }
             if (!rulesByMeasurement.containsKey(rule.measurement)) {
                 rulesByMeasurement.put(rule.measurement, new List<ThresholdRule>());
             }
@@ -295,18 +294,12 @@ public with sharing class CatalogoService {
         private String unit;
     }
 
+    // One row of the seed static resource (same field names as its JSON).
     private class ThresholdRule {
         private String measurement;
         private String severity;
         private String comparison;
         private Decimal limitValue;
-
-        private ThresholdRule(String measurement, String severity, String comparison, Decimal limitValue) {
-            this.measurement = measurement;
-            this.severity = severity;
-            this.comparison = comparison;
-            this.limitValue = limitValue;
-        }
     }
 
     // ─── Exception ───────────────────────────────────────────────────────

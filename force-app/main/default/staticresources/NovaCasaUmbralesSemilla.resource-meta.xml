@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StaticResource xmlns="http://soap.sforce.com/2006/04/metadata">
+    <cacheControl>Private</cacheControl>
+    <contentType>application/json</contentType>
+    <description>Valores de referencia con que CatalogoService siembra Umbral__c la primera vez que carga una combinación de tipo de activo y medición (D006, D054). Los límites vigentes son los registros de Umbral__c, que se editan sin desplegar.</description>
+</StaticResource>
