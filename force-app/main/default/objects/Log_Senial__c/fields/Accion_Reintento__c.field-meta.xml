@@ -20,7 +20,10 @@
     "Fallida", "Sí: reintentar; la identidad evita duplicar el caso",
     "Publicada", "Sí: volver a publicar el evento",
     "Rechazada", IF(
-      OR(BEGINS(Motivo__c, "No hay umbral activo"), CONTAINS(Motivo__c, "no existe en el catálogo")),
+      OR(
+        BEGINS(Motivo__c, "No hay umbral activo para "),
+        AND(BEGINS(Motivo__c, "El activo "), RIGHT(Motivo__c, 25) = " no existe en el catálogo")
+      ),
       "No: falta configurar el umbral o el activo en Salesforce; corregirlo y reenviar con otro messageId (ver Motivo)",
       "No: corregir el dato en origen y enviarlo con otro messageId (ver Motivo)"
     ),

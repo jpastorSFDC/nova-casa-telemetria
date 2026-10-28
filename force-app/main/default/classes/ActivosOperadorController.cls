@@ -820,7 +820,7 @@ public with sharing class ActivosOperadorController {
                 current = headline == null ? null : new EstadoLectura(headline);
             }
 
-            Boolean receivesCriticals = c.Origin == ORIGIN_TELEMETRY && !c.IsClosed && c.AssetId != null
+            Boolean receivesCriticals = assetVisible && c.Origin == ORIGIN_TELEMETRY && !c.IsClosed && c.AssetId != null
                 && isNewestOpenTelemetryCase(c.Id, c.AssetId);
 
             String description = null;

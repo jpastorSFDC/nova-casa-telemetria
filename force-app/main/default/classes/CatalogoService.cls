@@ -248,8 +248,11 @@ public with sharing class CatalogoService {
         } catch (Exception e) {
             throw new CatalogoServiceException('Failed to seed Umbral__c: ' + seedResourceName + ' is not a valid list of rules', e);
         }
+        if (rules == null || rules.isEmpty()) {
+            throw new CatalogoServiceException('Failed to seed Umbral__c: ' + seedResourceName + ' has no rules');
+        }
         Map<String, List<ThresholdRule>> rulesByMeasurement = new Map<String, List<ThresholdRule>>();
-        for (ThresholdRule rule : rules ?? new List<ThresholdRule>()) {
+        for (ThresholdRule rule : rules) {
             if (rule == null || String.isBlank(rule.measurement) || String.isBlank(rule.severity)
                 || String.isBlank(rule.comparison) || rule.limitValue == null) {
                 throw new CatalogoServiceException('Failed to seed Umbral__c: incomplete rule in ' + seedResourceName);

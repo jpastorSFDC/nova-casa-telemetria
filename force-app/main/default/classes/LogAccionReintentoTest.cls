@@ -217,9 +217,11 @@ private class LogAccionReintentoTest {
         sinUmbral.Unit__c = 'BAR';
         Senial_Sensor__e sinActivo = senial('msg_sin_activo', 'AST-NO-EXISTE');
         Senial_Sensor__e datoMalo = senial('msg_dato_malo', 'AST-BULK-02', 'abc');
+        // Texto del mensaje que imita el motivo de configuración: sigue siendo un dato malo del origen.
+        Senial_Sensor__e datoQueImita = senial('msg_dato_imita', 'AST-BULK-03', 'x no existe en el catálogo');
 
         Test.startTest();
-        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ sinUmbral, sinActivo, datoMalo });
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ sinUmbral, sinActivo, datoMalo, datoQueImita });
         Test.stopTest();
 
         Map<String, Log_Senial__c> porMensaje = new Map<String, Log_Senial__c>();
@@ -237,6 +239,9 @@ private class LogAccionReintentoTest {
             'Con un activo fuera del catálogo lo que se corrige es el catálogo');
         Assert.areEqual(ACCION_ESPERADA.get('Rechazada'), porMensaje.get('msg_dato_malo').Accion_Reintento__c,
             'Un valor no numérico se corrige en el origen');
+        Assert.areEqual('Rechazada', porMensaje.get('msg_dato_imita').Resultado__c, 'Precondición: valor no numérico');
+        Assert.areEqual(ACCION_ESPERADA.get('Rechazada'), porMensaje.get('msg_dato_imita').Accion_Reintento__c,
+            'El texto del mensaje no puede hacerse pasar por un rechazo de configuración');
     }
 
     // ─── Helpers (copiados de SenialSensorHandlerTest, que los tiene privados) ──

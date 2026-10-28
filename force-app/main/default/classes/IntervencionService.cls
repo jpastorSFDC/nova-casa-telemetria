@@ -169,7 +169,7 @@ public without sharing class IntervencionService {
             }
         }
 
-        if (insertarRivalAntesDeAbrir && !toInsert.isEmpty()) {
+        if (insertarRivalAntesDeAbrir && Test.isRunningTest() && !toInsert.isEmpty()) {
             insertRivals(toInsert);
         }
         insertCases(toInsert, insertGroups, resultado);

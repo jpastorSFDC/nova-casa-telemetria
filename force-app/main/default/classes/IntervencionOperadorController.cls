@@ -329,14 +329,24 @@ public with sharing class IntervencionOperadorController {
     // The integration user: its role sits under the coordinator, and the operator who owns the building reaches its Cases
     // through the role's Case access, so a reassigned building takes its interventions with it (D053).
     private static Id integrationOwnerId() {
-        List<User> owners = [
-            SELECT Id FROM User
-            WHERE UserRole.DeveloperName = :integrationRole AND IsActive = true
-            WITH SYSTEM_MODE
-            ORDER BY CreatedDate, Id
-            LIMIT 1
-        ];
-        return owners.isEmpty() ? null : owners[0].Id;
+        return new IntegrationOwner().find();
+    }
+
+    // `without sharing` (like OpenCaseCheck): SYSTEM_MODE inside a `with sharing` class still applies User sharing, and an
+    // operator could miss the integration user if the org's User default ever became Private.
+    private without sharing class IntegrationOwner {
+        Id find() {
+            // The role alone is not enough: only the user ingestion runs as also holds the processing permission set (D017).
+            List<User> owners = [
+                SELECT Id FROM User
+                WHERE UserRole.DeveloperName = :integrationRole AND IsActive = true
+                    AND Id IN (SELECT AssigneeId FROM PermissionSetAssignment WHERE PermissionSet.Name = 'Nova_Casa_Procesamiento')
+                WITH SYSTEM_MODE
+                ORDER BY CreatedDate, Id
+                LIMIT 1
+            ];
+            return owners.isEmpty() ? null : owners[0].Id;
+        }
     }
 
     @TestVisible

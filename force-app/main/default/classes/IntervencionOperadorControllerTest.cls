@@ -87,6 +87,8 @@ private class IntervencionOperadorControllerTest {
         Case c = [SELECT Origin, Status, Priority, AssetId, AccountId, Subject, Description, Identidad_Senal__c, CaseNumber, OwnerId FROM Case WHERE Id = :result.caseId];
         Assert.areEqual(INTEGRATION_ROLE, [SELECT UserRole.DeveloperName FROM User WHERE Id = :c.OwnerId].UserRole.DeveloperName,
             'A manual Case belongs to the integration user, like a telemetry one (D053)');
+        Assert.areEqual(1, [SELECT COUNT() FROM PermissionSetAssignment WHERE AssigneeId = :c.OwnerId AND PermissionSet.Name = 'Nova_Casa_Procesamiento'],
+            'The owner is the user ingestion runs as, not just anyone with the role');
         Assert.areEqual('Operador', c.Origin);
         Assert.areEqual('En curso', c.Status);
         Assert.areEqual('High', c.Priority, 'Warning severity maps to High');
