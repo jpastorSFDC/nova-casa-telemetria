@@ -30,7 +30,7 @@ Each fact has one home. Other files link to it instead of repeating it.
 | `docs/entrega.md` | Everything for closing the sprint: status and evidence by story, the team decisions behind each story, the message contract (deliverable 5), the scenario runs, how to repeat the evidence and the demo script. | Yes |
 | `docs/acceso.md` | Access matrix (US-208): who sees and does what, and where each access comes from. | Yes |
 | `docs/muestras/` | Real simulator responses captured on Sep 30 (`telemetry.json`, `catalog.json`). | No |
-| `scripts/org-check.sh` | Read-only org checks, plus the scenario runs and the org cleanup used for the evidence. Its header lists the commands. | Yes |
+| `scripts/org-check.sh` | Read-only org checks, plus the scenario runs and the org cleanup used for the evidence. Its header lists the commands; `drift` compares the org with `origin/main` through `scripts/org-drift-compare.py`. | Yes |
 | `scripts/apex/` | The Execute Anonymous scripts that turn the scheduled ingestion on and off (`programar-ingesta.apex`, `desprogramar-ingesta.apex`). | Yes |
 | `package.json` · `package-lock.json` · `jest.config.js` · `jest-mocks/` | Jest for the Lightning web components (`npm run test:unit`). `jest-mocks/` holds the `lightning/modal` stub the library doesn't ship. | Rarely |
 | `.claude/` | Claude Code settings and the hook that guards shell commands (`hooks/guard-bash.sh`). | Rarely |
