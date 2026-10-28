@@ -34,7 +34,7 @@ import xml.etree.ElementTree as ET
 PLATFORM_ADDS = {
     "compactLayoutAssignment", "contactAccessLevel", "deleteConstraint", "enableBulkApi", "enableFeeds",
     "enableSharing", "enableStreamingApi", "externalSharingModel", "feedLayout", "numPartitions", "partitionKey",
-    "relationshipOrder", "searchLayouts", "summaryLayout", "visibility",
+    "relatedObjects", "relationshipOrder", "searchLayouts", "summaryLayout", "visibility",
 }
 DROP_ANYWHERE = {"allocatedPartnerCapacity", "parameterGroup"}
 FORMULA_NOISE = {"precision", "formulaTreatBlanksAs"}
