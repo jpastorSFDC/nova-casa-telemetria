@@ -2,7 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Accion_Reintento__c</fullName>
     <label>Acción de reintento</label>
-    <description>Regla de reintento seguro por estado (BR-209, D014, D047): dice si la señal se puede reintentar o qué hay que corregir antes. Sale de Resultado__c, Conflictos__c y Reenvios__c según lo que hace SenialSensorHandler; reemplaza a Reintento_Seguro__c, que nadie escribe.</description>
+    <description>Regla de reintento seguro por estado (BR-209, D014, D047, D055): dice si la señal se puede reintentar o qué hay que corregir antes. Sale de Resultado__c, Conflictos__c, Reenvios__c y, en una Rechazada, de Motivo__c según lo que hace SenialSensorHandler; reemplaza a Reintento_Seguro__c, que nadie escribe.</description>
     <inlineHelpText>Sí: se puede reintentar con &quot;Traer señales&quot; (la identidad evita duplicar lecturas y casos). No: corregir primero lo indicado. Un reenvío no cambia el Resultado: suma Reenvíos. Un conflicto sobre una señal ya procesada tampoco: suma Conflictos.</inlineHelpText>
     <type>Text</type>
     <formula><![CDATA[IF(
@@ -19,7 +19,11 @@
   CASE(TEXT(Resultado__c),
     "Fallida", "Sí: reintentar; la identidad evita duplicar el caso",
     "Publicada", "Sí: volver a publicar el evento",
-    "Rechazada", "No: corregir el dato en origen y enviarlo con otro messageId (ver Motivo)",
+    "Rechazada", IF(
+      OR(BEGINS(Motivo__c, "No hay umbral activo"), CONTAINS(Motivo__c, "no existe en el catálogo")),
+      "No: falta configurar el umbral o el activo en Salesforce; corregirlo y reenviar con otro messageId (ver Motivo)",
+      "No: corregir el dato en origen y enviarlo con otro messageId (ver Motivo)"
+    ),
     "Conflicto", "No: investigar la huella distinta antes de reintentar",
     "Revisar"
   )

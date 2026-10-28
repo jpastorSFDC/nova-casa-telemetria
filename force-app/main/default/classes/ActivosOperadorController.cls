@@ -709,6 +709,13 @@ public with sharing class ActivosOperadorController {
             this.puedeSeguir = FeatureManagement.checkPermission(IntervencionOperadorController.PERM_SEGUIR)
                 && !c.IsClosed && c.AssetId != null;
         }
+
+        // A visible Case on an asset the user cannot see keeps neither the asset's Id nor its last critical reading,
+        // the same rule as getSenalesDeIntervencion and getAperturasDeIntervencion (D024, D045, D053).
+        public void ocultarActivo() {
+            this.assetId = null;
+            this.ultimaCritica = null;
+        }
     }
 
     /** One signal linked to an intervention. Deliberately minimal: no identity, Motivo__c, Huella__c or delivery data. */
@@ -828,7 +835,11 @@ public with sharing class ActivosOperadorController {
             }
 
             Integer linked = assetVisible ? new CaseSignalReader().countFor(caseId) : 0;
-            return new IntervencionDetalle(c, level, current, capped[0], receivesCriticals, linked, description, estados);
+            IntervencionDetalle detalle = new IntervencionDetalle(c, level, current, capped[0], receivesCriticals, linked, description, estados);
+            if (!assetVisible) {
+                detalle.ocultarActivo();
+            }
+            return detalle;
         } catch (AuraHandledException e) {
             throw e;
         } catch (Exception e) {

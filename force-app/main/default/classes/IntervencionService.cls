@@ -41,6 +41,12 @@ public without sharing class IntervencionService {
     @TestVisible
     private static Set<String> identidadesConFalloDeActualizacion = new Set<String>();
 
+    // Test-only seam: must NEVER be assigned outside a test class (it inserts real Cases).
+    // When true, each Case about to be opened is inserted first by a "rival", as a concurrent run that got there first
+    // would, so the DUPLICATE_VALUE recovery in insertCases can be exercised in a single-transaction test.
+    @TestVisible
+    private static Boolean insertarRivalAntesDeAbrir = false;
+
     // ─── Public API ──────────────────────────────────────────────────────
 
     /**
@@ -163,8 +169,19 @@ public without sharing class IntervencionService {
             }
         }
 
+        if (insertarRivalAntesDeAbrir && !toInsert.isEmpty()) {
+            insertRivals(toInsert);
+        }
         insertCases(toInsert, insertGroups, resultado);
         updateCases(toUpdate, updateIdentities, resultado);
+    }
+
+    private static void insertRivals(List<Case> toInsert) {
+        List<Case> rivals = new List<Case>();
+        for (Case newCase : toInsert) {
+            rivals.add(newCase.clone(false, true));
+        }
+        Database.insert(rivals, AccessLevel.SYSTEM_MODE);
     }
 
     /**

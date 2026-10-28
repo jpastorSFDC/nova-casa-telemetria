@@ -84,7 +84,9 @@ private class IntervencionOperadorControllerTest {
             result = IntervencionOperadorController.crearIntervencion(asset.Id, '  Ruido raro en la bomba  ');
         }
 
-        Case c = [SELECT Origin, Status, Priority, AssetId, AccountId, Subject, Description, Identidad_Senal__c, CaseNumber FROM Case WHERE Id = :result.caseId];
+        Case c = [SELECT Origin, Status, Priority, AssetId, AccountId, Subject, Description, Identidad_Senal__c, CaseNumber, OwnerId FROM Case WHERE Id = :result.caseId];
+        Assert.areEqual(INTEGRATION_ROLE, [SELECT UserRole.DeveloperName FROM User WHERE Id = :c.OwnerId].UserRole.DeveloperName,
+            'A manual Case belongs to the integration user, like a telemetry one (D053)');
         Assert.areEqual('Operador', c.Origin);
         Assert.areEqual('En curso', c.Status);
         Assert.areEqual('High', c.Priority, 'Warning severity maps to High');
@@ -109,6 +111,58 @@ private class IntervencionOperadorControllerTest {
 
         Assert.areEqual('Critica', [SELECT Priority FROM Case WHERE AssetId = :critical.Id].Priority);
         Assert.areEqual('Medium', [SELECT Priority FROM Case WHERE AssetId = :normal.Id].Priority);
+    }
+
+    @isTest
+    static void shouldFollowTheBuildingNotTheCreator_WhenTheBuildingChangesOperator() {
+        // Given operator 1 opens a manual intervention on the building they own
+        User operator1 = newUserWithPermissionSet('ncmanown1', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        User operator2 = newUserWithPermissionSet('ncmanown2', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Asset asset = newAssetWithReading('AST-MAN-OWN', 2, operator1.Id);
+        IntervencionOperadorController.Resultado result;
+        System.runAs(operator1) {
+            result = IntervencionOperadorController.crearIntervencion(asset.Id, 'Fuga en la bomba');
+        }
+
+        // When the building is given to operator 2
+        Test.startTest();
+        update new Account(Id = asset.AccountId, OwnerId = operator2.Id);
+        Test.stopTest();
+
+        // Then the intervention goes with the building: operator 1 no longer reaches it, by SOQL or through the screen
+        Integer seenByOperator1;
+        Integer seenByOperator2;
+        String operator1Error;
+        System.runAs(operator1) {
+            seenByOperator1 = [SELECT COUNT() FROM Case WHERE Id = :result.caseId WITH USER_MODE];
+            try {
+                ActivosOperadorController.getIntervencion(result.caseId);
+            } catch (AuraHandledException e) {
+                operator1Error = e.getMessage();
+            }
+        }
+        System.runAs(operator2) {
+            seenByOperator2 = [SELECT COUNT() FROM Case WHERE Id = :result.caseId WITH USER_MODE];
+        }
+        Assert.areEqual(0, seenByOperator1, 'The operator who no longer owns the building does not keep the intervention');
+        Assert.isNotNull(operator1Error, 'The screen refuses it too');
+        Assert.areEqual(1, seenByOperator2, 'The new owner of the building sees it');
+    }
+
+    @isTest
+    static void shouldRefuseAndOpenNothing_WhenNoActiveIntegrationUserExists() {
+        User operator = newUserWithPermissionSet('ncmannoown', 'Nova_Casa_Operator', OPERATOR_ROLE);
+        Asset asset = newAssetWithReading('AST-MAN-NOOWN', 2, operator.Id);
+        IntervencionOperadorController.integrationRole = 'Rol_Que_No_Existe';
+
+        String error;
+        System.runAs(operator) {
+            error = errorOf(asset.Id, 'motivo');
+        }
+
+        Assert.areEqual(IntervencionOperadorController.NO_OWNER, error,
+            'Without an owner the intervention is refused rather than left with whoever opened it');
+        Assert.areEqual(0, caseCount(asset.Id), 'Nothing is opened');
     }
 
     @isTest

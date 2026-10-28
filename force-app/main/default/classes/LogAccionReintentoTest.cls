@@ -25,6 +25,10 @@ private class LogAccionReintentoTest {
         'Conflicto' => 'No: investigar la huella distinta antes de reintentar'
     };
 
+    // Rechazada por configuración de Salesforce (D055): el dato está bien, falta el umbral o el activo.
+    private static final String ACCION_RECHAZO_CONFIGURACION =
+        'No: falta configurar el umbral o el activo en Salesforce; corregirlo y reenviar con otro messageId (ver Motivo)';
+
     // Lo que el handler reprocesa hoy (líneas "yaProcesada" de SenialSensorHandler.persistir).
     private static final Set<String> REINTENTABLES = new Set<String>{ 'Fallida', 'Publicada' };
 
@@ -203,6 +207,36 @@ private class LogAccionReintentoTest {
         List<Lectura_Vigente__c> lecturas = [SELECT Valor__c FROM Lectura_Vigente__c WHERE Identidad_Senal__c = :fila.Identidad__c];
         Assert.areEqual(1, lecturas.size(), 'Sigue habiendo una sola lectura');
         Assert.areEqual(25, lecturas[0].Valor__c, 'El conflicto no cambia la lectura: el valor sigue siendo el original');
+    }
+
+    @IsTest
+    static void unaRechazadaPorConfiguracionPideCorregirSalesforceYUnaPorDatoPideCorregirElOrigen() {
+        // Motivos reales del handler: sin umbral para la medición, activo fuera del catálogo y valor no numérico.
+        Senial_Sensor__e sinUmbral = senial('msg_sin_umbral', 'AST-BULK-01', '3');
+        sinUmbral.Measurement_Type__c = 'WATER_PRESSURE';
+        sinUmbral.Unit__c = 'BAR';
+        Senial_Sensor__e sinActivo = senial('msg_sin_activo', 'AST-NO-EXISTE');
+        Senial_Sensor__e datoMalo = senial('msg_dato_malo', 'AST-BULK-02', 'abc');
+
+        Test.startTest();
+        new SenialSensorHandler().procesar(new List<Senial_Sensor__e>{ sinUmbral, sinActivo, datoMalo });
+        Test.stopTest();
+
+        Map<String, Log_Senial__c> porMensaje = new Map<String, Log_Senial__c>();
+        for (Log_Senial__c fila : [SELECT Message_Id__c, Resultado__c, Motivo__c, Accion_Reintento__c FROM Log_Senial__c]) {
+            porMensaje.put(fila.Message_Id__c, fila);
+        }
+        for (String mensaje : new List<String>{ 'msg_sin_umbral', 'msg_sin_activo', 'msg_dato_malo' }) {
+            Assert.areEqual('Rechazada', porMensaje.get(mensaje).Resultado__c, mensaje + ': precondición, el handler la rechaza');
+        }
+        Assert.isTrue(porMensaje.get('msg_sin_umbral').Motivo__c.startsWith('No hay umbral activo'),
+            'Precondición: el motivo es el del handler; si cambia, la fórmula deja de reconocerlo');
+        Assert.areEqual(ACCION_RECHAZO_CONFIGURACION, porMensaje.get('msg_sin_umbral').Accion_Reintento__c,
+            'Sin umbral el dato está bien: lo que se corrige es la configuración');
+        Assert.areEqual(ACCION_RECHAZO_CONFIGURACION, porMensaje.get('msg_sin_activo').Accion_Reintento__c,
+            'Con un activo fuera del catálogo lo que se corrige es el catálogo');
+        Assert.areEqual(ACCION_ESPERADA.get('Rechazada'), porMensaje.get('msg_dato_malo').Accion_Reintento__c,
+            'Un valor no numérico se corrige en el origen');
     }
 
     // ─── Helpers (copiados de SenialSensorHandlerTest, que los tiene privados) ──

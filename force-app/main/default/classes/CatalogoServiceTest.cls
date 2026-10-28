@@ -230,6 +230,53 @@ private class CatalogoServiceTest {
     }
 
     @isTest
+    static void shouldSeedExactlyTheRulesOfTheStaticResource_WhenCatalogIsValid() {
+        // Given: the seed values live in the NovaCasaUmbralesSemilla static resource, not in the class (D054)
+        List<Object> rows = (List<Object>) JSON.deserializeUntyped(
+            [SELECT Body FROM StaticResource WHERE Name = 'NovaCasaUmbralesSemilla'].Body.toString());
+        Set<String> expected = new Set<String>();
+        for (Object row : rows) {
+            Map<String, Object> rule = (Map<String, Object>) row;
+            if (String.valueOf(rule.get('measurement')) == 'TEMPERATURE') {
+                expected.add(String.valueOf(rule.get('severity')) + ' ' + String.valueOf(rule.get('comparison')) + ' '
+                    + Decimal.valueOf(String.valueOf(rule.get('limitValue'))).stripTrailingZeros().toPlainString());
+            }
+        }
+        Test.setMock(HttpCalloutMock.class, new CatalogSimulatorMock(200, ALL_TYPES_CATALOG_JSON));
+
+        // When
+        Test.startTest();
+        CatalogoService.loadCatalog();
+        Test.stopTest();
+
+        // Then: the TECHNICAL_ROOM temperature thresholds are exactly the resource's TEMPERATURE rows
+        Set<String> seeded = new Set<String>();
+        for (Umbral__c u : [SELECT Severidad__c, Operador__c, Valor__c FROM Umbral__c WHERE Tipo_Activo__c = 'TECHNICAL_ROOM' AND Tipo_Medicion__c = 'TEMPERATURE']) {
+            seeded.add(u.Severidad__c + ' ' + u.Operador__c + ' ' + u.Valor__c.stripTrailingZeros().toPlainString());
+        }
+        Assert.areEqual(21, rows.size(), 'The resource holds the 21 reference rules');
+        Assert.areEqual(expected, seeded, 'Every seeded limit comes from the resource');
+    }
+
+    @isTest
+    static void shouldFailWithoutSeeding_WhenTheSeedResourceIsMissing() {
+        // Given: the resource the seed reads does not exist
+        CatalogoService.seedResourceName = 'NovaCasaRecursoQueNoExiste';
+        Test.setMock(HttpCalloutMock.class, new CatalogSimulatorMock(200, ONE_BUILDING_CATALOG_JSON));
+
+        // When / Then: the load fails with a reason instead of seeding nothing in silence
+        Test.startTest();
+        try {
+            CatalogoService.loadCatalog();
+            Assert.fail('Expected CatalogoServiceException when the seed resource is missing');
+        } catch (CatalogoService.CatalogoServiceException e) {
+            Assert.isTrue(e.getMessage().contains('NovaCasaRecursoQueNoExiste'), 'The message names the missing resource: ' + e.getMessage());
+        }
+        Test.stopTest();
+        Assert.areEqual(0, [SELECT COUNT() FROM Umbral__c], 'No threshold is seeded');
+    }
+
+    @isTest
     static void shouldNotDuplicateThresholds_WhenLoadedTwice() {
         // Given: state after a first load (a second loadCatalog() can't follow DML in one test)
         List<Umbral__c> firstLoad = new List<Umbral__c>();
