@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://soap.sforce.com/2006/04/metadata">
+    <columns>
+        <field>Asset$Name</field>
+    </columns>
+    <columns>
+        <field>Asset$Tipo_Activo__c</field>
+    </columns>
+    <columns>
+        <field>Asset$Ultima_Senal__c</field>
+    </columns>
+    <currency>USD</currency>
+    <description>Gerencia regional: cuántos activos de cada edificio Nova Casa están en cada severidad actual.</description>
+    <filter>
+        <criteriaItems>
+            <column>Asset$Account.External_Id__c</column>
+            <columnToColumn>false</columnToColumn>
+            <isUnlocked>false</isUnlocked>
+            <operator>startsWith</operator>
+            <value>BLD-</value>
+        </criteriaItems>
+        <language>en_US</language>
+    </filter>
+    <format>Summary</format>
+    <groupingsDown>
+        <dateGranularity>Day</dateGranularity>
+        <field>Asset$Account.Name</field>
+        <sortOrder>Asc</sortOrder>
+    </groupingsDown>
+    <groupingsDown>
+        <dateGranularity>Day</dateGranularity>
+        <field>Asset$Severidad_Actual__c</field>
+        <sortOrder>Asc</sortOrder>
+    </groupingsDown>
+    <name>Activos por edificio y severidad</name>
+    <params>
+        <name>co</name>
+        <value>1</value>
+    </params>
+    <reportType>Nova_Casa_Activos__c</reportType>
+    <scope>organization</scope>
+    <showDetails>true</showDetails>
+    <showGrandTotal>true</showGrandTotal>
+    <showSubTotals>true</showSubTotals>
+    <timeFrameFilter>
+        <dateColumn>Asset$CreatedDate</dateColumn>
+        <interval>INTERVAL_CUSTOM</interval>
+    </timeFrameFilter>
+</Report>

@@ -8,5 +8,12 @@
   "name": "nova-casa-telemetria",
   "namespace": "",
   "sfdcLoginUrl": "https://login.salesforce.com",
-  "sourceApiVersion": "67.0"
+  "sourceApiVersion": "67.0",
+  "replacements": [
+    {
+      "filename": "force-app/main/default/dashboards/Nova_Casa_Gerencia/Nova_Casa_Gerencia_Regional.dashboard-meta.xml",
+      "stringToReplace": "NOVA_CASA_GERENTE_USERNAME",
+      "replaceWithEnv": "NOVA_CASA_GERENTE_USERNAME"
+    }
+  ]
 }

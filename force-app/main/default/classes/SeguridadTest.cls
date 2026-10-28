@@ -3,7 +3,8 @@
  * Nova_Casa_Coordinator, Nova_Casa_Gerente, Nova_Casa_Admin) on the Minimum Access profile, exercised with System.runAs.
  * Widening or dropping a permission in any of those sets fails a test here. Expectations come from docs/acceso.md.
  * What other classes already cover (ingestion user, behavior of the controllers) is not repeated: this class asserts
- * object/field access, custom permissions, class access, and that nobody but Admin carries View All / Modify All.
+ * object/field access, custom permissions, class access, that nobody but Admin carries View All / Modify All, and that
+ * only the manager runs reports (never exports them) and gets the Reports and Dashboards tabs.
  * No callouts: IngestaController is only called with a refused or invalid request, or to read status.
  */
 @isTest
@@ -315,6 +316,48 @@ private class SeguridadTest {
         }
         Assert.areEqual(0, vistosPorGerente, 'Gerente sin jerarquia y sin View All no ve un edificio ajeno');
         Assert.areEqual(1, vistosPorAdmin, 'Admin (View All) si lo ve');
+    }
+
+    // ─── (f) reports and dashboards (D060) ─────────────────────────────────
+
+    // Todo lo que le llega al usuario cuenta, también el set del perfil: Minimum Access no debe dar reportes.
+    @IsTest
+    static void soloElGerenteEjecutaReportesYNadieLosExporta() {
+        for (String conjunto : new List<String>{ OPERADOR, COORDINADOR, GERENTE }) {
+            Boolean ejecuta = false;
+            Boolean exporta = false;
+            for (PermissionSetAssignment asignacion : [
+                SELECT PermissionSet.PermissionsRunReports, PermissionSet.PermissionsExportReport
+                FROM PermissionSetAssignment WHERE AssigneeId = :usuario(conjunto).Id
+            ]) {
+                ejecuta |= asignacion.PermissionSet.PermissionsRunReports;
+                exporta |= asignacion.PermissionSet.PermissionsExportReport;
+            }
+            Assert.areEqual(conjunto == GERENTE, ejecuta, conjunto + (conjunto == GERENTE ? ' ejecuta reportes' : ' no ejecuta reportes'));
+            Assert.isFalse(exporta, conjunto + ' no exporta reportes');
+        }
+    }
+
+    // En PermissionSetTabSetting, "Visible" de la metadata del permission set se guarda como DefaultOn.
+    @IsTest
+    static void soloElGerenteDeclaraLasPestanasDeReportesYDashboards() {
+        List<String> pestanas = new List<String>{ 'standard-report', 'standard-Dashboard' };
+        for (String conjunto : new List<String>{ OPERADOR, COORDINADOR, GERENTE, ADMIN }) {
+            Id conjuntoId = conjuntoPorNombre(conjunto).Id;
+            Map<String, String> visibilidad = new Map<String, String>();
+            for (PermissionSetTabSetting pestana : [
+                SELECT Name, Visibility FROM PermissionSetTabSetting WHERE ParentId = :conjuntoId AND Name IN :pestanas
+            ]) {
+                visibilidad.put(pestana.Name, pestana.Visibility);
+            }
+            for (String pestana : pestanas) {
+                if (conjunto == GERENTE) {
+                    Assert.areEqual('DefaultOn', visibilidad.get(pestana), 'Gerente ve la pestana ' + pestana);
+                } else {
+                    Assert.isFalse(visibilidad.containsKey(pestana), conjunto + ' no declara la pestana ' + pestana);
+                }
+            }
+        }
     }
 
     // ─── Helpers ───────────────────────────────────────────────────────────

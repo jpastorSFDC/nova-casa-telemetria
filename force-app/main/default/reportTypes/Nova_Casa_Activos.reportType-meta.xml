@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ReportType xmlns="http://soap.sforce.com/2006/04/metadata">
+    <baseObject>Asset</baseObject>
+    <category>accounts</category>
+    <deployed>true</deployed>
+    <description>Activos con su edificio, sin Producto ni Contacto: el gerente no lee Product2 y el tipo estándar Edificios con Activos no le es accesible.</description>
+    <label>Nova Casa: activos con edificio</label>
+    <sections>
+        <columns>
+            <checkedByDefault>true</checkedByDefault>
+            <field>Account.Name</field>
+            <table>Asset</table>
+        </columns>
+        <columns>
+            <checkedByDefault>false</checkedByDefault>
+            <field>Account.External_Id__c</field>
+            <table>Asset</table>
+        </columns>
+        <columns>
+            <checkedByDefault>true</checkedByDefault>
+            <field>Name</field>
+            <table>Asset</table>
+        </columns>
+        <columns>
+            <checkedByDefault>false</checkedByDefault>
+            <field>External_Id__c</field>
+            <table>Asset</table>
+        </columns>
+        <columns>
+            <checkedByDefault>true</checkedByDefault>
+            <field>Tipo_Activo__c</field>
+            <table>Asset</table>
+        </columns>
+        <columns>
+            <checkedByDefault>true</checkedByDefault>
+            <field>Severidad_Actual__c</field>
+            <table>Asset</table>
+        </columns>
+        <columns>
+            <checkedByDefault>true</checkedByDefault>
+            <field>Severidad_Nivel__c</field>
+            <table>Asset</table>
+        </columns>
+        <columns>
+            <checkedByDefault>false</checkedByDefault>
+            <field>Ultima_Senal__c</field>
+            <table>Asset</table>
+        </columns>
+        <columns>
+            <checkedByDefault>false</checkedByDefault>
+            <field>CreatedDate</field>
+            <table>Asset</table>
+        </columns>
+        <masterLabel>Activos</masterLabel>
+    </sections>
+</ReportType>
