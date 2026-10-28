@@ -728,7 +728,7 @@ Statuses: **Proposed** means the pair made the decision (many are already on `ma
 - **Trade-off**: si la tarjeta vuelve, una fila rechazada o atrasada se ve sin valor («—»); el detalle está en el log para el admin. La curva no cambia: ya solo usaba esas filas.
 - **Riesgo / dependencia**: una consulta más por llamada (las identidades de las lecturas vigentes del activo, como mucho una por tipo de medición).
 - **Criterios de prueba**: `ActivosOperadorControllerTest.historyGivesValuesOnlyForAcceptedReadingsButKeepsEveryRow` (siete filas de todos los resultados con valor: vuelven las siete, solo dos con valor, y el valor de la rechazada no aparece en la respuesta); `historyReturnsMeasurementTypeUnitAndValueAndNullForOldRows` y `historyValuesReachAnOperatorWhoCannotReadTheLogAndAreNotExposedForAHiddenAsset` siguen igual.
-- **Siguiente acción**: dry-run con `RunSpecifiedTests`, deploy con el OK de John, correr la clase a mano, PR de John (revisa Juan Diego).
+- **Siguiente acción**: desplegada el 2026-10-28 desde `fix/us-209-history-accepted-values` con el OK de John (dry-run primero; 2 de 2 componentes). El org omite las pruebas en los deploys; después, la suite completa (19 clases): 460 de 460, 90 % de cobertura del org. Falta la revisión de Juan Diego en el PR.
 
 ## Seguimiento después del cierre (2026-10-27)
 
