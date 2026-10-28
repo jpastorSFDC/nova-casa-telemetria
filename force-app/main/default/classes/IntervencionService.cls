@@ -17,8 +17,8 @@
  *              INGESTION-PATH-ONLY API: runs in system mode (`without sharing`, SYSTEM_MODE query and DML)
  *              because the subscriber that processes the events runs as the integration user (D017; BR-208
  *              covers the separate query-side authorization path). It must never be called from
- *              operator-facing code (LWC or
- *              @AuraEnabled controllers): doing so would bypass CRUD/FLS/sharing for operators.
+ *              operator-facing code (LWC or @AuraEnabled controllers): doing so would bypass
+ *              CRUD/FLS/sharing for operators.
  *              The strings in Resultado.errorPorIdentidad can come straight from DML
  *              (Database.Error.getMessage()); they must not be shown verbatim to operators or written to logs.
  */
