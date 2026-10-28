@@ -4,7 +4,7 @@ T8.1. Who sees and does what, and where each access comes from (BR-208). Effecti
 
 **Status as of 2026-10-27**: OWD Private applied (T8.2, PR #38), the persona users on Minimum Access - Salesforce, each building owned by an operator, and the manager without View All ([D022](decisiones.md#d022--coordinator-and-manager-see-through-the-role-hierarchy-each-building-belongs-to-one-operator-personas-on-minimum-access-us-208)). Every step in "Order of steps" is done; the access levels were measured again on 2026-10-27 (see "Hierarchy instead of View All (D022)").
 
-**Since then**: the personas were walked through by hand on 2026-10-13 ([entrega.md](entrega.md#manual-walkthrough-of-2026-10-13)). The `UserRecordAccess` queries were not repeated after the manager lost View All.
+**Since then**: the personas were walked through by hand on 2026-10-13 ([entrega.md](entrega.md#manual-walkthrough-of-2026-10-13)). The `UserRecordAccess` queries were repeated on 2026-10-27, after the manager lost View All (see "Measured again on 2026-10-27"); only the rows for records outside the hierarchy couldn't be measured.
 
 ## Personas
 
