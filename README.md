@@ -6,7 +6,7 @@ Team: John Alejandro Pastor + Juan Diego Velásquez.
 
 ## What this repo is right now
 
-We're closing the sprint, in **Development**. The repo is a Salesforce DX project: code and metadata live in `force-app/`, and [docs/entrega.md](docs/entrega.md) says what's delivered and what evidence backs it. The Discovery deliverables (Sep 15–26) are in `entregables/`; they guide the design but aren't the spec.
+We're closing the sprint, in **Development**. The repo is a Salesforce DX project: code and metadata live in `force-app/`, and [docs/entrega.md](docs/entrega.md) says what's delivered and what evidence backs it. The Discovery deliverables (Sep 15–26) are in `entregables-discovery/`; they guide the design but aren't the spec.
 
 ## Finding your way around
 
@@ -18,7 +18,7 @@ Each fact has one home. Other files link to it instead of repeating it.
 |---|---|---|
 | `Sprint 2 - Nova Casa.md` | **Source of truth**: brief, personas, Laura, formative frontier, BR-201 through 210, agreements, deliverables, the simulator contract, the user stories. Wins whenever another file disagrees. | Only to paste new content exactly as it arrives from MDSS. |
 | `docs/br-201-210.md` | The 10 BRs, text identical to `Sprint 2 - Nova Casa.md`, split out for quick reference. | Only if the source text changes |
-| `entregables/` | The Discovery deliverables as handed in, frozen. [`entregables/README.md`](entregables/README.md) says which file answers which MDSS deliverable and what changed since. | No, except its README |
+| `entregables-discovery/` | The Discovery deliverables as handed in, frozen. [`entregables-discovery/README.md`](entregables-discovery/README.md) says which file answers which MDSS deliverable and what changed since. | No, except its README |
 
 **Ours**
 
@@ -27,7 +27,7 @@ Each fact has one home. Other files link to it instead of repeating it.
 | `AGENTS.md` | Instructions for AI agents: rules they can't contradict, the formative frontier, branch flow. | Yes |
 | `CONTRIBUTING.md` | How to contribute: branches, commits, PRs, deploys to the shared org and the Apex test rules. | Yes |
 | `docs/decisiones.md` | Deliverable 6, kept alive: every decision the pair made (ADR-lite), with the alternative we dropped, the trade-off and the risks. The only place that explains *why*. | Yes |
-| `docs/entrega.md` | Everything for closing the sprint: status and evidence by story, the team decisions behind each story, the message contract (deliverable 5), the scenario runs, how to repeat the evidence and the demo script. | Yes |
+| `docs/entrega.md` | Everything for closing the sprint: status and evidence by story, the team decisions behind each story, the message contract (deliverable 5), the scenario runs and how to repeat the evidence. The final deliverables to review are in `docs/entrega-final/`. | Yes |
 | `docs/acceso.md` | Access matrix (US-208): who sees and does what, and where each access comes from. | Yes |
 | `docs/muestras/` | Real simulator responses captured on Sep 30 (`telemetry.json`, `catalog.json`). | No |
 | `scripts/org-check.sh` | Read-only org checks, plus the scenario runs and the org cleanup used for the evidence. Its header lists the commands; `drift` compares the org with `origin/main` through `scripts/org-drift-compare.py`. | Yes |
@@ -40,7 +40,7 @@ Each fact has one home. Other files link to it instead of repeating it.
 
 If a new doc would repeat MDSS content in different words, it doesn't get added — quote the verbatim instead.
 
-**Language.** Everything we write is in English: docs, commits, PRs. The exceptions are the MDSS source (`Sprint 2 - Nova Casa.md`, `docs/br-201-210.md`), which stays verbatim in Spanish; the approved `entregables/`, which we don't edit ([`entregables/README.md`](entregables/README.md) says which of their points later decisions replaced); and the decisions log: `docs/decisiones.md` is in English up to D025 and in Spanish from D026 on, including the sections after D059 (known limits, inherited points, general risks). We haven't translated it.
+**Language.** Everything we write is in English: docs, commits, PRs. The exceptions are the MDSS source (`Sprint 2 - Nova Casa.md`, `docs/br-201-210.md`), which stays verbatim in Spanish; the approved `entregables-discovery/`, which we don't edit ([`entregables-discovery/README.md`](entregables-discovery/README.md) says which of their points later decisions replaced); and the decisions log: `docs/decisiones.md` is in English up to D025 and in Spanish from D026 on, including the sections after D059 (known limits, inherited points, general risks). We haven't translated it.
 
 **Backlog and board.** Task-level status lives outside the repo: the Slack list "Nova Casa Sprint 2 · Backlog MVP" in `#novacasa_sprint_2`, and the story cards on the MDSS board (see the "Board and backlog" section of [CONTRIBUTING.md](CONTRIBUTING.md#board-and-backlog)).
 
