@@ -8,7 +8,7 @@
         <apexClass>ActivosOperadorController</apexClass>
         <enabled>true</enabled>
     </classAccesses>
-    <description>Read-only regional manager (BR-208, D022, docs/acceso.md): read on Account, Asset, Case, Contact, Lectura_Vigente__c; visibility from the role hierarchy, not View All; read-only FLS; Run Reports, no export. No Log_Senial__c or Umbral__c.</description>
+    <description>Read-only regional manager (BR-208, D022, docs/acceso.md): read on Account, Asset, Case, Contact, Lectura_Vigente__c; visibility from the role hierarchy, not View All; read-only FLS; Run Reports and its tabs, no export. No Log_Senial__c or Umbral__c.</description>
     <fieldPermissions>
         <editable>false</editable>
         <field>Account.External_Id__c</field>
@@ -215,6 +215,14 @@
     </tabSettings>
     <tabSettings>
         <tab>standard-Case</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
+    <tabSettings>
+        <tab>standard-Dashboard</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
+    <tabSettings>
+        <tab>standard-report</tab>
         <visibility>Visible</visibility>
     </tabSettings>
     <userPermissions>

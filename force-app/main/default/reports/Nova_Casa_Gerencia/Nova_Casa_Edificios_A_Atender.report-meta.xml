@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://soap.sforce.com/2006/04/metadata">
+    <aggregates>
+        <calculatedFormula>RowCount</calculatedFormula>
+        <datatype>number</datatype>
+        <description>Cantidad de activos</description>
+        <developerName>FORMULA1</developerName>
+        <isActive>true</isActive>
+        <isCrossBlock>false</isCrossBlock>
+        <masterLabel>Activos</masterLabel>
+        <scale>0</scale>
+    </aggregates>
+    <columns>
+        <field>Asset$Name</field>
+    </columns>
+    <columns>
+        <field>Asset$Tipo_Activo__c</field>
+    </columns>
+    <columns>
+        <field>Asset$Ultima_Senal__c</field>
+    </columns>
+    <currency>USD</currency>
+    <description>Gerencia regional: cantidad de activos de cada edificio según su estado actual (Crítica, Advertencia, Normal, Sin lecturas).</description>
+    <filter>
+        <criteriaItems>
+            <column>Asset$Account.External_Id__c</column>
+            <columnToColumn>false</columnToColumn>
+            <isUnlocked>false</isUnlocked>
+            <operator>startsWith</operator>
+            <value>BLD-</value>
+        </criteriaItems>
+        <language>en_US</language>
+    </filter>
+    <format>Matrix</format>
+    <groupingsAcross>
+        <dateGranularity>Day</dateGranularity>
+        <field>Asset$Severidad_Actual__c</field>
+        <sortOrder>Asc</sortOrder>
+    </groupingsAcross>
+    <groupingsDown>
+        <dateGranularity>Day</dateGranularity>
+        <field>Asset$Account.Name</field>
+        <sortOrder>Asc</sortOrder>
+    </groupingsDown>
+    <name>Activos de cada edificio por estado</name>
+    <params>
+        <name>co</name>
+        <value>1</value>
+    </params>
+    <reportType>Nova_Casa_Activos__c</reportType>
+    <scope>organization</scope>
+    <showDetails>true</showDetails>
+    <showGrandTotal>true</showGrandTotal>
+    <showSubTotals>true</showSubTotals>
+    <timeFrameFilter>
+        <dateColumn>Asset$CreatedDate</dateColumn>
+        <interval>INTERVAL_CUSTOM</interval>
+    </timeFrameFilter>
+</Report>

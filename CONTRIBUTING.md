@@ -9,6 +9,7 @@ How we work on this repo: branches, commits, pull requests and deploys to the or
 3. Every change reaches `main` through a pull request approved by the other person, merged with squash.
 4. In the shared org, deploy only your story's files from your branch. The full `force-app` is deployed only from `main`.
 5. Every Apex class ships with its test class: the org is production and Apex needs 75% coverage per class. `nova-cdo` doesn't run the tests on deploy, so we run them ourselves and put the result in the PR. A component with behavior ships with its Jest test.
+6. **After every retrieve of the manager dashboard, put `NOVA_CASA_GERENTE_USERNAME` back in `runningUser` and delete the `owner` line before committing.** The retrieve writes real usernames there and the repo is public. Check with `git grep -n "@" -- force-app/main/default/dashboards`, which must return nothing (see "The manager dashboard and its running user").
 
 ## Branches
 
@@ -148,7 +149,7 @@ We both work on the same org, `nova-cdo`. The org keeps a single version of each
    sf project deploy start --source-dir force-app --test-level RunSpecifiedTests "${tests[@]}"
    ```
 
-   The first line of the block builds one `--tests` per test class in the repo (it works in bash and zsh). If the Apex jobs of the ingestion are scheduled, Salesforce blocks the deploy of those classes: turn them off first (see the README, "Automatic ingestion every 5 minutes").
+   The first line of the block builds one `--tests` per test class in the repo (it works in bash and zsh). If the Apex jobs of the ingestion are scheduled, Salesforce blocks the deploy of those classes: turn them off first (see the README, "Automatic ingestion every 5 minutes"). The full deploy includes the manager dashboard, so set `NOVA_CASA_GERENTE_USERNAME` first (see "The manager dashboard and its running user").
 
 Shared files are changed by one person at a time: permission sets, page layouts, the app and `Case` (the intervention object, [D001](docs/decisiones.md#d001--intervention-object-case)). Whoever needs one says so in Slack, and the other waits until that PR is merged before changing it.
 
@@ -157,6 +158,28 @@ Nothing is changed by hand in Setup. Anything created by clicking exists only in
 ```bash
 sf project retrieve start --metadata CustomField:Log_Senial__c.Caso__c
 ```
+
+### The manager dashboard and its running user
+
+> **Warning: a retrieve of the dashboard puts usernames in the repo.** `sf project retrieve start` writes the manager's real username into `runningUser` and the deployer's into `owner`. Before every commit, put the marker back, delete `owner` and run the `git grep` of step 2 below. Never commit the retrieved file as it comes.
+
+The "Nova Casa: Gerencia regional" dashboard is static and runs as the manager persona ([D060](docs/decisiones.md#d060---dashboard-nativo-de-la-gerencia-regional-estático-y-como-la-persona-gerente-hp-07-br-208)), so its metadata needs that user's username in `runningUser`. The repo is public and never carries a username: the versioned file has the marker `NOVA_CASA_GERENTE_USERNAME`, and the `replacements` entry in `sfdx-project.json` swaps it on deploy for the value of the environment variable with the same name. The repo files don't change.
+
+1. Before any deploy that includes `force-app/main/default/dashboards` (also the full deploy from `main`), read the username from the org by role, without printing it:
+
+   ```bash
+   export NOVA_CASA_GERENTE_USERNAME=$(sf data query -o nova-cdo --json -q "SELECT Username FROM User WHERE IsActive = true AND UserRole.DeveloperName = 'Gerente_Regional_Operaciones'" | jq -er 'if (.result.records | length) == 1 then .result.records[0].Username else error("expected exactly one active manager") end')
+   ```
+
+   It fails if there isn't exactly one active user with that role. If the variable isn't set, the deploy stops before reaching the org with `"NOVA_CASA_GERENTE_USERNAME" is in sfdx-project.json as a value for "replaceWithEnv" property, but it's not set in your environment`.
+
+2. A retrieve of the dashboard writes the real usernames back into the file, in `runningUser` and in `owner`. Before committing, put the marker back in `runningUser`, delete the `owner` line (it's optional; the deploy uses whoever deploys) and check that nothing is left:
+
+   ```bash
+   git grep -n "@" -- force-app/main/default/dashboards
+   ```
+
+   It must return nothing. For the same reason `scripts/org-check.sh drift` shows `runningUser` and `owner` as a difference on this file.
 
 Changes that are hard to undo go in their own PR, need both of us to agree and are deployed only from `main`: deleting fields or objects, changing a field's type, changing org-wide sharing, removing picklist values, deleting data.
 
@@ -209,4 +232,4 @@ The test summary (`Tests Ran`, `Pass Rate`) and the per-class coverage from that
 ## Decisions and secrets
 
 - A change that departs from a sprint agreement or from the Discovery prototypes is recorded in `docs/decisiones.md` before it is merged.
-- The repo is public. Never commit tokens, credentials or org data. The simulator token lives only in Setup.
+- The repo is public. Never commit tokens, credentials or org data, usernames included (the integration user in the D017 subscriber config is the one known exception). The simulator token lives only in Setup, and the manager's username reaches the dashboard only on deploy (see "The manager dashboard and its running user").

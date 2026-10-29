@@ -63,5 +63,7 @@
     <tabs>standard-Case</tabs>
     <tabs>Umbral__c</tabs>
     <tabs>Log_Senial__c</tabs>
+    <tabs>standard-report</tabs>
+    <tabs>standard-Dashboard</tabs>
     <uiType>Lightning</uiType>
 </CustomApplication>
