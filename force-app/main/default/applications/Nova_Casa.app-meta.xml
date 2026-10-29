@@ -58,6 +58,7 @@
     <label>Nova Casa Telemetry</label>
     <navType>Standard</navType>
     <tabs>Activos_Operador</tabs>
+    <tabs>Nova_Casa_Reportes_Gerencia</tabs>
     <tabs>standard-Account</tabs>
     <tabs>standard-Asset</tabs>
     <tabs>standard-Case</tabs>
