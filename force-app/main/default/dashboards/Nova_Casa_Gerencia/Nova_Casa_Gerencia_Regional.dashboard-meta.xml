@@ -201,7 +201,7 @@
         <rowHeight>36</rowHeight>
     </dashboardGridLayout>
     <dashboardType>SpecifiedUser</dashboardType>
-    <description>Muestra cómo están los activos de cada edificio, cuántas intervenciones siguen abiertas, dónde están y cuáles llevan más tiempo esperando.</description>
+    <description>Muestra cómo están los activos de cada edificio, cuántas intervenciones siguen abiertas, cuáles llevan más tiempo abiertas y qué edificio tuvo más intervenciones en los últimos 30 días.</description>
     <isGridLayout>true</isGridLayout>
     <runningUser>NOVA_CASA_GERENTE_USERNAME</runningUser>
     <textColor>#000000</textColor>
