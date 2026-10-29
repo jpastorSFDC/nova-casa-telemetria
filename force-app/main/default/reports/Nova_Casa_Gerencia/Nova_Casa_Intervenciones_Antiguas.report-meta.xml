@@ -19,19 +19,10 @@
         <field>PRIORITY</field>
     </columns>
     <columns>
-        <field>Case.Ultima_Critica_Medicion__c</field>
-    </columns>
-    <columns>
-        <field>Case.Ultima_Critica_Valor__c</field>
-    </columns>
-    <columns>
-        <field>Case.Ultima_Critica_Unidad__c</field>
-    </columns>
-    <columns>
         <field>Case.Tiempo_Abierto_Horas__c</field>
     </columns>
     <currency>USD</currency>
-    <description>Gerencia regional: las 10 intervenciones abiertas que más tiempo llevan esperando; la primera es la que se debe atender primero.</description>
+    <description>Gerencia regional: las 10 intervenciones abiertas que más tiempo llevan esperando, de la más antigua a la más reciente.</description>
     <filter>
         <criteriaItems>
             <column>OPEN</column>
