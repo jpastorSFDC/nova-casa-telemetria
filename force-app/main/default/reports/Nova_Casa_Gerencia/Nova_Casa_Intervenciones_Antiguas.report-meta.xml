@@ -31,7 +31,7 @@
         <field>Case.Tiempo_Abierto_Horas__c</field>
     </columns>
     <currency>USD</currency>
-    <description>Gerencia regional: las 10 intervenciones abiertas con la fecha de apertura más antigua.</description>
+    <description>Gerencia regional: las 10 intervenciones abiertas que más tiempo llevan esperando; la primera es la que se debe atender primero.</description>
     <filter>
         <criteriaItems>
             <column>OPEN</column>

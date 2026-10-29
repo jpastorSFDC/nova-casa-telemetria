@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Report xmlns="http://soap.sforce.com/2006/04/metadata">
     <columns>
+        <field>Asset$Account.Name</field>
+    </columns>
+    <columns>
         <field>Asset$Name</field>
     </columns>
     <columns>
@@ -10,7 +13,7 @@
         <field>Asset$Ultima_Senal__c</field>
     </columns>
     <currency>USD</currency>
-    <description>Gerencia regional: cuántos activos de cada edificio Nova Casa están en cada severidad actual.</description>
+    <description>Gerencia regional: cuántos activos de todos los edificios Nova Casa están en cada estado (Crítica, Advertencia, Normal, Sin lecturas).</description>
     <filter>
         <criteriaItems>
             <column>Asset$Account.External_Id__c</column>
@@ -24,15 +27,10 @@
     <format>Summary</format>
     <groupingsDown>
         <dateGranularity>Day</dateGranularity>
-        <field>Asset$Account.Name</field>
-        <sortOrder>Asc</sortOrder>
-    </groupingsDown>
-    <groupingsDown>
-        <dateGranularity>Day</dateGranularity>
         <field>Asset$Severidad_Actual__c</field>
         <sortOrder>Asc</sortOrder>
     </groupingsDown>
-    <name>Activos por edificio y severidad</name>
+    <name>Estado de todos los activos</name>
     <params>
         <name>co</name>
         <value>1</value>

@@ -9,50 +9,37 @@
     <dashboardColorPalette>unity</dashboardColorPalette>
     <dashboardGridLayout>
         <dashboardGridComponents>
-            <colSpan>4</colSpan>
+            <colSpan>7</colSpan>
             <columnIndex>0</columnIndex>
             <dashboardComponent>
-                <autoselectColumnsFromReport>true</autoselectColumnsFromReport>
-                <componentType>Table</componentType>
-                <displayUnits>Integer</displayUnits>
-                <drillEnabled>false</drillEnabled>
-                <drillToDetailEnabled>false</drillToDetailEnabled>
-                <groupingSortProperties/>
-                <header>Ranking de severidad</header>
-                <indicatorBreakpoint1>0.5</indicatorBreakpoint1>
-                <indicatorBreakpoint2>1.5</indicatorBreakpoint2>
-                <indicatorHighColor>#C23934</indicatorHighColor>
-                <indicatorLowColor>#04844B</indicatorLowColor>
-                <indicatorMiddleColor>#FFB75D</indicatorMiddleColor>
-                <report>Nova_Casa_Gerencia/Nova_Casa_Ranking_Severidad</report>
-                <showPicturesOnTables>false</showPicturesOnTables>
-                <sortBy>RowValueDescending</sortBy>
-                <title>2 crítica, 1 advertencia, 0 normal</title>
-            </dashboardComponent>
-            <rowIndex>0</rowIndex>
-            <rowSpan>7</rowSpan>
-        </dashboardGridComponents>
-        <dashboardGridComponents>
-            <colSpan>3</colSpan>
-            <columnIndex>4</columnIndex>
-            <dashboardComponent>
                 <autoselectColumnsFromReport>false</autoselectColumnsFromReport>
+                <chartAxisRange>Auto</chartAxisRange>
                 <chartSummary>
                     <axisBinding>y</axisBinding>
                     <column>RowCount</column>
                 </chartSummary>
-                <componentType>Metric</componentType>
+                <componentType>BarStacked</componentType>
                 <displayUnits>Integer</displayUnits>
+                <drillEnabled>false</drillEnabled>
+                <drillToDetailEnabled>false</drillToDetailEnabled>
+                <enableHover>false</enableHover>
+                <expandOthers>false</expandOthers>
+                <footer>Atienda primero el edificio con activos en Crítica, luego en Advertencia.</footer>
+                <groupingColumn>Asset$Account.Name</groupingColumn>
+                <groupingColumn>Asset$Severidad_Actual__c</groupingColumn>
                 <groupingSortProperties/>
-                <header>Intervenciones abiertas</header>
-                <indicatorHighColor>#0176D3</indicatorHighColor>
-                <indicatorLowColor>#0176D3</indicatorLowColor>
-                <indicatorMiddleColor>#0176D3</indicatorMiddleColor>
-                <report>Nova_Casa_Gerencia/Nova_Casa_Intervenciones_Abiertas</report>
-                <showRange>false</showRange>
+                <header>¿Qué edificio atender primero?</header>
+                <legendPosition>Bottom</legendPosition>
+                <report>Nova_Casa_Gerencia/Nova_Casa_Edificios_A_Atender</report>
+                <showPercentage>false</showPercentage>
+                <showValues>false</showValues>
+                <sortBy>RowLabelAscending</sortBy>
+                <sortLegendValues>false</sortLegendValues>
+                <title>Activos de cada edificio por estado</title>
+                <useReportChart>false</useReportChart>
             </dashboardComponent>
             <rowIndex>0</rowIndex>
-            <rowSpan>7</rowSpan>
+            <rowSpan>8</rowSpan>
         </dashboardGridComponents>
         <dashboardGridComponents>
             <colSpan>5</colSpan>
@@ -64,31 +51,55 @@
                     <axisBinding>y</axisBinding>
                     <column>RowCount</column>
                 </chartSummary>
-                <componentType>BarStacked</componentType>
-                <displayUnits>Integer</displayUnits>
+                <componentType>Donut</componentType>
+                <displayUnits>Auto</displayUnits>
                 <drillEnabled>false</drillEnabled>
                 <drillToDetailEnabled>false</drillToDetailEnabled>
                 <enableHover>false</enableHover>
                 <expandOthers>false</expandOthers>
-                <groupingColumn>Asset$Account.Name</groupingColumn>
+                <footer>Según la última lectura de cada activo.</footer>
                 <groupingColumn>Asset$Severidad_Actual__c</groupingColumn>
                 <groupingSortProperties/>
-                <header>Activos por severidad actual</header>
-                <legendPosition>Bottom</legendPosition>
+                <header>Estado de todos los activos</header>
+                <legendPosition>Right</legendPosition>
                 <report>Nova_Casa_Gerencia/Nova_Casa_Activos_Por_Severidad</report>
                 <showPercentage>false</showPercentage>
-                <showValues>false</showValues>
+                <showTotal>true</showTotal>
+                <showValues>true</showValues>
                 <sortBy>RowLabelAscending</sortBy>
                 <sortLegendValues>false</sortLegendValues>
-                <title>Activos de cada edificio por severidad</title>
+                <title>Todos los edificios</title>
                 <useReportChart>false</useReportChart>
             </dashboardComponent>
             <rowIndex>0</rowIndex>
-            <rowSpan>7</rowSpan>
+            <rowSpan>8</rowSpan>
         </dashboardGridComponents>
         <dashboardGridComponents>
-            <colSpan>6</colSpan>
+            <colSpan>3</colSpan>
             <columnIndex>0</columnIndex>
+            <dashboardComponent>
+                <autoselectColumnsFromReport>false</autoselectColumnsFromReport>
+                <chartSummary>
+                    <axisBinding>y</axisBinding>
+                    <column>RowCount</column>
+                </chartSummary>
+                <componentType>Metric</componentType>
+                <displayUnits>Integer</displayUnits>
+                <footer>Abiertas por telemetría o a mano.</footer>
+                <groupingSortProperties/>
+                <header>Intervenciones abiertas</header>
+                <indicatorHighColor>#0176D3</indicatorHighColor>
+                <indicatorLowColor>#0176D3</indicatorLowColor>
+                <indicatorMiddleColor>#0176D3</indicatorMiddleColor>
+                <report>Nova_Casa_Gerencia/Nova_Casa_Intervenciones_Abiertas</report>
+                <showRange>false</showRange>
+            </dashboardComponent>
+            <rowIndex>8</rowIndex>
+            <rowSpan>8</rowSpan>
+        </dashboardGridComponents>
+        <dashboardGridComponents>
+            <colSpan>4</colSpan>
+            <columnIndex>3</columnIndex>
             <dashboardComponent>
                 <autoselectColumnsFromReport>false</autoselectColumnsFromReport>
                 <chartAxisRange>Auto</chartAxisRange>
@@ -97,30 +108,31 @@
                     <column>RowCount</column>
                 </chartSummary>
                 <componentType>BarStacked</componentType>
-                <displayUnits>Integer</displayUnits>
+                <displayUnits>Auto</displayUnits>
                 <drillEnabled>false</drillEnabled>
                 <drillToDetailEnabled>false</drillToDetailEnabled>
                 <enableHover>false</enableHover>
                 <expandOthers>false</expandOthers>
+                <footer>Cada color es un tipo de activo.</footer>
                 <groupingColumn>Case.Edificio__c</groupingColumn>
                 <groupingColumn>Case.Tipo_Activo__c</groupingColumn>
                 <groupingSortProperties/>
-                <header>Intervenciones abiertas por edificio</header>
+                <header>¿Dónde están las intervenciones abiertas?</header>
                 <legendPosition>Bottom</legendPosition>
                 <report>Nova_Casa_Gerencia/Nova_Casa_Intervenciones_Abiertas</report>
                 <showPercentage>false</showPercentage>
                 <showValues>false</showValues>
                 <sortBy>RowValueDescending</sortBy>
                 <sortLegendValues>false</sortLegendValues>
-                <title>Por tipo de activo</title>
+                <title>Por edificio y tipo de activo</title>
                 <useReportChart>false</useReportChart>
             </dashboardComponent>
-            <rowIndex>7</rowIndex>
+            <rowIndex>8</rowIndex>
             <rowSpan>8</rowSpan>
         </dashboardGridComponents>
         <dashboardGridComponents>
-            <colSpan>6</colSpan>
-            <columnIndex>6</columnIndex>
+            <colSpan>5</colSpan>
+            <columnIndex>7</columnIndex>
             <dashboardComponent>
                 <autoselectColumnsFromReport>false</autoselectColumnsFromReport>
                 <chartAxisRange>Auto</chartAxisRange>
@@ -130,15 +142,15 @@
                     <column>Case.Tiempo_Abierto_Horas__c</column>
                 </chartSummary>
                 <componentType>Bar</componentType>
-                <decimalPrecision>1</decimalPrecision>
                 <displayUnits>Auto</displayUnits>
                 <drillEnabled>false</drillEnabled>
                 <drillToDetailEnabled>false</drillToDetailEnabled>
                 <enableHover>false</enableHover>
                 <expandOthers>false</expandOthers>
+                <footer>Incluye las de activos ya en Normal que siguen sin cerrar.</footer>
                 <groupingColumn>Case.Edificio__c</groupingColumn>
                 <groupingSortProperties/>
-                <header>Horas abiertas por edificio</header>
+                <header>¿Cuánto llevan abiertas las intervenciones?</header>
                 <legendPosition>Bottom</legendPosition>
                 <report>Nova_Casa_Gerencia/Nova_Casa_Horas_Abiertas</report>
                 <showPercentage>false</showPercentage>
@@ -146,10 +158,10 @@
                 <showValues>true</showValues>
                 <sortBy>RowValueDescending</sortBy>
                 <sortLegendValues>false</sortLegendValues>
-                <title>Máximo, en horas</title>
+                <title>Horas de la más antigua de cada edificio</title>
                 <useReportChart>false</useReportChart>
             </dashboardComponent>
-            <rowIndex>7</rowIndex>
+            <rowIndex>8</rowIndex>
             <rowSpan>8</rowSpan>
         </dashboardGridComponents>
         <dashboardGridComponents>
@@ -227,11 +239,13 @@
                     <hideChatterPhotos>true</hideChatterPhotos>
                     <useReportTableSetting>false</useReportTableSetting>
                 </flexComponentProperties>
+                <footer>Ordenadas por fecha de apertura: la primera es la que más tiempo lleva esperando.</footer>
                 <groupingSortProperties/>
-                <header>Las 10 intervenciones abiertas más antiguas</header>
+                <header>Intervenciones abiertas más antiguas (atender primero)</header>
                 <report>Nova_Casa_Gerencia/Nova_Casa_Intervenciones_Antiguas</report>
+                <title>Las 10 que más tiempo llevan abiertas</title>
             </dashboardComponent>
-            <rowIndex>15</rowIndex>
+            <rowIndex>16</rowIndex>
             <rowSpan>8</rowSpan>
         </dashboardGridComponents>
         <dashboardGridComponents>
@@ -245,32 +259,33 @@
                     <column>RowCount</column>
                 </chartSummary>
                 <componentType>ColumnStacked</componentType>
-                <displayUnits>Integer</displayUnits>
+                <displayUnits>Auto</displayUnits>
                 <drillEnabled>false</drillEnabled>
                 <drillToDetailEnabled>false</drillToDetailEnabled>
                 <enableHover>false</enableHover>
                 <expandOthers>false</expandOthers>
+                <footer>Incluye las que ya se cerraron. Un pico indica un día con muchas fallas críticas.</footer>
                 <groupingColumn>CREATED_DATE</groupingColumn>
                 <groupingColumn>Case.Edificio__c</groupingColumn>
                 <groupingSortProperties/>
-                <header>Intervenciones de telemetría por día</header>
+                <header>Intervenciones creadas por la telemetría (últimos 30 días)</header>
                 <legendPosition>Bottom</legendPosition>
                 <report>Nova_Casa_Gerencia/Nova_Casa_Telemetria_Por_Dia</report>
                 <showPercentage>false</showPercentage>
                 <showValues>false</showValues>
                 <sortBy>RowLabelAscending</sortBy>
                 <sortLegendValues>false</sortLegendValues>
-                <title>Últimos 30 días, por edificio</title>
+                <title>Por día y edificio</title>
                 <useReportChart>false</useReportChart>
             </dashboardComponent>
-            <rowIndex>23</rowIndex>
+            <rowIndex>24</rowIndex>
             <rowSpan>8</rowSpan>
         </dashboardGridComponents>
         <numberOfColumns>12</numberOfColumns>
         <rowHeight>36</rowHeight>
     </dashboardGridLayout>
     <dashboardType>SpecifiedUser</dashboardType>
-    <description>Gerencia regional de operaciones: qué edificios concentran situaciones graves y cómo comparar sus prioridades. Corre como la persona gerente (BR-208).</description>
+    <description>Para la gerencia regional: qué edificio atender primero, el estado de los activos y las intervenciones pendientes. Muestra lo que ve la persona gerente (BR-208).</description>
     <isGridLayout>true</isGridLayout>
     <runningUser>NOVA_CASA_GERENTE_USERNAME</runningUser>
     <textColor>#000000</textColor>

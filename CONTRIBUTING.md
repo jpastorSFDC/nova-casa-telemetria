@@ -9,6 +9,7 @@ How we work on this repo: branches, commits, pull requests and deploys to the or
 3. Every change reaches `main` through a pull request approved by the other person, merged with squash.
 4. In the shared org, deploy only your story's files from your branch. The full `force-app` is deployed only from `main`.
 5. Every Apex class ships with its test class: the org is production and Apex needs 75% coverage per class. `nova-cdo` doesn't run the tests on deploy, so we run them ourselves and put the result in the PR. A component with behavior ships with its Jest test.
+6. **After every retrieve of the manager dashboard, put `NOVA_CASA_GERENTE_USERNAME` back in `runningUser` and delete the `owner` line before committing.** The retrieve writes real usernames there and the repo is public. Check with `git grep -n "@" -- force-app/main/default/dashboards`, which must return nothing (see "The manager dashboard and its running user").
 
 ## Branches
 
@@ -159,6 +160,8 @@ sf project retrieve start --metadata CustomField:Log_Senial__c.Caso__c
 ```
 
 ### The manager dashboard and its running user
+
+> **Warning: a retrieve of the dashboard puts usernames in the repo.** `sf project retrieve start` writes the manager's real username into `runningUser` and the deployer's into `owner`. Before every commit, put the marker back, delete `owner` and run the `git grep` of step 2 below. Never commit the retrieved file as it comes.
 
 The "Nova Casa: Gerencia regional" dashboard is static and runs as the manager persona ([D060](docs/decisiones.md#d060---dashboard-nativo-de-la-gerencia-regional-estático-y-como-la-persona-gerente-hp-07-br-208)), so its metadata needs that user's username in `runningUser`. The repo is public and never carries a username: the versioned file has the marker `NOVA_CASA_GERENTE_USERNAME`, and the `replacements` entry in `sfdx-project.json` swaps it on deploy for the value of the environment variable with the same name. The repo files don't change.
 

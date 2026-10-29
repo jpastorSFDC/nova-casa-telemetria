@@ -13,12 +13,15 @@
         <field>PRIORITY</field>
     </columns>
     <columns>
+        <field>Case.Severidad_Activo__c</field>
+    </columns>
+    <columns>
         <aggregateTypes>Average</aggregateTypes>
         <aggregateTypes>Maximum</aggregateTypes>
         <field>Case.Tiempo_Abierto_Horas__c</field>
     </columns>
     <currency>USD</currency>
-    <description>Gerencia regional: horas que llevan abiertas las intervenciones de cada edificio (máximo y promedio).</description>
+    <description>Gerencia regional: cuántas horas llevan abiertas las intervenciones de cada edificio (máximo y promedio). Incluye las que tienen el activo ya en Normal y siguen pendientes de cierre.</description>
     <filter>
         <criteriaItems>
             <column>OPEN</column>
@@ -38,7 +41,7 @@
         <sortOrder>Desc</sortOrder>
         <sortType>Aggregate</sortType>
     </groupingsDown>
-    <name>Horas abiertas por edificio</name>
+    <name>Tiempo abiertas por edificio (horas)</name>
     <params>
         <name>units</name>
         <value>h</value>

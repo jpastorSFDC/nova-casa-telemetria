@@ -16,7 +16,7 @@
         <field>CREATED_DATE</field>
     </columns>
     <currency>USD</currency>
-    <description>Gerencia regional: intervenciones abiertas por edificio y tipo de activo.</description>
+    <description>Gerencia regional: dónde están las intervenciones abiertas, por edificio y tipo de activo.</description>
     <filter>
         <criteriaItems>
             <column>OPEN</column>

@@ -7,14 +7,10 @@
         <field>Asset$Tipo_Activo__c</field>
     </columns>
     <columns>
-        <field>Asset$Severidad_Actual__c</field>
-    </columns>
-    <columns>
-        <aggregateTypes>Maximum</aggregateTypes>
-        <field>Asset$Severidad_Nivel__c</field>
+        <field>Asset$Ultima_Senal__c</field>
     </columns>
     <currency>USD</currency>
-    <description>Gerencia regional: severidad máxima de los activos de cada edificio Nova Casa (2 crítica, 1 advertencia, 0 normal).</description>
+    <description>Gerencia regional: cuántos activos de cada edificio están en cada estado (Crítica, Advertencia, Normal, Sin lecturas).</description>
     <filter>
         <criteriaItems>
             <column>Asset$Account.External_Id__c</column>
@@ -25,16 +21,18 @@
         </criteriaItems>
         <language>en_US</language>
     </filter>
-    <format>Summary</format>
+    <format>Matrix</format>
+    <groupingsAcross>
+        <dateGranularity>Day</dateGranularity>
+        <field>Asset$Severidad_Actual__c</field>
+        <sortOrder>Asc</sortOrder>
+    </groupingsAcross>
     <groupingsDown>
-        <aggregateType>Maximum</aggregateType>
         <dateGranularity>Day</dateGranularity>
         <field>Asset$Account.Name</field>
-        <sortByName>Asset$Severidad_Nivel__c</sortByName>
-        <sortOrder>Desc</sortOrder>
-        <sortType>Aggregate</sortType>
+        <sortOrder>Asc</sortOrder>
     </groupingsDown>
-    <name>Ranking de severidad por edificio</name>
+    <name>¿Qué edificio atender primero?</name>
     <params>
         <name>co</name>
         <value>1</value>
