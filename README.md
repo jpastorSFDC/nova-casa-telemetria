@@ -27,7 +27,7 @@ Each fact has one home. Other files link to it instead of repeating it.
 | `AGENTS.md` | Instructions for AI agents: rules they can't contradict, the formative frontier, branch flow. | Yes |
 | `CONTRIBUTING.md` | How to contribute: branches, commits, PRs, deploys to the shared org and the Apex test rules. | Yes |
 | `docs/decisiones.md` | Deliverable 6, kept alive: every decision the pair made (ADR-lite), with the alternative we dropped, the trade-off and the risks. The only place that explains *why*. | Yes |
-| `docs/entrega.md` | Everything for closing the sprint: status and evidence by story, the team decisions behind each story, the message contract (deliverable 5), the scenario runs, how to repeat the evidence and the demo script. | Yes |
+| `docs/entrega.md` | Everything for closing the sprint: status and evidence by story, the team decisions behind each story, the message contract (deliverable 5), the scenario runs and how to repeat the evidence. The final deliverables to review are in `docs/entrega-final/`. | Yes |
 | `docs/acceso.md` | Access matrix (US-208): who sees and does what, and where each access comes from. | Yes |
 | `docs/muestras/` | Real simulator responses captured on Sep 30 (`telemetry.json`, `catalog.json`). | No |
 | `scripts/org-check.sh` | Read-only org checks, plus the scenario runs and the org cleanup used for the evidence. Its header lists the commands; `drift` compares the org with `origin/main` through `scripts/org-drift-compare.py`. | Yes |
