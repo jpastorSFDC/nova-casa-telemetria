@@ -1,6 +1,6 @@
 # Sprint 2 — Nova Casa Telemetry
 
-Current phase: **Development**, opened in MDSS on Sep 25, and the sprint is being closed: what's delivered, with its evidence, is in `docs/entrega.md`. Discovery & Design (Sep 15–26) delivered the prototypes in `entregables/`.
+Current phase: **Development**, opened in MDSS on Sep 25, and the sprint is being closed: what's delivered, with its evidence, is in `docs/entrega.md`. Discovery & Design (Sep 15–26) delivered the prototypes in `entregables-discovery/`.
 
 Team: John Alejandro Pastor + Juan Diego Velásquez. Respond in English.
 
@@ -48,4 +48,4 @@ Code and metadata live in `force-app/` (Salesforce DX project, API 67.0). We sha
 - Validate with a dry run (`--dry-run`) before deploying, and say what you're about to push.
 - `nova-cdo` is a production org: every deploy with Apex needs tests covering 75% of each class or trigger. Each class ships with its test in the same PR and deploys with `--test-level RunSpecifiedTests`, never `RunLocalTests`. Full rules and commands: `CONTRIBUTING.md`, "Deploying to the shared org".
 - Don't delete metadata or org data without explicit confirmation from John or Juan Diego.
-- The prototypes in `entregables/` guide the design, but they aren't the spec — if the code departs from them, log it in `docs/decisiones.md`.
+- The prototypes in `entregables-discovery/` guide the design, but they aren't the spec — if the code departs from them, log it in `docs/decisiones.md`.

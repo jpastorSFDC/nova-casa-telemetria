@@ -2,7 +2,7 @@
 
 Everything needed to close the sprint, in one place: where each story stands, the team decisions behind each card, the message contract, the scenario runs and how to repeat the evidence in the org. The older files it replaces (`entendimiento.md`, `preguntas-facilitador.md`, `contrato-mensaje.md`, `simulador.md`, `evidencia-escenarios.md`, `checklist-evidencia.md`, `demo.md`) and the demo script it carried until 2026-10-28 are in git history.
 
-**The final deliverables to review are in [`docs/entrega-final/`](entrega-final/)**: `Nova Casa - Documentacion Final.html` (one interactive page with all five documents) and the same five documents as PDFs (Funcional, Arquitectura y Diseno, Tecnica, Modelo de Datos, Permisos de Acceso). The `entregables/` folder is not the final version: it is the Discovery handover of September, kept frozen as it was approved.
+**The final deliverables to review are in [`docs/entrega-final/`](entrega-final/)**: `Nova Casa - Documentacion Final.html` (one interactive page with all five documents) and the same five documents as PDFs (Funcional, Arquitectura y Diseno, Tecnica, Modelo de Datos, Permisos de Acceso). The `entregables-discovery/` folder is not the final version: it is the Discovery handover of September, kept frozen as it was approved.
 
 The MDSS brief (`Sprint 2 - Nova Casa.md`) is the source of truth. The reason behind each rule is in [decisiones.md](decisiones.md) (the D-numbers below). Who sees and does what is in [acceso.md](acceso.md).
 
