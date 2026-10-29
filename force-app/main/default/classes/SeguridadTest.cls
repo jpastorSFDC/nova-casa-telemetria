@@ -341,7 +341,7 @@ private class SeguridadTest {
     // En PermissionSetTabSetting, "Visible" de la metadata del permission set se guarda como DefaultOn.
     @IsTest
     static void soloElGerenteDeclaraLasPestanasDeReportesYDashboards() {
-        List<String> pestanas = new List<String>{ 'standard-report', 'standard-Dashboard' };
+        List<String> pestanas = new List<String>{ 'standard-report', 'standard-Dashboard', 'Nova_Casa_Reportes_Gerencia' };
         for (String conjunto : new List<String>{ OPERADOR, COORDINADOR, GERENTE, ADMIN }) {
             Id conjuntoId = conjuntoPorNombre(conjunto).Id;
             Map<String, String> visibilidad = new Map<String, String>();
